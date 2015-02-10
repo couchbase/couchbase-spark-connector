@@ -1,7 +1,6 @@
-package test
+package com.couchbase.spark
 
-import com.couchbase.client.java.document.{RawJsonDocument, JsonDocument}
-import com.couchbase.spark._
+import com.couchbase.client.java.document.JsonDocument
 import org.apache.spark.{SparkConf, SparkContext}
 
 object Main {
@@ -10,11 +9,11 @@ object Main {
     val conf = new SparkConf().setMaster("local").setAppName("test")
     val sc = new SparkContext(conf)
 
-    val docs = sc.couchbaseGet("foo")
+    val docs = sc.couchbaseGet[JsonDocument]("foo")
 
-
-    println(docs.collect())
-
+    println(docs
+      .map(doc => (doc.id(), doc.content()))
+      .first())
   }
 
 }
