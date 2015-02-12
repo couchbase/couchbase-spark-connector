@@ -79,7 +79,6 @@ There will be better instructions soon.
 
 - Figure out how to make use of couchbase rdds in map functions and therelike without serialization issues
 - Support writing RDDs to Couchbase
-- Support "document" method on ViewRDD which will return a new DocumentRDD with all the row id contents
 - Support QueryRDD (N1QL)
 - Support connecting to multiple clusters/buckets in an easy fashion
 - Support Partitions on DocumentRDD (to split up bulk gets over multiple workers)

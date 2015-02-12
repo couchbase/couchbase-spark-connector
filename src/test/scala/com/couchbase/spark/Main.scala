@@ -20,13 +20,11 @@ object Main {
     val rows = sc.couchbaseView(ViewQuery.from("beer", "brewery_beers"))
 
     val ids = rows
-      .filter(_.id.startsWith("a"))
-      .map(_.id)
+      .documents[JsonDocument]()
+      .filter(_.content().getString("name").startsWith("a"))
       .collect()
 
-    val docs = sc.couchbaseGet[JsonDocument](ids)
-
-    docs.foreach(println)
+    ids.foreach(println)
   }
 
 }
