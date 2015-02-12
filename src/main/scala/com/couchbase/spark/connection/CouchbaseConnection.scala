@@ -21,35 +21,45 @@
  */
 package com.couchbase.spark.connection
 
-import java.util.concurrent.atomic.AtomicReference
-
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
 import com.couchbase.client.java.{Cluster, Bucket, CouchbaseCluster}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.jboss.netty.util.internal.ConcurrentHashMap
 
-class CouchbaseConnection {
+class CouchbaseConnection extends Serializable {
 
-  private val cluster: AtomicReference[Cluster] = new AtomicReference[Cluster]()
-  private val bucket: AtomicReference[Bucket] = new AtomicReference[Bucket]()
+  @transient var clusterRef: Option[Cluster] = None
+
+  @transient var buckets = new ConcurrentHashMap[String, Bucket]()
+
+  def cluster(cfg: CouchbaseConfig): Cluster = {
+    this.synchronized {
+      if (clusterRef.isEmpty) {
+        clusterRef = Option(CouchbaseCluster.create(DefaultCouchbaseEnvironment.create(), cfg.host))
+      }
+      clusterRef.get
+    }
+  }
 
   def bucket(cfg: CouchbaseConfig): Bucket = {
+    val bucketName = cfg.bucket
 
-    if (cluster.get() == null) {
-      cluster.set(CouchbaseCluster.create(cfg.host))
+    this.synchronized {
+      var bucket = buckets.get(bucketName)
+      if (bucket != null) {
+        return bucket
+      }
+      bucket = cluster(cfg).openBucket(bucketName)
+      buckets.put(bucketName, bucket)
+      bucket
     }
-
-
-    if (bucket.get() == null) {
-      bucket.set(cluster.get().openBucket(cfg.bucket, cfg.password))
-    }
-
-    bucket.get()
   }
 
 }
 
 object CouchbaseConnection {
 
-  private val connection = new CouchbaseConnection()
-  def get = connection
+  lazy val connection = new CouchbaseConnection()
+
+  def apply() = connection
 
 }

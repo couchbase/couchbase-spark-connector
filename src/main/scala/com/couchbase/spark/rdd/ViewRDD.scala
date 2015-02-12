@@ -13,11 +13,10 @@ case class CouchbaseViewRow(id: String, key: Any, value: Any)
 
 class ViewRDD(sc: SparkContext,viewQuery: ViewQuery) extends RDD[CouchbaseViewRow](sc, Nil) {
 
-  val cbConfig = new CouchbaseConfig(sc.getConf)
+  val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseViewRow] = {
-    CouchbaseConnection
-      .get
+    CouchbaseConnection()
       .bucket(cbConfig)
       .async()
       .query(viewQuery)

@@ -37,14 +37,14 @@ class DocumentRDD[D <: Document[_]]
     (implicit ct: ClassTag[D])
   extends RDD[D](sc, Nil) {
 
-  val cbConfig = new CouchbaseConfig(sc.getConf)
+  val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[D] = {
-    Observable
+   Observable
       .from(ids.toArray)
       .flatMap(new Func1[String, Observable[D]] {
         override def call(id: String) = {
-          CouchbaseConnection.get.bucket(cbConfig).async().get(id, ct.runtimeClass.asInstanceOf[Class[D]])
+          CouchbaseConnection().bucket(cbConfig).async().get(id, ct.runtimeClass.asInstanceOf[Class[D]])
         }
       })
     .toBlocking

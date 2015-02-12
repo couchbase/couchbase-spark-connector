@@ -83,5 +83,6 @@ There will be better instructions soon.
 - Support QueryRDD (N1QL)
 - Support connecting to multiple clusters/buckets in an easy fashion
 - Support Partitions on DocumentRDD (to split up bulk gets over multiple workers)
+- Support partitions on view queries / n1ql queries
 - Support Spark Streaming through DCP
 - Support Spark SQL through tight N1QL integration
