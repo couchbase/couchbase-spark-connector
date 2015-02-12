@@ -25,11 +25,10 @@ import com.couchbase.client.java.document.{JsonDocument, Document}
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{TaskContext, Partition, SparkContext}
 import org.apache.spark.rdd.RDD
-import rx.Observable
 import rx.functions.Func1
+import rx.lang.scala.Observable
 
-import scala.collection.JavaConversions._
-
+import rx.lang.scala.JavaConversions._
 import scala.reflect.ClassTag
 
 class DocumentRDD[D <: Document[_]]
@@ -40,15 +39,15 @@ class DocumentRDD[D <: Document[_]]
   val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[D] = {
-   Observable
-      .from(ids.toArray)
-      .flatMap(new Func1[String, Observable[D]] {
-        override def call(id: String) = {
-          CouchbaseConnection().bucket(cbConfig).async().get(id, ct.runtimeClass.asInstanceOf[Class[D]])
-        }
-      })
-    .toBlocking
-    .getIterator
+    val bucket = CouchbaseConnection().bucket(cbConfig).async()
+    val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
+
+    Observable
+      .from(ids)
+      .flatMap(id => toScalaObservable(bucket.get(id, castTo)))
+      .toBlocking
+      .toIterable
+      .iterator
   }
 
   override def getPartitions: Array[Partition] = {
