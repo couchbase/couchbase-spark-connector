@@ -57,6 +57,19 @@ val docs = sc.couchbaseGet[JsonDocument](ids)
 docs.foreach(println)
 ```
 
+You can also grab all the documents right from your ViewRDD, but note that it will only be executed on the same
+partition for now:
+
+```scala
+val allDocsStartingWithNameA = sc
+  .couchbaseView(ViewQuery.from("beer", "brewery_beers"))
+  .documents[JsonDocument]()
+  .filter(_.content().getString("name").startsWith("a"))
+  .collect()
+
+allDocsStartingWithNameA.foreach(println)
+```
+
 ## Building the Connector
 
 **Make sure for you have java-client 2.1.1-SNAPSHOT in your local maven repo (so you need to build it on your own)**
@@ -77,11 +90,11 @@ There will be better instructions soon.
 
 ## Todo
 
-- Figure out how to make use of couchbase rdds in map functions and therelike without serialization issues
 - Support writing RDDs to Couchbase
 - Support QueryRDD (N1QL)
 - Support connecting to multiple clusters/buckets in an easy fashion
 - Support Partitions on DocumentRDD (to split up bulk gets over multiple workers)
+- maybe support documents() method on the ViewRDD to support partitions?
 - Support partitions on view queries / n1ql queries
 - Support Spark Streaming through DCP
 - Support Spark SQL through tight N1QL integration

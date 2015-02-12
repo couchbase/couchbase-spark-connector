@@ -17,14 +17,13 @@ object Main {
 
 
 
-    val rows = sc.couchbaseView(ViewQuery.from("beer", "brewery_beers"))
-
-    val ids = rows
+    val allDocsStartingWithNameA = sc
+      .couchbaseView(ViewQuery.from("beer", "brewery_beers"))
       .documents[JsonDocument]()
       .filter(_.content().getString("name").startsWith("a"))
       .collect()
 
-    ids.foreach(println)
+    allDocsStartingWithNameA.foreach(println)
   }
 
 }
