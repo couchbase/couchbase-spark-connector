@@ -16,8 +16,6 @@ If you want to tune that, you can change the spark config:
 
 ```scala
 val conf = new SparkConf()
-  .setMaster("local")
-  .setAppName("test")
   // You can customize this for now:
   .set("couchbase.host", "192.168.56.101")
   .set("couchbase.bucket", "mybucket")
@@ -38,8 +36,31 @@ val docs = sc.couchbaseGet[JsonDocument](Seq("doc1", "doc2", "doc3"))
 val doc = sc.couchbaseGet[RawJsonDocument]("rawDoc")
 ```
 
+You can also get all view rows from a view:
+
+```scala
+val rows = sc.couchbaseView(ViewQuery.from("beer", "brewery_beers"))
+```
+
+and you can also combine it to do more advanced stuff:
+
+```scala
+val rows = sc.couchbaseView(ViewQuery.from("beer", "brewery_beers"))
+
+val ids = rows
+  .filter(_.id.startsWith("a"))
+  .map(_.id)
+  .collect()
+
+val docs = sc.couchbaseGet[JsonDocument](ids)
+
+docs.foreach(println)
+```
 
 ## Building the Connector
+
+**Make sure for you have java-client 2.1.1-SNAPSHOT in your local maven repo (so you need to build it on your own)**
+
 Since you need to have all of this on your classpath distributed to the worker nodes, there are essentially two
 ways to make it work:
 
