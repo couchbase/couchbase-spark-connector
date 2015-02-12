@@ -21,12 +21,12 @@
  */
 package com.couchbase.spark.connection
 
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 
-class CouchbaseConfig(ctx: SparkContext) extends Serializable {
+class CouchbaseConfig(cfg: SparkConf) extends Serializable {
 
-  val host = ctx.getConf.get("couchbase.host", "127.0.0.1")
-  val bucket = ctx.getConf.get("couchbase.bucket", "default")
-  val password = ctx.getConf.get("couchbase.password", "")
+  val host = cfg.get("couchbase.host", "127.0.0.1")
+  val bucket = cfg.get("couchbase.bucket", "default")
+  val password = cfg.get("couchbase.password", "")
 
 }

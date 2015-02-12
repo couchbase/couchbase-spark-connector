@@ -19,31 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
  * IN THE SOFTWARE.
  */
-package com.couchbase.spark
+package com.couchbase.spark.rdd
 
-import com.couchbase.client.java.document.{RawJsonDocument, Document, JsonDocument}
-import com.couchbase.client.java.view.ViewQuery
-import com.couchbase.spark.connection.CouchbaseConfig
-import com.couchbase.spark.rdd.{ViewRDD, DocumentRDD}
-import org.apache.spark.SparkContext
+import org.apache.spark.Partition
 
-import scala.reflect.ClassTag
-
-class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
-
-  def couchbaseGet[D <: Document[_]: ClassTag](id: String): DocumentRDD[D] = {
-    couchbaseGet(Seq(id)).asInstanceOf[DocumentRDD[D]]
-  }
-
-  def couchbaseGet[D <: Document[_]](ids: Seq[String])(implicit ct: ClassTag[D]) = {
-    ct match {
-      case ClassTag.Nothing => new DocumentRDD[JsonDocument](sc, ids, 1)
-      case _ => new DocumentRDD[D](sc, ids, 1)
-    }
-  }
-
-  def couchbaseView(query: ViewQuery) = {
-    new ViewRDD(sc, query)
-  }
-
+class CouchbasePartition(idx: Int) extends Partition {
+  override def index = idx
 }

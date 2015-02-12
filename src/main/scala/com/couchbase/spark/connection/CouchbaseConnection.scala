@@ -24,7 +24,7 @@ package com.couchbase.spark.connection
 import java.util.concurrent.atomic.AtomicReference
 
 import com.couchbase.client.java.{Cluster, Bucket, CouchbaseCluster}
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 
 class CouchbaseConnection {
 
@@ -32,6 +32,7 @@ class CouchbaseConnection {
   private val bucket: AtomicReference[Bucket] = new AtomicReference[Bucket]()
 
   def bucket(cfg: CouchbaseConfig): Bucket = {
+
     if (cluster.get() == null) {
       cluster.set(CouchbaseCluster.create(cfg.host))
     }

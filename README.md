@@ -55,4 +55,12 @@ to build the uber jar. You can then deploy it, but don't forget to point it to t
 There will be better instructions soon.
 
 ## Todo
-Too much to write it down into a condensed list yet ;)
+
+- Figure out how to make use of couchbase rdds in map functions and therelike without serialization issues
+- Support writing RDDs to Couchbase
+- Support "document" method on ViewRDD which will return a new DocumentRDD with all the row id contents
+- Support QueryRDD (N1QL)
+- Support connecting to multiple clusters/buckets in an easy fashion
+- Support Partitions on DocumentRDD (to split up bulk gets over multiple workers)
+- Support Spark Streaming through DCP
+- Support Spark SQL through tight N1QL integration

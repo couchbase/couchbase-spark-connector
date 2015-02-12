@@ -32,21 +32,19 @@ import scala.collection.JavaConversions._
 
 import scala.reflect.ClassTag
 
-class CouchbasePartition(idx: Int) extends Partition {
-  override def index = idx
-}
-
 class DocumentRDD[D <: Document[_]]
-    (sc: SparkContext, cfg: CouchbaseConfig, ids: Seq[String], numPartitions: Int)
+    (sc: SparkContext, ids: Seq[String], numPartitions: Int)
     (implicit ct: ClassTag[D])
   extends RDD[D](sc, Nil) {
+
+  val cbConfig = new CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[D] = {
     Observable
       .from(ids.toArray)
       .flatMap(new Func1[String, Observable[D]] {
         override def call(id: String) = {
-          CouchbaseConnection.get.bucket(cfg).async().get(id, ct.runtimeClass.asInstanceOf[Class[D]])
+          CouchbaseConnection.get.bucket(cbConfig).async().get(id, ct.runtimeClass.asInstanceOf[Class[D]])
         }
       })
     .toBlocking
