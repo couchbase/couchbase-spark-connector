@@ -21,6 +21,7 @@
  */
 package com.couchbase.spark
 
+import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
 import scala.reflect.ClassTag
@@ -47,10 +48,14 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (valueIterator.isEmpty) {
         Iterator[D]()
       } else {
-        val bucket = CouchbaseConnection().bucket(cbConfig)
+        val bucket = CouchbaseConnection().bucket(cbConfig).async()
         val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
-        valueIterator
-          .map[D](id => bucket.get(id, castTo))
+        Observable
+          .from(valueIterator.toIterable)
+          .flatMap(id => toScalaObservable(bucket.get(id, castTo)))
+          .toBlocking
+          .toIterable
+          .iterator
       }
     }
   }
