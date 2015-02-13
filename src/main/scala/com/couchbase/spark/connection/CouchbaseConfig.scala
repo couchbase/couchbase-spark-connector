@@ -32,6 +32,7 @@ object CouchbaseConfig {
   val DEFAULT_PASSWORD = ""
 
   def apply(cfg: SparkConf) = {
+    // Is it better to throw an exception if people forget to set the configs?
     val host = cfg.get("couchbase.host", DEFAULT_HOST)
     val bucket = cfg.get("couchbase.bucket", DEFAULT_BUCKET)
     val password = cfg.get("couchbase.password", DEFAULT_PASSWORD)

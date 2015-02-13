@@ -29,21 +29,17 @@ import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
 
+import org.apache.spark.rdd.RDD
+
 class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
 
-  def couchbaseGet[D <: Document[_]: ClassTag](id: String): DocumentRDD[D] = {
-    couchbaseGet(Seq(id)).asInstanceOf[DocumentRDD[D]]
+  def couchbaseGet[D <: Document[_]: ClassTag](ids: String*): RDD[D] = {
+    // Should ids be vararg or Seq?
+    sc.parallelize(ids).documents
   }
 
-  def couchbaseGet[D <: Document[_]](ids: Seq[String])(implicit ct: ClassTag[D]) = {
-    ct match {
-      case ClassTag.Nothing => new DocumentRDD[JsonDocument](sc, ids, 1)
-      case _ => new DocumentRDD[D](sc, ids, 1)
-    }
-  }
-
-  def couchbaseView(query: ViewQuery) = {
-    new ViewRDD(sc, query)
+  def couchbaseView(query: ViewQuery): ViewRDD = {
+    new ViewRDD(sc, query.getDesign, query.getView)
   }
 
 }
