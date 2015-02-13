@@ -16,18 +16,16 @@ object Main {
     val sc = new SparkContext(conf)
 
     // Use ids in the codes
-    val docs = sc.couchbaseGet("id")
-    val docs1 = sc.couchbaseGet("id1", "id2")
-    val ids = List("id1", "id2")
-    val docs3 = sc.couchbaseGet(ids: _*)
+    val docs = sc.couchbaseGet(Seq("id"))
+    val docs1 = sc.couchbaseGet(Seq("id1", "id2"), 10)
 
     // or read ids from files
-    val docs4 = sc.textFile("this_is_a_path").documents
+    val docs4 = sc.textFile("this_is_a_path").couchbaseGet
 
     val allDocsStartingWithNameA = sc
       .couchbaseView(ViewQuery.from("beer", "brewery_beers"))
       .map(row => row.id)
-      .documents[JsonDocument]
+      .couchbaseGet[JsonDocument]
       .filter(_.content().getString("name").startsWith("a"))
       .collect()
 

@@ -38,7 +38,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    * @tparam D
    * @return
    */
-  def documents[D <: Document[_]](implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
+  def couchbaseGet[D <: Document[_]](implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
     val idRDD: RDD[String] = rdd
     val cbConfig = CouchbaseConfig(idRDD.context.getConf)
     idRDD.mapPartitions { valueIterator =>
