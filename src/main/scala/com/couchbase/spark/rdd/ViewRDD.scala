@@ -13,13 +13,11 @@ import scala.reflect.ClassTag
 
 case class CouchbaseViewRow(id: String, key: Any, value: Any)
 
-class ViewRDD(@transient sc: SparkContext, design: String, view: String) extends RDD[CouchbaseViewRow](sc, Nil) {
-  // Use design and view because ViewQuery is not Serializable
+class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery) extends RDD[CouchbaseViewRow](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseViewRow] = {
-    val viewQuery = ViewQuery.from(design, view)
     val bucket = CouchbaseConnection().bucket(cbConfig).async()
 
     toScalaObservable(bucket.query(viewQuery))

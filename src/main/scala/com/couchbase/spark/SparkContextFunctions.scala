@@ -39,7 +39,7 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   }
 
   def couchbaseView(query: ViewQuery): ViewRDD = {
-    new ViewRDD(sc, query.getDesign, query.getView)
+    new ViewRDD(sc, query)
   }
 
 }
