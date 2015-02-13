@@ -1,7 +1,9 @@
 package com.couchbase.spark
 
 import com.couchbase.client.java.document.JsonDocument
+import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.view.ViewQuery
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
 object Main {
@@ -29,6 +31,12 @@ object Main {
       .collect()
 
     allDocsStartingWithNameA.foreach(println)
+
+    val rdd: RDD[(String, JsonObject)] = null // Just test if it can compile
+    rdd.documentRDD.saveToCouchbase()
+
+    val rdd2: RDD[JsonDocument] = null // Just test if it can compile
+    rdd2.saveToCouchbase()
   }
 
 }

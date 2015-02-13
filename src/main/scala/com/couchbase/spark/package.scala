@@ -21,12 +21,26 @@
  */
 package com.couchbase
 
+import scala.reflect.ClassTag
+
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+
+import com.couchbase.client.java.document.json.JsonObject
+import com.couchbase.client.java.document.{JsonDocument, Document}
+import com.couchbase.spark.rdd.DocumentRDDFunctions
 
 package object spark {
 
   implicit def toSparkContextFunctions(sc: SparkContext): SparkContextFunctions = new SparkContextFunctions(sc)
   implicit def toRDDFunctions[T](rdd: RDD[T]): RDDFunctions[T] = new RDDFunctions(rdd)
+  implicit def toDocumentRDDFunctions[D <: Document[_]](rdd: RDD[D]): DocumentRDDFunctions[D] = new DocumentRDDFunctions(rdd)
+  implicit def toPairRDDFunctions[V](rdd: RDD[(String, V)]): PairRDDFunctions[V] = new PairRDDFunctions(rdd)
 
+  implicit object JsonDocumentConverter extends DocumentConverter[JsonDocument, JsonObject]{
+
+    def documentClassTag(ct: ClassTag[JsonObject]): ClassTag[JsonDocument] = implicitly[ClassTag[JsonDocument]]
+
+    override def convert(id: String, content: JsonObject): JsonDocument = ??? // How to convert?
+  }
 }
