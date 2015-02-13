@@ -27,3 +27,7 @@ class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery) extends RDD[Cou
   override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
 
 }
+
+object ViewRDD {
+  def apply(sc: SparkContext, viewQuery: ViewQuery) = new ViewRDD(sc, viewQuery)
+}

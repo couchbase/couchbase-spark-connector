@@ -36,8 +36,6 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
     sc.parallelize(ids, numSlices).couchbaseGet
   }
 
-  def couchbaseView(query: ViewQuery): ViewRDD = {
-    new ViewRDD(sc, query)
-  }
+  def couchbaseView(query: ViewQuery): ViewRDD = ViewRDD(sc, query)
 
 }

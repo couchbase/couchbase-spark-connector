@@ -1,8 +1,7 @@
 package com.couchbase.spark
 
-import com.couchbase.client.java.document.{RawJsonDocument, JsonDocument}
+import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.view.ViewQuery
-import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{SparkConf, SparkContext}
 
 object Main {
