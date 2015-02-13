@@ -90,11 +90,11 @@ There will be better instructions soon.
 
 ## Todo
 
+- Check if we can batch the get async on couchbaseGet in functions to get better throughout (iterator?)
+- Make sure connections are properly closed when not needed anymore
 - Support writing RDDs to Couchbase
 - Support QueryRDD (N1QL)
 - Support connecting to multiple clusters/buckets in an easy fashion
-- Support Partitions on DocumentRDD (to split up bulk gets over multiple workers)
-- maybe support documents() method on the ViewRDD to support partitions?
-- Support partitions on view queries / n1ql queries
+- Support partitions on view queries / n1ql queries?
 - Support Spark Streaming through DCP
 - Support Spark SQL through tight N1QL integration

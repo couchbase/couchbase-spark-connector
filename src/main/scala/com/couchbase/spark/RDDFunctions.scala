@@ -21,6 +21,8 @@
  */
 package com.couchbase.spark
 
+import rx.lang.scala.Observable
+
 import scala.reflect.ClassTag
 
 import com.couchbase.client.java.document.Document
