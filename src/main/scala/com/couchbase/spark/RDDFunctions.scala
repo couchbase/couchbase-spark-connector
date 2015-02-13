@@ -21,8 +21,36 @@
  */
 package com.couchbase.spark
 
+import scala.reflect.ClassTag
+
+import com.couchbase.client.java.document.Document
+import com.couchbase.spark.connection.{CouchbaseConnection, CouchbaseConfig}
+
 import org.apache.spark.rdd.RDD
 
 class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
+
+  /**
+   * Convert a RDD[String] to a RDD[D]. It's available if T is String.
+   *
+   * @param ct
+   * @param evidence
+   * @tparam D
+   * @return
+   */
+  def documents[D <: Document[_]](implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
+    val idRDD: RDD[String] = rdd
+    val cbConfig = CouchbaseConfig(idRDD.context.getConf)
+    idRDD.mapPartitions { valueIterator =>
+      if (valueIterator.isEmpty) {
+        Iterator[D]()
+      } else {
+        val bucket = CouchbaseConnection().bucket(cbConfig)
+        val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
+        valueIterator
+          .map[D](id => bucket.get(id, castTo))
+      }
+    }
+  }
 
 }
