@@ -21,11 +21,10 @@
  */
 package com.couchbase.spark.rdd
 
-import com.couchbase.client.java.document.{JsonDocument, Document}
+import com.couchbase.client.java.document.Document
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{TaskContext, Partition, SparkContext}
 import org.apache.spark.rdd.RDD
-import rx.functions.Func1
 import rx.lang.scala.Observable
 
 import rx.lang.scala.JavaConversions._

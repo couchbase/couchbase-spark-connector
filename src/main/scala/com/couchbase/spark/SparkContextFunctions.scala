@@ -21,10 +21,9 @@
  */
 package com.couchbase.spark
 
-import com.couchbase.client.java.document.{RawJsonDocument, Document, JsonDocument}
+import com.couchbase.client.java.document.Document
 import com.couchbase.client.java.view.ViewQuery
-import com.couchbase.spark.connection.CouchbaseConfig
-import com.couchbase.spark.rdd.{ViewRDD, DocumentRDD}
+import com.couchbase.spark.rdd.ViewRDD
 import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
@@ -34,7 +33,6 @@ import org.apache.spark.rdd.RDD
 class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
 
   def couchbaseGet[D <: Document[_]: ClassTag](ids: String*): RDD[D] = {
-    // Should ids be vararg or Seq?
     sc.parallelize(ids).documents
   }
 

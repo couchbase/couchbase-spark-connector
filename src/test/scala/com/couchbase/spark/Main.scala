@@ -26,7 +26,8 @@ object Main {
 
     val allDocsStartingWithNameA = sc
       .couchbaseView(ViewQuery.from("beer", "brewery_beers"))
-      .documents[JsonDocument]()
+      .map(row => row.id)
+      .documents[JsonDocument]
       .filter(_.content().getString("name").startsWith("a"))
       .collect()
 
