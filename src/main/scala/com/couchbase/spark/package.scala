@@ -26,8 +26,8 @@ import scala.reflect.ClassTag
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
-import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.document.{JsonDocument, Document}
+import com.couchbase.client.java.document.json.{JsonArray, JsonObject}
+import com.couchbase.client.java.document.{JsonArrayDocument, JsonDocument, Document}
 import com.couchbase.spark.rdd.DocumentRDDFunctions
 
 package object spark {
@@ -37,10 +37,14 @@ package object spark {
   implicit def toDocumentRDDFunctions[D <: Document[_]](rdd: RDD[D]): DocumentRDDFunctions[D] = new DocumentRDDFunctions(rdd)
   implicit def toPairRDDFunctions[V](rdd: RDD[(String, V)]): PairRDDFunctions[V] = new PairRDDFunctions(rdd)
 
-  implicit object JsonDocumentConverter extends DocumentConverter[JsonDocument, JsonObject]{
-
+  implicit object JsonDocumentConverter extends DocumentConverter[JsonDocument, JsonObject] {
     def documentClassTag(ct: ClassTag[JsonObject]): ClassTag[JsonDocument] = implicitly[ClassTag[JsonDocument]]
-
-    override def convert(id: String, content: JsonObject): JsonDocument = ??? // How to convert?
+    override def convert(id: String, content: JsonObject): JsonDocument = JsonDocument.create(id, content)
   }
+
+  implicit object JsonArrayDocumentConverter extends DocumentConverter[JsonArrayDocument, JsonArray] {
+    def documentClassTag(ct: ClassTag[JsonArray]): ClassTag[JsonArrayDocument] = implicitly[ClassTag[JsonArrayDocument]]
+    override def convert(id: String, content: JsonArray): JsonArrayDocument = JsonArrayDocument.create(id, content)
+  }
+
 }

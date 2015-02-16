@@ -5,7 +5,7 @@ import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 
 import org.apache.spark.rdd.RDD
 
-class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D]) {
+class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D]) extends Serializable {
 
   private val cbConfig = CouchbaseConfig(rdd.context.getConf)
 
