@@ -18,6 +18,7 @@ repositories {
 dependencies {
     compile 'org.scala-lang:scala-library:2.10.4'
     compile 'org.apache.spark:spark-core_2.10:1.2.1'
+    compile 'org.apache.spark:spark-sql_2.10:1.2.1'
     compile 'com.couchbase.client:java-client:2.1.1-SNAPSHOT'
     compile 'io.reactivex:rxscala_2.10:0.23.1'
     testCompile 'org.scalatest:scalatest_2.10:2.2.4'

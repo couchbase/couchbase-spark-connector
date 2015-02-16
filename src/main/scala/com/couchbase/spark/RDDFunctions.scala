@@ -41,14 +41,14 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    * @tparam D
    * @return
    */
-  def couchbaseGet[D <: Document[_]](implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
+  def couchbaseGet[D <: Document[_]](bucketName: String = null)(implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
     val idRDD: RDD[String] = rdd
     val cbConfig = CouchbaseConfig(idRDD.context.getConf)
     idRDD.mapPartitions { valueIterator =>
       if (valueIterator.isEmpty) {
         Iterator[D]()
       } else {
-        val bucket = CouchbaseConnection().bucket(cbConfig).async()
+        val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
         val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
         Observable
           .from(valueIterator.toIterable)

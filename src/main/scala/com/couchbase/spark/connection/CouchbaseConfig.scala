@@ -23,22 +23,34 @@ package com.couchbase.spark.connection
 
 import org.apache.spark.{SparkConf, SparkContext}
 
-case class CouchbaseConfig(host: String, bucket: String, password: String)
+case class CouchbaseBucket(name: String, password: String)
+case class CouchbaseConfig(hosts: Seq[String], buckets: Seq[CouchbaseBucket])
 
 object CouchbaseConfig {
 
-  val DEFAULT_HOST = "127.0.0.1"
+  private val PREFIX = "com.couchbase."
+  private val BUCKET_PREFIX = PREFIX + "bucket."
+  private val NODES_PREFIX = PREFIX + "nodes"
+
+  val DEFAULT_NODE = "127.0.0.1"
   val DEFAULT_BUCKET = "default"
   val DEFAULT_PASSWORD = ""
 
   def apply(cfg: SparkConf) = {
-    // Is it better to throw an exception if people forget to set the configs?
-    val host = cfg.get("couchbase.host", DEFAULT_HOST)
-    val bucket = cfg.get("couchbase.bucket", DEFAULT_BUCKET)
-    val password = cfg.get("couchbase.password", DEFAULT_PASSWORD)
-    new CouchbaseConfig(host, bucket, password)
+    val bucketConfigs = cfg
+      .getAll.to[List]
+      .filter(pair => pair._1.startsWith(BUCKET_PREFIX))
+      .map(pair => CouchbaseBucket(pair._1.replace(BUCKET_PREFIX, ""), pair._2))
+
+    val nodes = cfg.get(NODES_PREFIX, DEFAULT_NODE).split(";")
+
+    if (bucketConfigs.isEmpty) {
+      new CouchbaseConfig(nodes, Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)))
+    } else {
+      new CouchbaseConfig(nodes, bucketConfigs)
+    }
   }
 
-  def apply() = new CouchbaseConfig(DEFAULT_HOST, DEFAULT_BUCKET, DEFAULT_PASSWORD)
+  def apply() = new CouchbaseConfig(Seq(DEFAULT_NODE), Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)))
 
 }

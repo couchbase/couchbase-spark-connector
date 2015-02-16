@@ -34,22 +34,35 @@ class CouchbaseConnection extends Serializable {
   def cluster(cfg: CouchbaseConfig): Cluster = {
     this.synchronized {
       if (clusterRef.isEmpty) {
-        clusterRef = Option(CouchbaseCluster.create(DefaultCouchbaseEnvironment.create(), cfg.host))
+        clusterRef = Option(CouchbaseCluster.create(DefaultCouchbaseEnvironment.create(), cfg.hosts:_*))
       }
       clusterRef.get
     }
   }
 
-  def bucket(cfg: CouchbaseConfig): Bucket = {
-    val bucketName = cfg.bucket
-
+  def bucket(bucketName: String = null, cfg: CouchbaseConfig): Bucket = {
+    val bname = if (bucketName == null) {
+      if (cfg.buckets.size != 1) {
+        throw new IllegalStateException("The bucket name can only be inferred if there is exactly 1 bucket set on the config")
+      } else {
+        cfg.buckets.head.name
+      }
+    } else {
+      bucketName
+    }
     this.synchronized {
-      var bucket = buckets.get(bucketName)
+      var bucket = buckets.get(bname)
       if (bucket != null) {
         return bucket
       }
-      bucket = cluster(cfg).openBucket(bucketName)
-      buckets.put(bucketName, bucket)
+
+      val foundBucketConfig = cfg.buckets.filter(_.name == bname)
+      if (foundBucketConfig.isEmpty) {
+        throw new IllegalStateException("Not able to find bucket password for bucket " + bname)
+      }
+
+      bucket = cluster(cfg).openBucket(bname, foundBucketConfig.head.password)
+      buckets.put(bname, bucket)
       bucket
     }
   }

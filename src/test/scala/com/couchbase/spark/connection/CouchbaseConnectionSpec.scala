@@ -15,8 +15,8 @@ class CouchbaseConnectionSpec extends FlatSpec with Matchers {
     val conn = CouchbaseConnection()
     val cfg = CouchbaseConfig()
 
-    val bucket1 = conn.bucket(cfg)
-    val bucket2 = conn.bucket(cfg)
+    val bucket1 = conn.bucket("default", cfg)
+    val bucket2 = conn.bucket("default", cfg)
 
     bucket1 should equal (bucket2)
   }

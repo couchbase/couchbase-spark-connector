@@ -9,12 +9,12 @@ import rx.lang.scala.JavaConversions._
 
 case class CouchbaseViewRow(id: String, key: Any, value: Any)
 
-class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery) extends RDD[CouchbaseViewRow](sc, Nil) {
+class ViewRDD(@transient sc: SparkContext, bucketName: String = null, viewQuery: ViewQuery) extends RDD[CouchbaseViewRow](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseViewRow] = {
-    val bucket = CouchbaseConnection().bucket(cbConfig).async()
+    val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
 
     toScalaObservable(bucket.query(viewQuery))
       .flatMap(result => toScalaObservable(result.rows()))
@@ -29,5 +29,5 @@ class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery) extends RDD[Cou
 }
 
 object ViewRDD {
-  def apply(sc: SparkContext, viewQuery: ViewQuery) = new ViewRDD(sc, viewQuery)
+  def apply(sc: SparkContext, bucketName: String, viewQuery: ViewQuery) = new ViewRDD(sc, bucketName, viewQuery)
 }
