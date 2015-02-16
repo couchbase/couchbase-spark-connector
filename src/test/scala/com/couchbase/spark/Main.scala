@@ -14,30 +14,20 @@ import org.apache.spark.SparkContext._
 object Main {
 
   def main(args: Array[String]) {
-    val conf = new SparkConf()
-      .set("com.couchbase.bucket.beer-sample", "")
-      //.set("com.couchbase.bucket.default", "")
-      //.setMaster("spark://daschlbook.local:7077")
-      .setMaster("local[*]")
-      .setAppName("test")
 
-    val sc = new SparkContext(conf)
+val conf = new SparkConf()
+  // spark specific params
+  .setMaster("local[*]")
+  .setAppName("myapp")
+  // couchbase specific params
+  .set("com.couchbase.nodes", "192.168.56.101;192.168.56.102")
+  .set("com.couchbase.bucket.mybucket", "password")
 
-    val sqlContext = new SQLContext(sc)
+// Start your spark context
+val sc = new SparkContext(conf)
 
-    val beers = sqlContext.jsonRDD(sc
-      .couchbaseView(query = ViewQuery.from("all", "all"))
-      .map(row => row.id)
-      .couchbaseGet[RawJsonDocument]()
-      .map(doc => doc.content()))
 
-    beers.printSchema()
-
-    beers.registerTempTable("beers")
-
-    val strongBeers = sqlContext.sql("SELECT name, abv FROM beers WHERE abv > 5.0 ORDER BY abv DESC LIMIT 10")
-
-    strongBeers.foreach(println)
+    sc.couchbaseGet[JsonDocument](ids = Seq("doc")).collect()
 
   }
 
