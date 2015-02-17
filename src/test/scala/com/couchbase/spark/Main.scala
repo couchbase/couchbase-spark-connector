@@ -2,7 +2,7 @@ package com.couchbase.spark
 
 import java.util.concurrent.TimeUnit
 
-import com.couchbase.client.java.document.{RawJsonDocument, JsonArrayDocument, JsonDocument}
+import com.couchbase.client.java.document.{Document, RawJsonDocument, JsonArrayDocument, JsonDocument}
 import com.couchbase.client.java.document.json.{JsonArray, JsonObject}
 import com.couchbase.client.java.query.consistency.ScanConsistency
 import com.couchbase.client.java.query.{Select, QueryParams, Query}
@@ -23,17 +23,23 @@ object Main {
 
     val conf = new SparkConf()
       // spark specific params
-      .set("com.couchbase.bucket.beer-sample", "")
+      .set("com.couchbase.bucket.default", "")
       .setMaster("local[*]")
       .setAppName("myapp")
 
     // Start your spark context
     val sc = new SparkContext(conf)
 
-val docs = sc
-  .couchbaseQuery(query = Query.simple(Select.select("count(*) as cnt").from("`beer-sample`"), QueryParams.build().consistency(ScanConsistency.NOT_BOUNDED)))
-    .map(row => row.value.getInt("cnt"))
-    .foreach(println)
+
+
+
+    val doc1 = ("doc1", Map("key" -> "value"))
+    val doc2 = ("doc2", Map("a" -> 1, "b" -> true))
+
+    val data = sc
+      .parallelize(Seq(doc1, doc2))
+      .toCouchbaseDocument[JsonDocument]
+      .saveToCouchbase()
 
   }
 
