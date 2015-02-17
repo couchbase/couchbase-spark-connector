@@ -12,7 +12,6 @@ General:
 
 Features:
 
-- Support QueryRDD (N1QL)
 - Support Spark Streaming through DCP
 - Support Spark SQL through tight N1QL integration
 - Support Java RDDs on all stuff

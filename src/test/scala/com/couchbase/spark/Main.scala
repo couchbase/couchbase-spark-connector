@@ -32,14 +32,13 @@ object Main {
 
 
 
+val query = Select.select("count(*) as cnt").from("`beer-sample`")
+val params = QueryParams.build().consistency(ScanConsistency.NOT_BOUNDED)
 
-    val doc1 = ("doc1", Map("key" -> "value"))
-    val doc2 = ("doc2", Map("a" -> 1, "b" -> true))
-
-    val data = sc
-      .parallelize(Seq(doc1, doc2))
-      .toCouchbaseDocument[JsonDocument]
-      .saveToCouchbase()
+val docs = sc
+  .couchbaseQuery(query = Query.simple(query, params))
+  .map(row => row.value.getInt("cnt"))
+  .foreach(println)
 
   }
 
