@@ -22,8 +22,9 @@
 package com.couchbase.spark
 
 import com.couchbase.client.java.document.Document
+import com.couchbase.client.java.query.{Query, Statement}
 import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
-import com.couchbase.spark.rdd.{SpatialViewRDD, ViewRDD}
+import com.couchbase.spark.rdd.{QueryRDD, SpatialViewRDD, ViewRDD}
 import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
@@ -40,4 +41,5 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
 
   def couchbaseSpatialView(bucketName: String = null, query: SpatialViewQuery) = SpatialViewRDD(sc, bucketName, query)
 
+  def couchbaseQuery(bucketName: String = null, query: Query) = QueryRDD(sc, bucketName, query)
 }

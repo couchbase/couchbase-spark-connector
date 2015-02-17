@@ -22,35 +22,36 @@
 package com.couchbase.spark.rdd
 
 import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.view.SpatialViewQuery
-import com.couchbase.spark.connection.{CouchbaseConnection, CouchbaseConfig}
-import org.apache.spark.{Partition, TaskContext, SparkContext}
+import com.couchbase.client.java.query.{Query, Statement}
+import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
+import org.apache.spark.{TaskContext, Partition, SparkContext}
 import org.apache.spark.rdd.RDD
 
 import rx.lang.scala.JavaConversions._
 
-case class CouchbaseSpatialViewRow(id: String, key: Any, value: Any, geometry: JsonObject)
+case class CouchbaseQueryRow(value: JsonObject)
 
-class SpatialViewRDD(@transient sc: SparkContext, bucketName: String = null, viewQuery: SpatialViewQuery)
-  extends RDD[CouchbaseSpatialViewRow](sc, Nil) {
+class QueryRDD(@transient sc: SparkContext, bucketName: String = null, query: Query)
+  extends RDD[CouchbaseQueryRow](sc, Nil)  {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseSpatialViewRow] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseQueryRow] = {
     val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
 
-    toScalaObservable(bucket.query(viewQuery))
-      .flatMap(result => toScalaObservable(result.rows()))
-      .map(row => CouchbaseSpatialViewRow(row.id(), row.key(), row.value(), row.geometry()))
+    toScalaObservable(bucket.query(query))
+      .flatMap(_.rows())
+      .map(row => CouchbaseQueryRow(row.value()))
       .toBlocking
       .toIterable
       .iterator
   }
 
   override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
-
 }
 
-object SpatialViewRDD {
-  def apply(sc: SparkContext, bucketName: String, viewQuery: SpatialViewQuery) = new SpatialViewRDD(sc, bucketName, viewQuery)
+object QueryRDD {
+
+  def apply(sc: SparkContext, bucketName: String, query: Query) = new QueryRDD(sc, bucketName, query)
+
 }
