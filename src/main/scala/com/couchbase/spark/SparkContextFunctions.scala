@@ -22,8 +22,8 @@
 package com.couchbase.spark
 
 import com.couchbase.client.java.document.Document
-import com.couchbase.client.java.view.ViewQuery
-import com.couchbase.spark.rdd.ViewRDD
+import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
+import com.couchbase.spark.rdd.{SpatialViewRDD, ViewRDD}
 import org.apache.spark.SparkContext
 
 import scala.reflect.ClassTag
@@ -36,6 +36,8 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
     sc.parallelize(ids, numSlices).couchbaseGet(bucketName)
   }
 
-  def couchbaseView(bucketName: String = null, query: ViewQuery): ViewRDD = ViewRDD(sc, bucketName, query)
+  def couchbaseView(bucketName: String = null, query: ViewQuery) = ViewRDD(sc, bucketName, query)
+
+  def couchbaseSpatialView(bucketName: String = null, query: SpatialViewQuery) = SpatialViewRDD(sc, bucketName, query)
 
 }

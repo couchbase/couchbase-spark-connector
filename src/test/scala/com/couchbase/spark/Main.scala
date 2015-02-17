@@ -11,23 +11,25 @@ import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
 
+import com.couchbase.spark._
+
 object Main {
 
   def main(args: Array[String]) {
 
-val conf = new SparkConf()
-  // spark specific params
-  .setMaster("local[*]")
-  .setAppName("myapp")
-  // couchbase specific params
-  .set("com.couchbase.nodes", "192.168.56.101;192.168.56.102")
-  .set("com.couchbase.bucket.mybucket", "password")
+    val conf = new SparkConf()
+      // spark specific params
+      .setMaster("local[*]")
+      .setAppName("myapp")
 
-// Start your spark context
-val sc = new SparkContext(conf)
+    // Start your spark context
+    val sc = new SparkContext(conf)
 
-
-    sc.couchbaseGet[JsonDocument](ids = Seq("doc")).collect()
+val docs = sc
+  .couchbaseView(query = ViewQuery.from("user", "all").limit(100).descending().reduce(false))
+  .map(_.id)
+  .couchbaseGet[JsonDocument]()
+  .collect()
 
   }
 
