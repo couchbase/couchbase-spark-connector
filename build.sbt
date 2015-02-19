@@ -1,5 +1,5 @@
-name := "couchbase-spark-connector"
-
+name := "spark-connector"
+  
 organization := "com.couchbase.client"
 
 description := "Official Couchbase Spark Connector"
