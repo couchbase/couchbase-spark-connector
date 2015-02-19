@@ -1,6 +1,10 @@
 # Couchbase Spark Connector
 
-.. currently rewriting this, see the wiki for more info as well ..
+Welcome to the official couchbase spark connector! It provides functionality to chain together both Couchbase Server and Spark
+in various versions and combinations. It is still under development, so use with care and open issues if you come across them.
+
+If you want to learn how it works, for now please refer to the [Wiki](https://github.com/couchbaselabs/couchbase-spark-connector/wiki). It
+currently acts as the primary resource to get started.
 
 ## Todo
 
