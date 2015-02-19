@@ -1,5 +1,5 @@
 name := "spark-connector"
-  
+
 organization := "com.couchbase.client"
 
 description := "Official Couchbase Spark Connector"
@@ -11,7 +11,7 @@ scalaVersion := "2.10.4"
 crossScalaVersions := Seq("2.11.5", "2.10.4")
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "1.2.1",
+  "org.apache.spark" %% "spark-core" % "1.2.1" % "provided",
   "com.couchbase.client" % "java-client" % "2.1.1-SNAPSHOT",
   "io.reactivex" %% "rxscala" % "0.23.1",
   "org.scalatest" %% "scalatest" % "2.2.4" % "test"
@@ -49,3 +49,10 @@ pomExtra := (
     </developer>
   </developers>
 )
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.rename
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}
