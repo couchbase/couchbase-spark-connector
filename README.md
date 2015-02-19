@@ -24,3 +24,11 @@ Enhancements:
 
 - Make sure connections are properly closed when not needed anymore
 - Support callbacks on connection ("with bucket", "with cluster",...)
+
+## License
+
+Copyright 2013 Couchbase Inc.
+
+Licensed under the Apache License, Version 2.0.
+
+See [the Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
