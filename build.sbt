@@ -12,6 +12,7 @@ crossScalaVersions := Seq("2.11.5", "2.10.4")
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.2.1" % "provided",
+  "org.apache.spark" %% "spark-streaming" % "1.2.1" % "provided",
   "com.couchbase.client" % "java-client" % "2.1.1-SNAPSHOT",
   "io.reactivex" %% "rxscala" % "0.23.1",
   "org.scalatest" %% "scalatest" % "2.2.4" % "test"
