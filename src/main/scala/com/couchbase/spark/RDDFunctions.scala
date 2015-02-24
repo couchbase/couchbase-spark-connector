@@ -21,6 +21,7 @@
  */
 package com.couchbase.spark
 
+import com.couchbase.spark.internal.LazyIterator
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
@@ -50,12 +51,14 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       } else {
         val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
         val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
-        Observable
-          .from(valueIterator.toIterable)
-          .flatMap(id => toScalaObservable(bucket.get(id, castTo)))
-          .toBlocking
-          .toIterable
-          .iterator
+        LazyIterator {
+          Observable
+            .from(valueIterator.toIterable)
+            .flatMap(id => toScalaObservable(bucket.get(id, castTo)))
+            .toBlocking
+            .toIterable
+            .iterator
+        }
       }
     }
   }
