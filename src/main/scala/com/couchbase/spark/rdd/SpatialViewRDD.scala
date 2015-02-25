@@ -24,6 +24,7 @@ package com.couchbase.spark.rdd
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.view.SpatialViewQuery
 import com.couchbase.spark.connection.{CouchbaseConnection, CouchbaseConfig}
+import com.couchbase.spark.internal.LazyIterator
 import org.apache.spark.{Partition, TaskContext, SparkContext}
 import org.apache.spark.rdd.RDD
 
@@ -39,12 +40,14 @@ class SpatialViewRDD(@transient sc: SparkContext, bucketName: String = null, vie
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseSpatialViewRow] = {
     val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
 
-    toScalaObservable(bucket.query(viewQuery))
-      .flatMap(result => toScalaObservable(result.rows()))
-      .map(row => CouchbaseSpatialViewRow(row.id(), row.key(), row.value(), row.geometry()))
-      .toBlocking
-      .toIterable
-      .iterator
+    LazyIterator {
+      toScalaObservable(bucket.query(viewQuery))
+        .flatMap(result => toScalaObservable(result.rows()))
+        .map(row => CouchbaseSpatialViewRow(row.id(), row.key(), row.value(), row.geometry()))
+        .toBlocking
+        .toIterable
+        .iterator
+    }
   }
 
   override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
