@@ -49,7 +49,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (valueIterator.isEmpty) {
         Iterator[D]()
       } else {
-        val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
+        val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
         val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
         LazyIterator {
           Observable

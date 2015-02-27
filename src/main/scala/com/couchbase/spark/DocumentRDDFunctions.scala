@@ -14,7 +14,7 @@ class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D]) extends Serializable {
   def saveToCouchbase(bucketName: String = null): Unit = {
     rdd.foreachPartition(iter => {
       if (iter.nonEmpty) {
-        val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
+        val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
         Observable
           .from(OnceIterable(iter))
           .flatMap(doc => toScalaObservable(bucket.upsert[D](doc)))
