@@ -10,7 +10,6 @@ currently acts as the primary resource to get started.
 
 General:
 
-- migrate the whole thing to sbt (build to 2.10 and 2.11, generate scaladoc,...)
 - add docs on how to set up stub projects
 - add docs on some simple samples to run with the `beer-sample` bucket
 

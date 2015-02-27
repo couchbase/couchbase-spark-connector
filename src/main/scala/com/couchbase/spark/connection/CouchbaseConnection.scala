@@ -40,7 +40,7 @@ class CouchbaseConnection extends Serializable {
     }
   }
 
-  def bucket(bucketName: String = null, cfg: CouchbaseConfig): Bucket = {
+  def bucket(cfg: CouchbaseConfig, bucketName: String = null): Bucket = {
     val bname = if (bucketName == null) {
       if (cfg.buckets.size != 1) {
         throw new IllegalStateException("The bucket name can only be inferred if there is exactly 1 bucket set on the config")

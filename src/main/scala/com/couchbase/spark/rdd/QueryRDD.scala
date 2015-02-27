@@ -32,13 +32,13 @@ import rx.lang.scala.JavaConversions._
 
 case class CouchbaseQueryRow(value: JsonObject)
 
-class QueryRDD(@transient sc: SparkContext, bucketName: String = null, query: Query)
+class QueryRDD(@transient sc: SparkContext, query: Query, bucketName: String = null)
   extends RDD[CouchbaseQueryRow](sc, Nil)  {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseQueryRow] = {
-    val bucket = CouchbaseConnection().bucket(bucketName, cbConfig).async()
+    val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
 
     LazyIterator {
       toScalaObservable(bucket.query(query))
@@ -55,6 +55,6 @@ class QueryRDD(@transient sc: SparkContext, bucketName: String = null, query: Qu
 
 object QueryRDD {
 
-  def apply(sc: SparkContext, bucketName: String, query: Query) = new QueryRDD(sc, bucketName, query)
+  def apply(sc: SparkContext, bucketName: String, query: Query) = new QueryRDD(sc, query, bucketName)
 
 }
