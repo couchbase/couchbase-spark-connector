@@ -6,27 +6,28 @@ in various versions and combinations. It is still under development, so use with
 If you want to learn how it works, for now please refer to the [Wiki](https://github.com/couchbaselabs/couchbase-spark-connector/wiki). It
 currently acts as the primary resource to get started.
 
-## Todo
+## Quickstart
 
-General:
+A sample `build.sbt`:
 
-- add docs on how to set up stub projects
-- add docs on some simple samples to run with the `beer-sample` bucket
+```scala
+name := "your-couchbase-spark-app"
 
-Features:
+scalaVersion := "2.10.4"
 
-- Support Spark Streaming through DCP
-- Support Spark SQL through tight N1QL integration
-- Support Java RDDs on all stuff
+libraryDependencies ++= Seq(
+  "com.couchbase.client" %% "spark-connector" % "1.0.0-dp",
+  "org.apache.spark" %% "spark-streaming" % "1.2.1"
+)
 
-Enhancements:
+resolvers += "Couchbase Repository" at "http://files.couchbase.com/maven2/"
+```
 
-- Make sure connections are properly closed when not needed anymore
-- Support callbacks on connection ("with bucket", "with cluster",...)
+The wiki docs provide examples how to read and write to couchbase - have fun!
 
 ## License
 
-Copyright 2013 Couchbase Inc.
+Copyright 2015 Couchbase Inc.
 
 Licensed under the Apache License, Version 2.0.
 
