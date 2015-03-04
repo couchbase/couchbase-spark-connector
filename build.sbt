@@ -4,7 +4,7 @@ organization := "com.couchbase.client"
 
 description := "Official Couchbase Spark Connector"
 
-version := "1.0.0-SNAPSHOT"
+version := "1.0.0-dp"
 
 scalaVersion := "2.10.4"
 
