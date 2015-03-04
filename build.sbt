@@ -2,9 +2,11 @@ name := "spark-connector"
 
 organization := "com.couchbase.client"
 
+version := "1.0.0-dp"
+
 description := "Official Couchbase Spark Connector"
 
-version := "1.0.0-dp"
+organizationHomepage := Some(url("http://couchbase.com"))
 
 scalaVersion := "2.10.4"
 
