@@ -1,7 +1,8 @@
 package com.couchbase.spark.sql
 
 import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.types.{FloatType, StringType}
+import org.apache.spark.sql.catalyst.expressions.{Descending, SortOrder}
+import org.apache.spark.sql.types._
 import org.apache.spark.{SparkConf, SparkContext}
 
 
@@ -22,15 +23,19 @@ object Example {
 
     val sql = new SQLContext(sc)
 
-    val dataFrame = sql.n1ql(Map(
-      "name" -> StringType,
-      "abv" -> FloatType,
-      "type" -> StringType
-    ))
 
-    dataFrame.printSchema()
+    val df = sql.n1ql(StructType(Seq(
+      StructField("name", StringType),
+      StructField("abv", DoubleType),
+      StructField("type", StringType)
+    )))
 
-    dataFrame.filter("type = 'beer'").limit(5).show()
+    df
+      .select("name", "abv", "type")
+      .where(df("type").equalTo("beer"))
+      .sort(df("abv").desc)
+      .limit(10)
+      .show()
 
   }
 

@@ -29,7 +29,7 @@ import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.sql.sources.{EqualTo, Filter, PrunedFilteredScan, BaseRelation}
 import org.apache.spark.sql.types._
 
-class N1QLRelation(bucket: String, userSchema: Map[String, DataType])(@transient val sqlContext: SQLContext) extends BaseRelation with PrunedFilteredScan {
+class N1QLRelation(bucket: String, userSchema: Option[StructType])(@transient val sqlContext: SQLContext) extends BaseRelation with PrunedFilteredScan {
 
   private val cbConfig = CouchbaseConfig(sqlContext.sparkContext.getConf)
 
@@ -39,22 +39,22 @@ class N1QLRelation(bucket: String, userSchema: Map[String, DataType])(@transient
     bucket
   }
 
-  override def schema: StructType = {
-    val fields = userSchema.map(value => StructField(value._1, value._2))
-    StructType(fields.toList)
-  }
+  override val schema = userSchema.get
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
 
     val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + buildFilter(filters)
-    val schema = userSchema
+    val usableSchema = schema
 
     QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(row => {
       val mapped = requiredColumns.map(column => {
-        val neededType = schema(column)
+        val neededType = usableSchema(column).dataType
+        
         if (neededType == StringType) {
           row.value.getString(column)
         } else if (neededType == FloatType) {
+          row.value.getDouble(column).toFloat
+        } else if (neededType == DoubleType) {
           row.value.getDouble(column).asInstanceOf[Double]
         } else {
           throw new Exception("Unhandled type" + neededType)
