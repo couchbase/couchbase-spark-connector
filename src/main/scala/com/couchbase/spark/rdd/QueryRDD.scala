@@ -22,10 +22,10 @@
 package com.couchbase.spark.rdd
 
 import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.query.{Query, Statement}
+import com.couchbase.client.java.query.Query
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.internal.LazyIterator
-import org.apache.spark.{TaskContext, Partition, SparkContext}
+import org.apache.spark.{Logging, TaskContext, Partition, SparkContext}
 import org.apache.spark.rdd.RDD
 
 import rx.lang.scala.JavaConversions._
@@ -33,7 +33,8 @@ import rx.lang.scala.JavaConversions._
 case class CouchbaseQueryRow(value: JsonObject)
 
 class QueryRDD(@transient sc: SparkContext, query: Query, bucketName: String = null)
-  extends RDD[CouchbaseQueryRow](sc, Nil)  {
+  extends RDD[CouchbaseQueryRow](sc, Nil)
+  with Logging {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 

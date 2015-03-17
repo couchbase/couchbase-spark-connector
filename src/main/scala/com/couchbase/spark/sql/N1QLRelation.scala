@@ -25,6 +25,7 @@ import com.couchbase.client.java.document.json.{JsonArray, JsonObject}
 import com.couchbase.client.java.query.Query
 import com.couchbase.spark.connection.CouchbaseConfig
 import com.couchbase.spark.rdd.QueryRDD
+import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.sql.sources._
@@ -46,26 +47,26 @@ import scala.collection.JavaConversions._
  */
 class N1QLRelation(bucket: String, userSchema: Option[StructType])(@transient val sqlContext: SQLContext)
   extends BaseRelation
-  with PrunedFilteredScan {
+  with PrunedFilteredScan
+  with Logging {
 
   private val cbConfig = CouchbaseConfig(sqlContext.sparkContext.getConf)
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets(0).name)
-  
+
   override val schema = userSchema.getOrElse[StructType] {
     val query = s"SELECT `$bucketName`.* FROM `$bucketName` LIMIT 100"
+    logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
-    val fields = QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query))
-      .flatMap(_.value.toMap)
-      .map(kv => StructField(kv._1, N1QLRelation.N1QLToSparkType(kv._2)))
-      .distinct()
-
-    StructType(fields.collect())
+    sqlContext.jsonRDD(
+      QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(_.value.toString)
+    ).schema
   }
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + buildFilter(filters)
     val usableSchema = schema
 
+    logInfo(s"Executing generated query: '$query'")
     QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(row => {
       val mapped = requiredColumns.map(column => {
         val neededType = usableSchema(column).dataType
@@ -130,27 +131,6 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType])(@transient va
     })
 
     filter.toString()
-  }
-
-}
-
-object N1QLRelation {
-
-  def N1QLToSparkType(value: AnyRef): DataType = {
-    value match {
-      case _: java.lang.String => StringType
-      case _: java.lang.Float => FloatType
-      case _: java.lang.Double => DoubleType
-      case _: java.lang.Integer => IntegerType
-      case _: java.lang.Long => LongType
-      case _: java.util.Map[String, _] => MapType(StringType, NullType)
-      case _: java.util.List[_] => ArrayType(NullType)
-      case _: java.lang.Boolean => BooleanType
-      case _ => {
-        println(value.getClass)
-        NullType
-      }
-    }
   }
 
 }

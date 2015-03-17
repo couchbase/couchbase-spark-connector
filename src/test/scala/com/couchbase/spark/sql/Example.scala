@@ -33,12 +33,14 @@ object Example {
     val df = sql.n1ql()
 
     df.printSchema()
+
     df
-      .select("name", "abv", "type")
-      .where(df("type").equalTo("beer").and(df("abv").lt(20)))
-      .sort(df("abv").desc)
+      //.select("name", "abv", "type")
+      //.where(df("type").equalTo("beer").and(df("abv").lt(20.0)))
+      //.sort(df("abv").desc)
+      //.limit(10)
       .limit(10)
-      .show()
+      .show(10)
 
   }
 

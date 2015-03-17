@@ -6,13 +6,8 @@ import org.apache.spark.sql.types.{StructType, DataType}
 
 class SparkSQLFunctions(@transient val ssc: SQLContext) extends Serializable {
 
-  def n1ql(userSchema: StructType, bucketName: String = null): DataFrame = {
-    val relation = new N1QLRelation(bucketName, Some(userSchema))(ssc)
-    ssc.baseRelationToDataFrame(relation)
-  }
-
-  def n1ql(): DataFrame = {
-    val relation = new N1QLRelation(null, None)(ssc)
+  def n1ql(userSchema: StructType = null, bucketName: String = null): DataFrame = {
+    val relation = new N1QLRelation(bucketName, Option(userSchema))(ssc)
     ssc.baseRelationToDataFrame(relation)
   }
 
