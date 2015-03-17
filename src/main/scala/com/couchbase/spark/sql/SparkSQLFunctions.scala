@@ -11,4 +11,9 @@ class SparkSQLFunctions(@transient val ssc: SQLContext) extends Serializable {
     ssc.baseRelationToDataFrame(relation)
   }
 
+  def n1ql(): DataFrame = {
+    val relation = new N1QLRelation(null, None)(ssc)
+    ssc.baseRelationToDataFrame(relation)
+  }
+
 }

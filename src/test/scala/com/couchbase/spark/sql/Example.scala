@@ -24,15 +24,18 @@ object Example {
     val sql = new SQLContext(sc)
 
 
-    val df = sql.n1ql(StructType(Seq(
-      StructField("name", StringType),
-      StructField("abv", DoubleType),
-      StructField("type", StringType)
-    )))
+    /*val df = sql.n1ql(StructType(
+      StructField("name", StringType) ::
+      StructField("abv", DoubleType) ::
+      StructField("type", StringType) :: Nil
+    ))*/
 
+    val df = sql.n1ql()
+
+    df.printSchema()
     df
       .select("name", "abv", "type")
-      .where(df("type").equalTo("beer"))
+      .where(df("type").equalTo("beer").and(df("abv").lt(20)))
       .sort(df("abv").desc)
       .limit(10)
       .show()
