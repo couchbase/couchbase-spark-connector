@@ -36,8 +36,6 @@ import scala.collection.JavaConversions._
  * Implements a the BaseRelation for N1QL Queries.
  *
  * TODO:
- * 	  - recursive type inference (maps, lists)
- *	  - make sure types are distinct & escalated for different types
  *	  - fix where clause recursions and operators
  *	  - recursive stuff in buildScan
  *
@@ -45,7 +43,7 @@ import scala.collection.JavaConversions._
  * @param userSchema the optional schema (if not provided it will be inferred)
  * @param sqlContext the sql context.
  */
-class N1QLRelation(bucket: String, userSchema: Option[StructType])(@transient val sqlContext: SQLContext)
+class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Option[Filter])(@transient val sqlContext: SQLContext)
   extends BaseRelation
   with PrunedFilteredScan
   with Logging {
@@ -54,7 +52,14 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType])(@transient va
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets(0).name)
 
   override val schema = userSchema.getOrElse[StructType] {
-    val query = s"SELECT `$bucketName`.* FROM `$bucketName` LIMIT 100"
+
+    val queryFilter = if (filter.isDefined) {
+      buildFilter(Array(filter.get))
+    } else {
+      ""
+    }
+
+    val query = s"SELECT `$bucketName`.* FROM `$bucketName` $queryFilter LIMIT 100"
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
     sqlContext.jsonRDD(
@@ -63,7 +68,13 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType])(@transient va
   }
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
-    val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + buildFilter(filters)
+    val mergedFilters = if (filter.isDefined) {
+      filters ++ filter
+    } else {
+      filters
+    }
+
+    val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + buildFilter(mergedFilters)
     val usableSchema = schema
 
     logInfo(s"Executing generated query: '$query'")

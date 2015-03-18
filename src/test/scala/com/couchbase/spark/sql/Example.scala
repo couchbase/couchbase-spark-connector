@@ -2,6 +2,7 @@ package com.couchbase.spark.sql
 
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.expressions.{Descending, SortOrder}
+import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.types._
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -20,26 +21,24 @@ object Example {
 
     val conf = new SparkConf().setMaster("local[*]").set("com.couchbase.bucket.beer-sample", "").setAppName("sqltest")
     val sc = new SparkContext(conf)
-
     val sql = new SQLContext(sc)
 
-
+    // manual schema
     /*val df = sql.n1ql(StructType(
       StructField("name", StringType) ::
       StructField("abv", DoubleType) ::
       StructField("type", StringType) :: Nil
     ))*/
 
-    val df = sql.n1ql()
+    // schema inference
+    val df = sql.n1ql(filter = EqualTo("type", "beer"))
 
     df.printSchema()
 
     df
-      //.select("name", "abv", "type")
-      //.where(df("type").equalTo("beer").and(df("abv").lt(20.0)))
-      //.sort(df("abv").desc)
-      //.limit(10)
-      .limit(10)
+      .select("name", "abv", "type")
+      .where(df("abv").lt(20.0))
+      .sort(df("abv").desc)
       .show(10)
 
   }
