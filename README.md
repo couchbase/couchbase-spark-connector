@@ -19,7 +19,7 @@ If you are using SBT:
 
 ```
 libraryDependencies += "com.couchbase.client" %% "spark-connector" % "1.0.0-dp"
-``
+```
 
 Since right now only a developer preview is available, you also need to include the Couchbase Maven Repository. Once
 a GA release ships, the artifacts will be available from Maven Central.
