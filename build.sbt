@@ -41,10 +41,17 @@ credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 pomExtra := (
   <url>https://github.com/couchbaselabs/couchbase-spark-connector</url>
-    <scm>
-      <url>git@github.com:couchbaselabs/couchbase-spark-connector.git</url>
-      <connection>scm:git:git@github.com:couchbaselabs/couchbase-spark-connector.git</connection>
-    </scm>
+  <licenses>
+    <license>
+      <name>Apache License, Verision 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <scm>
+    <url>git@github.com:couchbaselabs/couchbase-spark-connector.git</url>
+    <connection>scm:git:git@github.com:couchbaselabs/couchbase-spark-connector.git</connection>
+  </scm>
   <developers>
     <developer>
       <id>daschl</id>
