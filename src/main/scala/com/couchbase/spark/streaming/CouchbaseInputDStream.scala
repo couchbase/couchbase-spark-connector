@@ -40,7 +40,7 @@ case class Snapshot(seqStart: Long, seqEnd: Long, memory: Boolean, disk: Boolean
 case class Mutation(key: String, content: Array[Byte], expiry: Integer, cas: Long, flags: Int, lockTime: Int) extends StreamMessage
 case class Deletion(key: String, cas: Long) extends StreamMessage
 
-class CouchbaseInputDStream(@transient ssc: StreamingContext, bucket: String = null)
+class CouchbaseInputDStream(@transient ssc: StreamingContext, storageLevel: StorageLevel, bucket: String = null)
   extends ReceiverInputDStream[StreamMessage](ssc)
   with Logging {
 
@@ -48,7 +48,7 @@ class CouchbaseInputDStream(@transient ssc: StreamingContext, bucket: String = n
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
 
   override def getReceiver(): Receiver[StreamMessage] = {
-    new CouchbaseReceiver(cbConfig, bucketName, StorageLevel.MEMORY_ONLY)
+    new CouchbaseReceiver(cbConfig, bucketName, storageLevel)
   }
 
 }
