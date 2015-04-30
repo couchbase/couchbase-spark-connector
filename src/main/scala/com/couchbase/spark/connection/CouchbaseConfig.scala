@@ -21,7 +21,7 @@
  */
 package com.couchbase.spark.connection
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkConf
 
 case class CouchbaseBucket(name: String, password: String)
 case class CouchbaseConfig(hosts: Seq[String], buckets: Seq[CouchbaseBucket])
@@ -51,6 +51,9 @@ object CouchbaseConfig {
     }
   }
 
-  def apply() = new CouchbaseConfig(Seq(DEFAULT_NODE), Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)))
+  def apply() = new CouchbaseConfig(
+    Seq(DEFAULT_NODE),
+    Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD))
+  )
 
 }

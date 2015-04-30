@@ -56,6 +56,7 @@ class QueryRDD(@transient sc: SparkContext, query: Query, bucketName: String = n
 
 object QueryRDD {
 
-  def apply(sc: SparkContext, bucketName: String, query: Query) = new QueryRDD(sc, query, bucketName)
+  def apply(sc: SparkContext, bucketName: String, query: Query) =
+    new QueryRDD(sc, query, bucketName)
 
 }

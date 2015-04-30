@@ -33,13 +33,15 @@ import org.apache.spark.rdd.RDD
 
 class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
 
-  def couchbaseGet[D <: Document[_]: ClassTag](ids: Seq[String], bucketName: String = null, numSlices: Int = sc.defaultParallelism): RDD[D] = {
+  def couchbaseGet[D <: Document[_]: ClassTag](ids: Seq[String], bucketName: String = null,
+    numSlices: Int = sc.defaultParallelism): RDD[D] = {
     sc.parallelize(ids, numSlices).couchbaseGet(bucketName)
   }
 
   def couchbaseView(query: ViewQuery, bucketName: String = null) = ViewRDD(sc, bucketName, query)
 
-  def couchbaseSpatialView(query: SpatialViewQuery, bucketName: String = null) = SpatialViewRDD(sc, bucketName, query)
+  def couchbaseSpatialView(query: SpatialViewQuery, bucketName: String = null) =
+    SpatialViewRDD(sc, bucketName, query)
 
   def couchbaseQuery(query: Query, bucketName: String = null) = QueryRDD(sc, bucketName, query)
 }

@@ -32,12 +32,14 @@ import rx.lang.scala.JavaConversions._
 
 case class CouchbaseSpatialViewRow(id: String, key: Any, value: Any, geometry: JsonObject)
 
-class SpatialViewRDD(@transient sc: SparkContext, viewQuery: SpatialViewQuery, bucketName: String = null)
+class SpatialViewRDD
+  (@transient sc: SparkContext, viewQuery: SpatialViewQuery, bucketName: String = null)
   extends RDD[CouchbaseSpatialViewRow](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseSpatialViewRow] = {
+  override def compute(split: Partition, context: TaskContext):
+    Iterator[CouchbaseSpatialViewRow] = {
     val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
 
     LazyIterator {
@@ -55,5 +57,6 @@ class SpatialViewRDD(@transient sc: SparkContext, viewQuery: SpatialViewQuery, b
 }
 
 object SpatialViewRDD {
-  def apply(sc: SparkContext, bucketName: String, viewQuery: SpatialViewQuery) = new SpatialViewRDD(sc, viewQuery, bucketName)
+  def apply(sc: SparkContext, bucketName: String, viewQuery: SpatialViewQuery) =
+    new SpatialViewRDD(sc, viewQuery, bucketName)
 }

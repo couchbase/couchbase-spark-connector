@@ -54,5 +54,6 @@ class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery, bucketName: Str
 }
 
 object ViewRDD {
-  def apply(sc: SparkContext, bucketName: String, viewQuery: ViewQuery) = new ViewRDD(sc, viewQuery, bucketName)
+  def apply(sc: SparkContext, bucketName: String, viewQuery: ViewQuery) =
+    new ViewRDD(sc, viewQuery, bucketName)
 }

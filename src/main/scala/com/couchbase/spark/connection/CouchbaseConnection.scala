@@ -34,7 +34,9 @@ class CouchbaseConnection extends Serializable {
   def cluster(cfg: CouchbaseConfig): Cluster = {
     this.synchronized {
       if (clusterRef.isEmpty) {
-        clusterRef = Option(CouchbaseCluster.create(DefaultCouchbaseEnvironment.create(), cfg.hosts:_*))
+        clusterRef = Option(
+          CouchbaseCluster.create(DefaultCouchbaseEnvironment.create(), cfg.hosts:_*)
+        )
       }
       clusterRef.get
     }
@@ -43,7 +45,8 @@ class CouchbaseConnection extends Serializable {
   def bucket(cfg: CouchbaseConfig, bucketName: String = null): Bucket = {
     val bname = if (bucketName == null) {
       if (cfg.buckets.size != 1) {
-        throw new IllegalStateException("The bucket name can only be inferred if there is exactly 1 bucket set on the config")
+        throw new IllegalStateException("The bucket name can only be inferred if there is "
+          + "exactly 1 bucket set on the config")
       } else {
         cfg.buckets.head.name
       }

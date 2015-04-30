@@ -27,7 +27,9 @@ import org.apache.spark.streaming.dstream.ReceiverInputDStream
 
 class SparkStreamingFunctions(@transient val ssc: StreamingContext) extends Serializable  {
 
-  def couchbaseStream(bucket: String = null, storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER_2): ReceiverInputDStream[StreamMessage] = {
+  def couchbaseStream(bucket: String = null,
+    storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER_2):
+    ReceiverInputDStream[StreamMessage] = {
     new CouchbaseInputDStream(ssc, storageLevel, bucket)
   }
 

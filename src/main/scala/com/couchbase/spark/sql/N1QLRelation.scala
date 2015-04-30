@@ -36,14 +36,15 @@ import scala.collection.JavaConversions._
  * Implements a the BaseRelation for N1QL Queries.
  *
  * TODO:
- *	  - fix where clause recursions and operators
- *	  - recursive stuff in buildScan
+ *  - fix where clause recursions and operators
+ *  - recursive stuff in buildScan
  *
  * @param bucket the name of the bucket
  * @param userSchema the optional schema (if not provided it will be inferred)
  * @param sqlContext the sql context.
  */
-class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Option[Filter])(@transient val sqlContext: SQLContext)
+class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Option[Filter])
+                  (@transient val sqlContext: SQLContext)
   extends BaseRelation
   with PrunedFilteredScan
   with Logging {
@@ -74,7 +75,8 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Optio
       filters
     }
 
-    val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + buildFilter(mergedFilters)
+    val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`"
+      + buildFilter(mergedFilters)
     val usableSchema = schema
 
     logInfo(s"Executing generated query: '$query'")

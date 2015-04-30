@@ -29,7 +29,8 @@ import org.apache.spark.rdd.RDD
 
 class PairRDDFunctions[V](rdd: RDD[(String, V)]) {
 
-  def toCouchbaseDocument[D <: Document[_] : ClassTag](implicit converter: DocumentConverter[D, V]): DocumentRDDFunctions[D] = {
+  def toCouchbaseDocument[D <: Document[_] : ClassTag]
+    (implicit converter: DocumentConverter[D, V]): DocumentRDDFunctions[D] = {
     rdd.map(kv => converter.convert(kv._1, kv._2))
   }
 
