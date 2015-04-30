@@ -87,6 +87,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Optio
           case FloatType => row.value.getDouble(column).toFloat
           case DoubleType => row.value.getDouble(column).toDouble
           case BooleanType => row.value.getBoolean(column)
+          case IntegerType => row.value.getInt(column).toInt
           case LongType => row.value.getLong(column).toLong
           case _ => throw new Exception("Unhandled type" + neededType)
         }
