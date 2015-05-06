@@ -19,42 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
  * IN THE SOFTWARE.
  */
-package com.couchbase.spark
+package com.couchbase.spark.connection
 
-import com.couchbase.spark.internal.{OnceIterable, LazyIterator}
-import com.couchbase.spark.rdd.KeyValueRDD
+import com.couchbase.client.java.document.Document
+import com.couchbase.spark.internal.LazyIterator
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
 import scala.reflect.ClassTag
 
-import com.couchbase.client.java.document.Document
-import com.couchbase.spark.connection.{KeyValueAccessor, CouchbaseConnection, CouchbaseConfig}
+class KeyValueAccessor[D <: Document[_]]
+  (cbConfig: CouchbaseConfig, ids: Seq[String], bucketName: String = null)
+  (implicit ct: ClassTag[D]) {
 
-import org.apache.spark.rdd.RDD
+  def compute(): Iterator[D] = {
+    if (ids.isEmpty) {
+      return Iterator[D]()
+    }
 
-class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
+    val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
+    val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
 
-  private val cbConfig = CouchbaseConfig(rdd.sparkContext.getConf)
-
-  /**
-   * Convert a RDD[String] to a RDD[D]. It's available if T is String.
-   *
-   * @param ct
-   * @param evidence
-   * @tparam D
-   * @return
-   */
-  def couchbaseGet[D <: Document[_]](bucketName: String = null)
-    (implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
-
-    val idRDD: RDD[String] = rdd
-    idRDD.mapPartitions { valueIterator =>
-      if (valueIterator.isEmpty) {
-        Iterator[D]()
-      } else {
-        new KeyValueAccessor[D](cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
-      }
+    LazyIterator {
+      Observable
+        .from(ids)
+        .flatMap(id => toScalaObservable(bucket.get(id, castTo)))
+        .toBlocking
+        .toIterable
+        .iterator
     }
   }
 

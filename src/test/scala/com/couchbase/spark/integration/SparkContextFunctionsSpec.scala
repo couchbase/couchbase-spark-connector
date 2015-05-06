@@ -37,15 +37,15 @@ import scala.collection.JavaConversions._
 import com.couchbase.spark._
 
 /**
- * Integration test to verify RDD functionality in combination with Couchbase Server
+ * Integration test to verify Spark Context functionality in combination with Couchbase Server
  *
  * @author Michael Nitschinger
  * @since 1.0.0
  */
-class RDDSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
+class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
   private val master = "local[2]"
-  private val appName = "cb-int-specs"
+  private val appName = "cb-int-specs1"
   private val bucketName = "default"
 
   private var sparkContext: SparkContext = null
@@ -64,7 +64,11 @@ class RDDSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
     bucket.query(Query.simple(s"CREATE PRIMARY INDEX ON $bucketName"))
   }
 
-  "A RDD " should "be created from Couchbase Document IDs" in {
+  override def afterAll(): Unit = {
+    sparkContext.stop()
+  }
+
+  "A RDD" should "be created from Couchbase Document IDs" in {
 
     bucket.upsert(JsonDocument.create("doc1", JsonObject.create().put("val", "doc1")))
     bucket.upsert(JsonDocument.create("doc2", JsonObject.create().put("val", "doc2")))
@@ -101,9 +105,6 @@ class RDDSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
         doc.key should equal ("Simon")
       }
     }
-  }
-
-  it should "be created from a Spatial View" in {
   }
 
   it should "be created from a N1QL Query" in {
