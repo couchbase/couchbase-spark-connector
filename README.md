@@ -12,13 +12,13 @@ You can link against this library (for Spark 1.3+) in your program at the follow
 ```
 groupId: com.couchbase.client
 artifactId: spark-connector_2.10
-version: 1.0.0-dp
+version: 1.0.0-dp2
 ```
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "1.0.0-dp"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "1.0.0-dp2"
 ```
 
 Since right now only a developer preview is available, you also need to include the Couchbase Maven Repository. Once
