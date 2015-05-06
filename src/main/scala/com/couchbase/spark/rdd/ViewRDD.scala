@@ -41,6 +41,11 @@ class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery, bucketName: Str
 
     LazyIterator {
       toScalaObservable(bucket.query(viewQuery))
+        .doOnNext(result => {
+          toScalaObservable(result.error()).subscribe(err => {
+            logError(s"Couchbase View Query $viewQuery failed with $err")
+          })
+        })
         .flatMap(result => toScalaObservable(result.rows()))
         .map(row => CouchbaseViewRow(row.id(), row.key(), row.value()))
         .toBlocking

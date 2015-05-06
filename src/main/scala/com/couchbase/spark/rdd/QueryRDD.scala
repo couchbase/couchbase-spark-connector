@@ -43,6 +43,12 @@ class QueryRDD(@transient sc: SparkContext, query: Query, bucketName: String = n
 
     LazyIterator {
       toScalaObservable(bucket.query(query))
+        .doOnNext(result => {
+          toScalaObservable(result.errors()).subscribe(err => {
+            val statement = query.statement()
+            logError(s"Couchbase N1QL Query $statement failed with $err")
+          })
+        })
         .flatMap(_.rows())
         .map(row => CouchbaseQueryRow(row.value()))
         .toBlocking
