@@ -32,7 +32,7 @@ class CouchbaseConnectionSpec extends FlatSpec with Matchers {
     conn1 should equal (conn2)
   }
 
-  "A Connection" should "maintain bucket references" in {
+  it should "maintain bucket references" in {
     val conn = CouchbaseConnection()
     val cfg = CouchbaseConfig()
 

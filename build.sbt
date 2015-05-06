@@ -18,7 +18,8 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % "1.3.0" % "provided",
   "com.couchbase.client" % "java-client" % "2.1.2",
   "io.reactivex" %% "rxscala" % "0.23.1",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+  "org.scalatest" %% "scalatest" % "2.2.4" % "test",
+  "junit" % "junit" % "4.12" % "test"
 )
 
 resolvers += Resolver.mavenLocal
