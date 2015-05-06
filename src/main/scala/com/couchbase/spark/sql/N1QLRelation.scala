@@ -27,9 +27,10 @@ import com.couchbase.spark.connection.CouchbaseConfig
 import com.couchbase.spark.rdd.QueryRDD
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.sql.sources._
-import org.apache.spark.sql.types._
+
 import scala.collection.JavaConversions._
 
 /**
@@ -90,7 +91,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Optio
           case BooleanType => row.value.getBoolean(column)
           case IntegerType => row.value.getInt(column).toInt
           case LongType => row.value.getLong(column).toLong
-          case _ => throw new Exception("Unhandled type" + neededType)
+          case _ => throw new Exception("Unhandled Type: " + neededType)
         }
       })
 

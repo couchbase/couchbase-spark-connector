@@ -21,26 +21,83 @@
  */
 package com.couchbase.spark.rdd
 
+
+import java.net.InetAddress
+import java.util.zip.CRC32
+
+import com.couchbase.client.core.CouchbaseException
+import com.couchbase.client.core.config.{CouchbaseBucketConfig, BucketType}
+import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
 import com.couchbase.client.java.document.Document
-import com.couchbase.spark.connection.{KeyValueAccessor, CouchbaseConfig}
+import com.couchbase.spark.connection.{CouchbaseConnection, KeyValueAccessor, CouchbaseConfig}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{TaskContext, Partition, Logging, SparkContext}
 
 import scala.reflect.ClassTag
 
+import rx.lang.scala.JavaConversions._
+
+class KeyValuePartition(id: Int, docIds: Seq[String], loc: Option[InetAddress]) extends Partition {
+  override def index: Int = id
+  def ids: Seq[String] = docIds
+  def location: Option[InetAddress] = loc
+  override def toString = s"KeyValuePartition($id, $docIds, $loc)"
+}
 
 class KeyValueRDD[D <: Document[_]]
-  (@transient sc: SparkContext, ids: Seq[String], bucketName: String = null)
+  (@transient sc: SparkContext, ids: Seq[String], bname: String = null)
   (implicit ct: ClassTag[D])
   extends RDD[D](sc, Nil)
   with Logging {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
+  private val bucketName = Option(bname).getOrElse(cbConfig.buckets.head.name)
 
   override def compute(split: Partition, context: TaskContext): Iterator[D] = {
-    new KeyValueAccessor[D](cbConfig, ids, bucketName).compute()
+    val p = split.asInstanceOf[KeyValuePartition]
+    new KeyValueAccessor[D](cbConfig, p.ids, bucketName).compute()
   }
 
-  override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
+  override protected def getPartitions: Array[Partition] = {
+    val core = CouchbaseConnection().bucket(cbConfig, bucketName).core()
+
+    val config = toScalaObservable(core.send[GetClusterConfigResponse](new GetClusterConfigRequest()))
+      .map(c => {
+        logWarning(c.config().bucketConfigs().toString)
+        logWarning(bucketName)
+        c.config().bucketConfig(bucketName)
+      })
+      .toBlocking
+      .single
+
+
+    val parts = if (config.isInstanceOf[CouchbaseBucketConfig]) {
+      val bucketConfig = config.asInstanceOf[CouchbaseBucketConfig]
+      val numPartitions = bucketConfig.numberOfPartitions()
+      ids.groupBy(id => {
+        val crc32 = new CRC32()
+        crc32.update(id.getBytes("UTF-8"))
+        val rv = (crc32.getValue >> 16) & 0x7fff
+        rv.toInt & numPartitions - 1
+      }).map(grouped => {
+        val hostname = Some(bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1)).hostname())
+        new KeyValuePartition(grouped._1, grouped._2, hostname)
+      }).toArray
+    } else {
+      logWarning("Memcached preferred locations currently not supported.")
+      Array(new KeyValuePartition(0, ids, None))
+    }
+
+    parts.asInstanceOf[Array[Partition]]
+  }
+
+  override protected def getPreferredLocations(split: Partition): Seq[String] = {
+    val p = split.asInstanceOf[KeyValuePartition]
+    if (p.location.isDefined) {
+      Seq(p.location.get.getHostName, p.location.get.getHostAddress)
+    } else {
+      Nil
+    }
+  }
 
 }
