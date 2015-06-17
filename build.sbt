@@ -13,12 +13,12 @@ scalaVersion := "2.10.4"
 crossScalaVersions := Seq("2.11.5", "2.10.4")
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "1.3.0" % "provided",
-  "org.apache.spark" %% "spark-streaming" % "1.3.0" % "provided",
-  "org.apache.spark" %% "spark-sql" % "1.3.0" % "provided",
+  "org.apache.spark" %% "spark-core" % "1.4.0" % "provided",
+  "org.apache.spark" %% "spark-streaming" % "1.4.0" % "provided",
+  "org.apache.spark" %% "spark-sql" % "1.4.0" % "provided",
   "com.couchbase.client" % "java-client" % "2.1.3",
   "io.reactivex" %% "rxscala" % "0.23.1",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test",
+  "org.scalatest" %% "scalatest" % "2.2.5" % "test",
   "junit" % "junit" % "4.12" % "test"
 )
 
