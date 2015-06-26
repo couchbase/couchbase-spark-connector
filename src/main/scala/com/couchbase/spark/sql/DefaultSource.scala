@@ -19,14 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
  * IN THE SOFTWARE.
  */
-package com.couchbase.spark
+package com.couchbase.spark.sql
 
-import org.apache.spark.sql.{DataFrameReader, SQLContext}
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.sources.{SchemaRelationProvider, BaseRelation, RelationProvider}
+import org.apache.spark.sql.types.StructType
 
-package object sql {
+class DefaultSource extends RelationProvider with SchemaRelationProvider {
 
-  implicit def toDataFrameReaderFunctions(dfr: DataFrameReader): DataFrameReaderFunctions =
-    new DataFrameReaderFunctions(dfr)
+  override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]):
+    BaseRelation = {
+    new N1QLRelation(parameters("bucket"), None, None)(sqlContext)
+  }
+
+  override def createRelation(sqlContext: SQLContext, parameters: Map[String, String],
+    schema: StructType): BaseRelation = {
+    new N1QLRelation(parameters("bucket"), Some(schema), None)(sqlContext)
+  }
 
 }

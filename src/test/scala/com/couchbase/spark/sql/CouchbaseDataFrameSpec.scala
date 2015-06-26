@@ -21,16 +21,45 @@
  */
 package com.couchbase.spark.sql
 
-import org.apache.spark.sql.{DataFrame, SQLContext}
-import org.apache.spark.sql.types.{StructType, DataType}
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.{SparkConf, SparkContext}
+import org.scalatest._
 
-class SparkSQLFunctions(@transient val ssc: SQLContext) extends Serializable {
+class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
-  def n1ql(filter: Filter = null, userSchema: StructType = null, bucketName: String = null):
-    DataFrame = {
-    val relation = new N1QLRelation(bucketName, Option(userSchema), Option(filter))(ssc)
-    ssc.baseRelationToDataFrame(relation)
+  private val master = "local[2]"
+  private val appName = "cb-int-specs1"
+  private val bucketName = "default"
+
+  private var sparkContext: SparkContext = null
+
+  override def beforeAll(): Unit = {
+    val conf = new SparkConf().setMaster(master).setAppName(appName)
+    sparkContext = new SparkContext(conf)
+
+    loadData()
+  }
+
+  override def afterAll(): Unit = {
+    sparkContext.stop()
+  }
+
+  def loadData(): Unit = {
+
+  }
+
+  "The Couchbase DF API" should "infer the schema from documents" in {
+    val sqlContext = new SQLContext(sparkContext)
+    import com.couchbase.spark.sql._
+
+    val df = sqlContext.read.couchbase()
+
+    df.printSchema()
+
+  }
+
+  it should "query with predicate" in {
+
   }
 
 }

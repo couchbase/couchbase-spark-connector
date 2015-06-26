@@ -19,14 +19,25 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
  * IN THE SOFTWARE.
  */
-package com.couchbase.spark
+package com.couchbase.spark.sql
 
-import org.apache.spark.sql.{DataFrameReader, SQLContext}
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.DataFrameReader
 
-package object sql {
+class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Serializable {
 
-  implicit def toDataFrameReaderFunctions(dfr: DataFrameReader): DataFrameReaderFunctions =
-    new DataFrameReaderFunctions(dfr)
+  private val source = "com.couchbase.spark.sql.DefaultSource"
+
+  def couchbase() = buildFrame(null, null)
+  def couchbase(bucket: String) = buildFrame(bucket, null)
+  def couchbase(schema: StructType, bucket: String = null) = buildFrame(bucket, schema)
+
+  private def buildFrame(bucket: String = null, schema: StructType = null) = {
+    dfr
+      .format(source)
+      .option("bucket", bucket)
+      .schema(schema)
+      .load()
+  }
 
 }

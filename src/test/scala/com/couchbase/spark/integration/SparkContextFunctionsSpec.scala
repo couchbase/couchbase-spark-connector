@@ -51,7 +51,7 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
   private var sparkContext: SparkContext = null
   private var bucket: Bucket = null
 
-  override def beforeAll() {
+  override def beforeAll(): Unit = {
     val conf = new SparkConf().setMaster(master).setAppName(appName)
     sparkContext = new SparkContext(conf)
     bucket = CouchbaseConnection().bucket(CouchbaseConfig(conf), bucketName)
