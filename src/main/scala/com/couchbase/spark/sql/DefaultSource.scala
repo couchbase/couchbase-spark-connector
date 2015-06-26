@@ -29,12 +29,12 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider {
 
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]):
     BaseRelation = {
-    new N1QLRelation(parameters("bucket"), None, None)(sqlContext)
+    new N1QLRelation(parameters("bucket"), None, parameters.get("schemaFilter"))(sqlContext)
   }
 
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String],
     schema: StructType): BaseRelation = {
-    new N1QLRelation(parameters("bucket"), Some(schema), None)(sqlContext)
+    new N1QLRelation(parameters("bucket"), Some(schema), parameters.get("schemaFilter"))(sqlContext)
   }
 
 }

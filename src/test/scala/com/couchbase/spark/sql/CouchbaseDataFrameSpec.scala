@@ -22,6 +22,7 @@
 package com.couchbase.spark.sql
 
 import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest._
 
@@ -29,12 +30,15 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
 
   private val master = "local[2]"
   private val appName = "cb-int-specs1"
-  private val bucketName = "default"
+  private val bucketName = "travel-sample"
 
   private var sparkContext: SparkContext = null
 
   override def beforeAll(): Unit = {
-    val conf = new SparkConf().setMaster(master).setAppName(appName)
+    val conf = new SparkConf()
+      .setMaster(master)
+      .setAppName(appName)
+      .set("com.couchbase.bucket.travel-sample", "")
     sparkContext = new SparkContext(conf)
 
     loadData()
@@ -52,7 +56,7 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     val sqlContext = new SQLContext(sparkContext)
     import com.couchbase.spark.sql._
 
-    val df = sqlContext.read.couchbase()
+    val df = sqlContext.read.couchbase(EqualTo("type", "airline"))
 
     df.printSchema()
 

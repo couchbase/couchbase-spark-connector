@@ -44,7 +44,7 @@ import scala.collection.JavaConversions._
  * @param userSchema the optional schema (if not provided it will be inferred)
  * @param sqlContext the sql context.
  */
-class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Option[Filter])
+class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter: Option[String])
                   (@transient val sqlContext: SQLContext)
   extends BaseRelation
   with PrunedFilteredScan
@@ -55,8 +55,8 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Optio
 
   override val schema = userSchema.getOrElse[StructType] {
 
-    val queryFilter = if (filter.isDefined) {
-      buildFilter(Array(filter.get))
+    val queryFilter = if (schemaFilter.isDefined) {
+      "WHERE " + schemaFilter.get
     } else {
       ""
     }
@@ -70,13 +70,15 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Optio
   }
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
-    val mergedFilters = if (filter.isDefined) {
-      filters ++ filter
-    } else {
-      filters
+    var stringFilter = buildFilter(filters)
+    if (schemaFilter.isDefined) {
+      if (!stringFilter.isEmpty) {
+        stringFilter = stringFilter + " AND "
+      }
+      stringFilter += schemaFilter.get
     }
 
-    val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + buildFilter(mergedFilters)
+    val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + stringFilter
     val usableSchema = schema
 
     logInfo(s"Executing generated query: '$query'")
@@ -129,22 +131,34 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], filter: Optio
       if (i > 0) {
         filter.append(" AND")
       }
-
-      f match {
-        case EqualTo(attr, value) => filter.append(s" `$attr` = '$value'")
-        case GreaterThan(attr, value) => filter.append(s" `$attr` > $value")
-        case GreaterThanOrEqual(attr, value) => filter.append(s" `$attr` >= $value")
-        case LessThan(attr, value) => filter.append(s" `$attr` < $value")
-        case LessThanOrEqual(attr, value) => filter.append(s" `$attr` <= $value")
-        case IsNull(attr) => filter.append(s" `$attr` IS NULL")
-        case IsNotNull(attr) => filter.append(s" `$attr` IS NOT NULL")
-        case _ => throw new Exception("Unsupported filter")
-      }
-
+      filter.append(N1QLRelation.filterToExpression(f))
       i = i + 1
     })
 
     filter.toString()
+  }
+
+}
+
+object N1QLRelation {
+
+  /**
+   * Turns a filter into a N1QL expression.
+   *
+   * @param filter the filter to convert
+   * @return the resulting expression
+   */
+  def filterToExpression(filter: Filter): String = {
+    filter match {
+      case EqualTo(attr, value) => s" `$attr` = '$value'"
+      case GreaterThan(attr, value) => s" `$attr` > $value"
+      case GreaterThanOrEqual(attr, value) => s" `$attr` >= $value"
+      case LessThan(attr, value) => s" `$attr` < $value"
+      case LessThanOrEqual(attr, value) => s" `$attr` <= $value"
+      case IsNull(attr) => s" `$attr` IS NULL"
+      case IsNotNull(attr) => s" `$attr` IS NOT NULL"
+      case _ => throw new Exception("Unsupported filter")
+    }
   }
 
 }
