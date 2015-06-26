@@ -60,6 +60,8 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
 
     df.printSchema()
 
+    df.filter(df("callsign").isNotNull).orderBy(df("icao").asc).show(10)
+
   }
 
   it should "query with predicate" in {

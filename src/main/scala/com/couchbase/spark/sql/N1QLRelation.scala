@@ -21,7 +21,6 @@
  */
 package com.couchbase.spark.sql
 
-import com.couchbase.client.java.document.json.{JsonArray, JsonObject}
 import com.couchbase.client.java.query.Query
 import com.couchbase.spark.connection.CouchbaseConfig
 import com.couchbase.spark.rdd.QueryRDD
@@ -31,14 +30,8 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.sql.sources._
 
-import scala.collection.JavaConversions._
-
 /**
  * Implements a the BaseRelation for N1QL Queries.
- *
- * TODO:
- *  - fix where clause recursions and operators
- *  - recursive stuff in buildScan
  *
  * @param bucket the name of the bucket
  * @param userSchema the optional schema (if not provided it will be inferred)
@@ -51,7 +44,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
   with Logging {
 
   private val cbConfig = CouchbaseConfig(sqlContext.sparkContext.getConf)
-  private val bucketName = Option(bucket).getOrElse(cbConfig.buckets(0).name)
+  private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
 
   override val schema = userSchema.getOrElse[StructType] {
 
@@ -64,7 +57,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
     val query = s"SELECT `$bucketName`.* FROM `$bucketName` $queryFilter LIMIT 100"
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
-    sqlContext.jsonRDD(
+    sqlContext.read.json(
       QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(_.value.toString)
     ).schema
   }
@@ -78,27 +71,16 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
       stringFilter += schemaFilter.get
     }
 
+    if (!stringFilter.isEmpty) {
+      stringFilter = " WHERE " + stringFilter
+    }
+
     val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + stringFilter
-    val usableSchema = schema
 
     logInfo(s"Executing generated query: '$query'")
-    QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(row => {
-      val mapped = requiredColumns.map(column => {
-        val neededType = usableSchema(column).dataType
-
-        neededType match {
-          case StringType => row.value.getString(column)
-          case FloatType => row.value.getDouble(column).toFloat
-          case DoubleType => row.value.getDouble(column).toDouble
-          case BooleanType => row.value.getBoolean(column)
-          case IntegerType => row.value.getInt(column).toInt
-          case LongType => row.value.getLong(column).toLong
-          case _ => throw new Exception("Unhandled Type: " + neededType)
-        }
-      })
-
-      Row.fromSeq(mapped.toSeq)
-    })
+    sqlContext.read.json(
+      QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(_.value.toString)
+    ).map(row => row)
   }
 
   /**
@@ -124,7 +106,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
       return ""
     }
 
-    val filter = new StringBuilder(" WHERE")
+    val filter = new StringBuilder()
     var i = 0
 
     filters.foreach(f => {
