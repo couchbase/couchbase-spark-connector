@@ -61,7 +61,8 @@ class KeyValueRDD[D <: Document[_]]
   override protected def getPartitions: Array[Partition] = {
     val core = CouchbaseConnection().bucket(cbConfig, bucketName).core()
 
-    val config = toScalaObservable(core.send[GetClusterConfigResponse](new GetClusterConfigRequest()))
+    val req = new GetClusterConfigRequest()
+    val config = toScalaObservable(core.send[GetClusterConfigResponse](req))
       .map(c => {
         logWarning(c.config().bucketConfigs().toString)
         logWarning(bucketName)
@@ -80,7 +81,9 @@ class KeyValueRDD[D <: Document[_]]
         val rv = (crc32.getValue >> 16) & 0x7fff
         rv.toInt & numPartitions - 1
       }).map(grouped => {
-        val hostname = Some(bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1)).hostname())
+        val hostname = Some(
+          bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1)).hostname()
+        )
         new KeyValuePartition(grouped._1, grouped._2, hostname)
       }).toArray
     } else {

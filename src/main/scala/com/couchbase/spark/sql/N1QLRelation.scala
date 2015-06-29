@@ -54,7 +54,9 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       ""
     }
 
-    val query = s"SELECT META(`$bucketName`).id as `$idFieldName`, `$bucketName`.* FROM `$bucketName` $queryFilter LIMIT 1000"
+    val query = s"SELECT META(`$bucketName`).id as `$idFieldName`, `$bucketName`.* " +
+      s"FROM `$bucketName` $queryFilter LIMIT 1000"
+
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
     sqlContext.read.json(
@@ -75,7 +77,8 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       stringFilter = " WHERE " + stringFilter
     }
 
-    val query = "SELECT " + buildColumns(requiredColumns, bucketName) + " FROM `" + bucketName + "`" + stringFilter
+    val query = "SELECT " + buildColumns(requiredColumns, bucketName) + " FROM `"
+      + bucketName + "`" + stringFilter
 
     logInfo(s"Executing generated query: '$query'")
     sqlContext.read.json(
