@@ -52,15 +52,19 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
 
   }
 
-  "The Couchbase DF API" should "infer the schema from documents" in {
-    val sqlContext = new SQLContext(sparkContext)
+  "The DataFrame API" should "infer the schemas" in {
+    val ssc = new SQLContext(sparkContext)
     import com.couchbase.spark.sql._
 
-    val df = sqlContext.read.couchbase(EqualTo("type", "airline"))
+    val airline = ssc.read.couchbase(EqualTo("type", "airline"))
+    val airport = ssc.read.couchbase(EqualTo("type", "airport"))
+    val route = ssc.read.couchbase(EqualTo("type", "route"))
+    val landmark = ssc.read.couchbase(EqualTo("type", "landmark"))
 
-    df.printSchema()
 
-    df.filter(df("callsign").isNotNull).orderBy(df("icao").asc).show(10)
+    airline.limit(10).write.couchbase()
+
+    // TODO: validate schemas which are inferred on a field and type basis
 
   }
 

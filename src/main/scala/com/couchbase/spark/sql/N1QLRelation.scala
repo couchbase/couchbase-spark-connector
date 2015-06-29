@@ -54,7 +54,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
       ""
     }
 
-    val query = s"SELECT `$bucketName`.* FROM `$bucketName` $queryFilter LIMIT 100"
+    val query = s"SELECT META(`$bucketName`).id as META_ID, `$bucketName`.* FROM `$bucketName` $queryFilter LIMIT 100"
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
     sqlContext.read.json(
@@ -75,7 +75,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
       stringFilter = " WHERE " + stringFilter
     }
 
-    val query = "SELECT " + buildColumns(requiredColumns) + " FROM `" + bucketName + "`" + stringFilter
+    val query = "SELECT " + buildColumns(requiredColumns, bucketName) + " FROM `" + bucketName + "`" + stringFilter
 
     logInfo(s"Executing generated query: '$query'")
     sqlContext.read.json(
@@ -89,8 +89,16 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
    * @param requiredColumns the columns to transform.
    * @return the raw N1QL string
    */
-  private def buildColumns(requiredColumns: Array[String]): String =  {
-    requiredColumns.map(column => "`" + column + "`").mkString(",")
+  private def buildColumns(requiredColumns: Array[String], bucktName: String): String =  {
+    requiredColumns
+      .map(column => {
+        if (column == "META_ID") {
+          s"META(`$bucketName`).id as META_ID"
+        } else {
+          "`" + column + "`"
+        }
+      })
+      .mkString(",")
   }
 
 

@@ -21,11 +21,13 @@
  */
 package com.couchbase.spark.sql
 
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.sources.{SchemaRelationProvider, BaseRelation, RelationProvider}
+import com.couchbase.client.java.document.RawJsonDocument
+import org.apache.spark.sql.{DataFrame, SaveMode, SQLContext}
+import org.apache.spark.sql.sources.{CreatableRelationProvider, SchemaRelationProvider, BaseRelation, RelationProvider}
 import org.apache.spark.sql.types.StructType
+import com.couchbase.spark._
 
-class DefaultSource extends RelationProvider with SchemaRelationProvider {
+class DefaultSource extends RelationProvider with SchemaRelationProvider with CreatableRelationProvider {
 
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]):
     BaseRelation = {
@@ -35,6 +37,21 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider {
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String],
     schema: StructType): BaseRelation = {
     new N1QLRelation(parameters("bucket"), Some(schema), parameters.get("schemaFilter"))(sqlContext)
+  }
+
+  override def createRelation(sqlContext: SQLContext, mode: SaveMode,
+    parameters: Map[String, String], data: DataFrame): BaseRelation = {
+    val bucketName = parameters("bucket")
+
+    data
+      .toJSON
+      .map(rawJson => {
+        println(rawJson)
+        RawJsonDocument.create("id", rawJson)
+      })
+      .saveToCouchbase(bucketName)
+
+    createRelation(sqlContext, parameters, data.schema)
   }
 
 }

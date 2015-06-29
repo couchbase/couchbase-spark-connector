@@ -19,17 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
  * IN THE SOFTWARE.
  */
-package com.couchbase.spark
+package com.couchbase.spark.sql
 
-import org.apache.spark.sql.{DataFrameWriter, DataFrameReader, SQLContext}
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.DataFrameWriter
+import org.apache.spark.sql.sources.BaseRelation
 
-package object sql {
+class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter) extends Serializable  {
 
-  implicit def toDataFrameReaderFunctions(dfr: DataFrameReader): DataFrameReaderFunctions =
-    new DataFrameReaderFunctions(dfr)
+  /**
+   * The classpath to the default source (which in turn results in a N1QLRelation)
+   */
+  private val source = "com.couchbase.spark.sql.DefaultSource"
 
-  implicit def toDataFrameWriterFunctions(dfw: DataFrameWriter): DataFrameWriterFunctions =
-    new DataFrameWriterFunctions(dfw)
+  def couchbase() {
+    dfw.format(source).option("bucket", null).save()
+  }
 
 }
