@@ -37,7 +37,7 @@ import org.apache.spark.sql.sources._
  * @param userSchema the optional schema (if not provided it will be inferred)
  * @param sqlContext the sql context.
  */
-class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter: Option[String])
+class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: Map[String, String])
                   (@transient val sqlContext: SQLContext)
   extends BaseRelation
   with PrunedFilteredScan
@@ -45,16 +45,16 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
 
   private val cbConfig = CouchbaseConfig(sqlContext.sparkContext.getConf)
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
+  private val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
 
   override val schema = userSchema.getOrElse[StructType] {
-
-    val queryFilter = if (schemaFilter.isDefined) {
-      "WHERE " + schemaFilter.get
+    val queryFilter = if (parameters.get("schemaFilter").isDefined) {
+      "WHERE " + parameters.get("schemaFilter").get
     } else {
       ""
     }
 
-    val query = s"SELECT META(`$bucketName`).id as META_ID, `$bucketName`.* FROM `$bucketName` $queryFilter LIMIT 100"
+    val query = s"SELECT META(`$bucketName`).id as `$idFieldName`, `$bucketName`.* FROM `$bucketName` $queryFilter LIMIT 1000"
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
     sqlContext.read.json(
@@ -64,11 +64,11 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
     var stringFilter = buildFilter(filters)
-    if (schemaFilter.isDefined) {
+    if (parameters.get("schemaFilter").isDefined) {
       if (!stringFilter.isEmpty) {
         stringFilter = stringFilter + " AND "
       }
-      stringFilter += schemaFilter.get
+      stringFilter += parameters.get("schemaFilter").get
     }
 
     if (!stringFilter.isEmpty) {
@@ -92,8 +92,8 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], schemaFilter:
   private def buildColumns(requiredColumns: Array[String], bucktName: String): String =  {
     requiredColumns
       .map(column => {
-        if (column == "META_ID") {
-          s"META(`$bucketName`).id as META_ID"
+        if (column == idFieldName) {
+          s"META(`$bucketName`).id as `$idFieldName`"
         } else {
           "`" + column + "`"
         }

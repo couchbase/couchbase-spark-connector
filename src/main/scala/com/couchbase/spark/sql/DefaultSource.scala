@@ -44,7 +44,7 @@ class DefaultSource
    */
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]):
     BaseRelation = {
-    new N1QLRelation(parameters("bucket"), None, parameters.get("schemaFilter"))(sqlContext)
+    new N1QLRelation(parameters("bucket"), None, parameters)(sqlContext)
   }
 
   /**
@@ -56,7 +56,7 @@ class DefaultSource
    */
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String],
     schema: StructType): BaseRelation = {
-    new N1QLRelation(parameters("bucket"), Some(schema), parameters.get("schemaFilter"))(sqlContext)
+    new N1QLRelation(parameters("bucket"), Some(schema), parameters)(sqlContext)
   }
 
   /**
@@ -69,7 +69,8 @@ class DefaultSource
    */
   override def createRelation(sqlContext: SQLContext, mode: SaveMode,
     parameters: Map[String, String], data: DataFrame): BaseRelation = {
-    val bucketName = parameters("bucket")
+    val bucketName = parameters.get("bucket").orNull
+    val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
 
     val storeMode = mode match {
       case SaveMode.Append =>
@@ -83,8 +84,8 @@ class DefaultSource
       .toJSON
       .map(rawJson => {
         val encoded = JsonObject.fromJson(rawJson)
-        val id = encoded.getString("META_ID")
-        encoded.removeKey("META_ID")
+        val id = encoded.getString(idFieldName)
+        encoded.removeKey(idFieldName)
         JsonDocument.create(id, encoded)
       })
       .saveToCouchbase(bucketName, storeMode)
@@ -92,4 +93,8 @@ class DefaultSource
     createRelation(sqlContext, parameters, data.schema)
   }
 
+}
+
+object DefaultSource {
+  val DEFAULT_DOCUMENT_ID_FIELD: String = "META_ID"
 }

@@ -37,27 +37,19 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
    */
   def couchbase(): DataFrame = buildFrame(null, null, None)
 
-  /**
-   * Creates a [[DataFrame]] through schema inference and no filter on a specific open bucket.
-   *
-   * @param bucket the name of the bucket to use.
-   */
-  def couchbase(bucket: String): DataFrame = buildFrame(bucket, null, None)
+  def couchbase(options: Map[String, String]): DataFrame =
+    buildFrame(options, null, None)
 
   /**
    * Creates a [[DataFrame]] with a manually defined schema on the only bucket open.
    *
    * @param schema the manual schema defined.
    */
-  def couchbase(schema: StructType): DataFrame = buildFrame(null, schema, None)
+  def couchbase(schema: StructType, options: Map[String, String]): DataFrame =
+    buildFrame(options, schema, None)
 
-  /**
-   * Creates a [[DataFrame]] with a manually defined schema on a specific open bucket.
-   *
-   * @param schema the manual schema defined.
-   * @param bucket the name of the bucket to use.
-   */
-  def couchbase(schema: StructType, bucket: String): DataFrame = buildFrame(bucket, schema, None)
+  def couchbase(schema: StructType): DataFrame =
+    buildFrame(null, schema, None)
 
   /**
    * Creates a [[DataFrame]] through schema inference with a filter applied on the only bucket
@@ -68,36 +60,31 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
    *
    * @param schemaFilter the filter clause which constraints the document set used for inference.
    */
-  def couchbase(schemaFilter: Filter): DataFrame = buildFrame(null, null, Some(schemaFilter))
+  def couchbase(schemaFilter: Filter, options: Map[String, String]): DataFrame =
+    buildFrame(options, null, Some(schemaFilter))
 
-  /**
-   * Creates a [[DataFrame]] through schema inference with a filter applied on a specific open
-   * bucket.
-   *
-   * The filter will be essentially turned into a WHERE clause on the N1QL query, which allows
-   * for much more exact schema inference, especially on a large and/or diverse data set.
-   *
-   * @param schemaFilter the filter clause which constraints the document set used for inference.
-   * @param bucket the name of the bucket to use.
-   */
-  def couchbase(schemaFilter: Filter, bucket: String): DataFrame =
-    buildFrame(bucket, null, Some(schemaFilter))
+  def couchbase(schemaFilter: Filter): DataFrame =
+    buildFrame(null, null, Some(schemaFilter))
 
   /**
    * Helper method to create the [[DataFrame]].
    *
-   * @param bucket the name of the bucket to use.
    * @param schema the manual schema defined.
    * @param schemaFilter the filter clause which constraints the document set used for inference.
    */
-  private def buildFrame(bucket: String = null, schema: StructType = null,
+  private def buildFrame(options: Map[String, String] = null, schema: StructType = null,
     schemaFilter: Option[Filter] = null): DataFrame = {
-    dfr
+    val builder = dfr
       .format(source)
-      .option("bucket", bucket)
+      .options(options)
       .option("schemaFilter", schemaFilter.map(N1QLRelation.filterToExpression).orNull)
       .schema(schema)
-      .load()
+
+    if (options != null) {
+      builder.options(options)
+    }
+
+    builder.load()
   }
 
 }

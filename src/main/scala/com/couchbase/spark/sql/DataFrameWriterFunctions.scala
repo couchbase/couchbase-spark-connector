@@ -34,22 +34,20 @@ class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter) extends Seri
   /**
    * Stores the current [[DataFrame]] in the only open bucket.
    */
-  def couchbase(): Unit = writeFrame(null)
-
-  /**
-   * Stores the current [[DataFrame]] in a specific open bucket.
-   *
-   * @param bucket the name of the bucket.
-   */
-  def couchbase(bucket: String): Unit = writeFrame(bucket)
+  def couchbase(options: Map[String, String] = null): Unit = writeFrame(options)
 
   /**
    * Helper method to write the current [[DataFrame]] against the couchbase source.
-   *
-   * @param bucket the name of the bucket.
    */
-  private def writeFrame(bucket: String = null): Unit = {
-    dfw.format(source).option("bucket", bucket).save()
+  private def writeFrame(options: Map[String, String] = null): Unit = {
+    val builder = dfw
+      .format(source)
+
+    if (options != null) {
+      builder.options(options)
+    }
+
+    builder.save()
   }
 
 }
