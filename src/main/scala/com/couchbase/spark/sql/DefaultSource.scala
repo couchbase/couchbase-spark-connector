@@ -27,18 +27,45 @@ import org.apache.spark.sql.sources.{CreatableRelationProvider, SchemaRelationPr
 import org.apache.spark.sql.types.StructType
 import com.couchbase.spark._
 
-class DefaultSource extends RelationProvider with SchemaRelationProvider with CreatableRelationProvider {
+/**
+ * The default couchbase source for Spark SQL.
+ */
+class DefaultSource
+  extends RelationProvider
+  with SchemaRelationProvider
+  with CreatableRelationProvider {
 
+  /**
+   * Creates a new [[N1QLRelation]] with automatic schema inference.
+   *
+   * @param sqlContext the parent sql context.
+   * @param parameters custom parameters that are applied.
+   */
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]):
     BaseRelation = {
     new N1QLRelation(parameters("bucket"), None, parameters.get("schemaFilter"))(sqlContext)
   }
 
+  /**
+   * Creates a new [[N1QLRelation]] with a custom schema provided.
+   *
+   * @param sqlContext the parent sql context.
+   * @param parameters custom parameters that are applied.
+   * @param schema the custom schema provided by the caller.
+   */
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String],
     schema: StructType): BaseRelation = {
     new N1QLRelation(parameters("bucket"), Some(schema), parameters.get("schemaFilter"))(sqlContext)
   }
 
+  /**
+   * Creates a [[N1QLRelation]] based on the input data and saves it to couchbase.
+   *
+   * @param sqlContext the parent sql context.
+   * @param mode the save mode.
+   * @param parameters custom parameters that are applied.
+   * @param data the input data frame to store.
+   */
   override def createRelation(sqlContext: SQLContext, mode: SaveMode,
     parameters: Map[String, String], data: DataFrame): BaseRelation = {
     val bucketName = parameters("bucket")

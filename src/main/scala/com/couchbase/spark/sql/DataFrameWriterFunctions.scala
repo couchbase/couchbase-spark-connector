@@ -21,7 +21,7 @@
  */
 package com.couchbase.spark.sql
 
-import org.apache.spark.sql.DataFrameWriter
+import org.apache.spark.sql.{DataFrame, DataFrameWriter}
 import org.apache.spark.sql.sources.BaseRelation
 
 class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter) extends Serializable  {
@@ -31,8 +31,25 @@ class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter) extends Seri
    */
   private val source = "com.couchbase.spark.sql.DefaultSource"
 
-  def couchbase() {
-    dfw.format(source).option("bucket", null).save()
+  /**
+   * Stores the current [[DataFrame]] in the only open bucket.
+   */
+  def couchbase(): Unit = writeFrame(null)
+
+  /**
+   * Stores the current [[DataFrame]] in a specific open bucket.
+   *
+   * @param bucket the name of the bucket.
+   */
+  def couchbase(bucket: String): Unit = writeFrame(bucket)
+
+  /**
+   * Helper method to write the current [[DataFrame]] against the couchbase source.
+   *
+   * @param bucket the name of the bucket.
+   */
+  private def writeFrame(bucket: String = null): Unit = {
+    dfw.format(source).option("bucket", bucket).save()
   }
 
 }

@@ -49,7 +49,7 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
    *
    * @param schema the manual schema defined.
    */
-  def couchbase(schema: StructType) = buildFrame(null, schema, None)
+  def couchbase(schema: StructType): DataFrame = buildFrame(null, schema, None)
 
   /**
    * Creates a [[DataFrame]] with a manually defined schema on a specific open bucket.
@@ -57,7 +57,7 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
    * @param schema the manual schema defined.
    * @param bucket the name of the bucket to use.
    */
-  def couchbase(schema: StructType, bucket: String) = buildFrame(bucket, schema, None)
+  def couchbase(schema: StructType, bucket: String): DataFrame = buildFrame(bucket, schema, None)
 
   /**
    * Creates a [[DataFrame]] through schema inference with a filter applied on the only bucket
@@ -68,7 +68,7 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
    *
    * @param schemaFilter the filter clause which constraints the document set used for inference.
    */
-  def couchbase(schemaFilter: Filter) = buildFrame(null, null, Some(schemaFilter))
+  def couchbase(schemaFilter: Filter): DataFrame = buildFrame(null, null, Some(schemaFilter))
 
   /**
    * Creates a [[DataFrame]] through schema inference with a filter applied on a specific open
@@ -80,10 +80,18 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
    * @param schemaFilter the filter clause which constraints the document set used for inference.
    * @param bucket the name of the bucket to use.
    */
-  def couchbase(schemaFilter: Filter, bucket: String) = buildFrame(bucket, null, Some(schemaFilter))
+  def couchbase(schemaFilter: Filter, bucket: String): DataFrame =
+    buildFrame(bucket, null, Some(schemaFilter))
 
+  /**
+   * Helper method to create the [[DataFrame]].
+   *
+   * @param bucket the name of the bucket to use.
+   * @param schema the manual schema defined.
+   * @param schemaFilter the filter clause which constraints the document set used for inference.
+   */
   private def buildFrame(bucket: String = null, schema: StructType = null,
-    schemaFilter: Option[Filter] = null) = {
+    schemaFilter: Option[Filter] = null): DataFrame = {
     dfr
       .format(source)
       .option("bucket", bucket)
