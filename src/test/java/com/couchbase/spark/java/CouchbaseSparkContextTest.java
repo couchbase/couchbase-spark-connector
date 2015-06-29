@@ -28,7 +28,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.junit.Test;
 import java.util.Arrays;
 
-import static com.couchbase.spark.java.CouchbaseSparkContext.javaFunctions;
+import static com.couchbase.spark.java.CouchbaseSparkContext.couchbaseContext;
 
 public class CouchbaseSparkContextTest {
 
@@ -36,7 +36,7 @@ public class CouchbaseSparkContextTest {
     public void shouldGetADocument() {
         SparkConf conf = new SparkConf().setAppName("javaTest").setMaster("local[*]");
         SparkContext sc = new SparkContext(conf);
-        CouchbaseSparkContext csc = javaFunctions(sc);
+        CouchbaseSparkContext csc = couchbaseContext(sc);
 
         JavaRDD<JsonDocument> docs = csc.couchbaseGet(Arrays.asList("airline_2357"));
 

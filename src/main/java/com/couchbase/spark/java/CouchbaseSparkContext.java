@@ -45,7 +45,7 @@ public class CouchbaseSparkContext {
         this.sc = sc;
     }
 
-    public static CouchbaseSparkContext javaFunctions(SparkContext sc) {
+    public static CouchbaseSparkContext couchbaseContext(SparkContext sc) {
         return new CouchbaseSparkContext(sc);
     }
 
@@ -65,9 +65,9 @@ public class CouchbaseSparkContext {
     public <D extends Document> JavaRDD<D> couchbaseGet(List<String> ids, String bucket, Class<D> clazz) {
         return new KeyValueRDD(
             sc,
-            CouchbaseUtil.listToSeq(ids),
+            SparkUtil.listToSeq(ids),
             bucket,
-            CouchbaseUtil.classTag(clazz)
+            SparkUtil.classTag(clazz)
         ).toJavaRDD();
     }
 

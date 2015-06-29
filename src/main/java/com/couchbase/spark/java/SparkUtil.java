@@ -25,7 +25,7 @@ import scala.collection.Seq;
 import scala.reflect.ClassTag;
 import java.util.List;
 
-public class CouchbaseUtil {
+public class SparkUtil {
 
     public static <T> ClassTag<T> classTag(Class<T> source) {
         return scala.reflect.ClassTag$.MODULE$.apply(source);
