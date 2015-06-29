@@ -70,13 +70,21 @@ class DefaultSource
     parameters: Map[String, String], data: DataFrame): BaseRelation = {
     val bucketName = parameters("bucket")
 
+    val storeMode = mode match {
+      case SaveMode.Append =>
+        throw new UnsupportedOperationException("SaveMode.Append is not supported with Couchbase.")
+      case SaveMode.ErrorIfExists => StoreMode.INSERT_AND_FAIL
+      case SaveMode.Ignore => StoreMode.INSERT_AND_IGNORE
+      case SaveMode.Overwrite => StoreMode.UPSERT
+    }
+
     data
       .toJSON
       .map(rawJson => {
         println(rawJson)
         RawJsonDocument.create("id", rawJson)
       })
-      .saveToCouchbase(bucketName)
+      .saveToCouchbase(bucketName, storeMode)
 
     createRelation(sqlContext, parameters, data.schema)
   }
