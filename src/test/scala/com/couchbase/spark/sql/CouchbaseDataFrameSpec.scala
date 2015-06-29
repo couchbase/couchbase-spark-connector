@@ -38,6 +38,7 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     val conf = new SparkConf()
       .setMaster(master)
       .setAppName(appName)
+      .set("com.couchbase.bucket.default", "")
       .set("com.couchbase.bucket.travel-sample", "")
     sparkContext = new SparkContext(conf)
 
@@ -56,13 +57,13 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     val ssc = new SQLContext(sparkContext)
     import com.couchbase.spark.sql._
 
-    val airline = ssc.read.couchbase(EqualTo("type", "airline"))
-    val airport = ssc.read.couchbase(EqualTo("type", "airport"))
-    val route = ssc.read.couchbase(EqualTo("type", "route"))
-    val landmark = ssc.read.couchbase(EqualTo("type", "landmark"))
+    val airline = ssc.read.couchbase(EqualTo("type", "airline"), "travel-sample")
+    val airport = ssc.read.couchbase(EqualTo("type", "airport"), "travel-sample")
+    val route = ssc.read.couchbase(EqualTo("type", "route"), "travel-sample")
+    val landmark = ssc.read.couchbase(EqualTo("type", "landmark"), "travel-sample")
 
 
-    airline.limit(10).write.couchbase()
+    airline.limit(10).write.couchbase("default")
 
     // TODO: validate schemas which are inferred on a field and type basis
 

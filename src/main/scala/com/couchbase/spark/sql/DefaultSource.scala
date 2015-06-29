@@ -21,7 +21,8 @@
  */
 package com.couchbase.spark.sql
 
-import com.couchbase.client.java.document.RawJsonDocument
+import com.couchbase.client.java.document.{JsonDocument}
+import com.couchbase.client.java.document.json.JsonObject
 import org.apache.spark.sql.{DataFrame, SaveMode, SQLContext}
 import org.apache.spark.sql.sources.{CreatableRelationProvider, SchemaRelationProvider, BaseRelation, RelationProvider}
 import org.apache.spark.sql.types.StructType
@@ -81,8 +82,10 @@ class DefaultSource
     data
       .toJSON
       .map(rawJson => {
-        println(rawJson)
-        RawJsonDocument.create("id", rawJson)
+        val encoded = JsonObject.fromJson(rawJson)
+        val id = encoded.getString("META_ID")
+        encoded.removeKey("META_ID")
+        JsonDocument.create(id, encoded)
       })
       .saveToCouchbase(bucketName, storeMode)
 
