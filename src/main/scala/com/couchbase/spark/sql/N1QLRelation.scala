@@ -77,8 +77,8 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       stringFilter = " WHERE " + stringFilter
     }
 
-    val query = "SELECT " + buildColumns(requiredColumns, bucketName) + " FROM `"
-      + bucketName + "`" + stringFilter
+    val query = "SELECT " + buildColumns(requiredColumns, bucketName) + " FROM `" +
+      bucketName + "`" + stringFilter
 
     logInfo(s"Executing generated query: '$query'")
     sqlContext.read.json(

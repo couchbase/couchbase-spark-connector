@@ -23,11 +23,12 @@ package com.couchbase.spark.java;
 
 import com.couchbase.client.java.document.JsonDocument;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 import java.util.Arrays;
 
+import static com.couchbase.spark.java.CouchbaseRDD.couchbaseRDD;
 import static com.couchbase.spark.java.CouchbaseSparkContext.couchbaseContext;
 
 public class CouchbaseSparkContextTest {
@@ -35,12 +36,15 @@ public class CouchbaseSparkContextTest {
     @Test
     public void shouldGetADocument() {
         SparkConf conf = new SparkConf().setAppName("javaTest").setMaster("local[*]");
-        SparkContext sc = new SparkContext(conf);
+        JavaSparkContext sc = new JavaSparkContext(conf);
         CouchbaseSparkContext csc = couchbaseContext(sc);
 
-        JavaRDD<JsonDocument> docs = csc.couchbaseGet(Arrays.asList("airline_2357"));
 
-        System.out.println(docs.collect());
+        JavaRDD<JsonDocument> jsonDocumentJavaRDD =
+            couchbaseRDD(sc.parallelize(Arrays.asList("airline_2357"))).couchbaseGet("default", JsonDocument.class);
+
+
+        System.out.println(jsonDocumentJavaRDD.collect());
     }
 
 }

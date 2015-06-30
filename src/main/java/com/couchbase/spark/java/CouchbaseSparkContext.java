@@ -35,6 +35,7 @@ import com.couchbase.spark.rdd.SpatialViewRDD;
 import com.couchbase.spark.rdd.ViewRDD;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import java.util.List;
 
 public class CouchbaseSparkContext {
@@ -47,6 +48,10 @@ public class CouchbaseSparkContext {
 
     public static CouchbaseSparkContext couchbaseContext(SparkContext sc) {
         return new CouchbaseSparkContext(sc);
+    }
+
+    public static CouchbaseSparkContext couchbaseContext(JavaSparkContext sc) {
+        return new CouchbaseSparkContext(sc.sc());
     }
 
     public JavaRDD<JsonDocument> couchbaseGet(List<String> ids, String bucket) {
