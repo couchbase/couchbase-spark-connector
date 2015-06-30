@@ -3,22 +3,22 @@
 A library to integrate Couchbase Server with Spark in order to use it as a data source and target in various ways.
 
 ## Requirements
-This library requires Spark 1.3.+ and is currently available as a developer preview. It is not intended for production
+This library requires Spark 1.4+ and is currently available as a developer preview. It is not intended for production
 use yet.
 
 ## Linking
-You can link against this library (for Spark 1.3+) in your program at the following coordinates:
+You can link against this library (for Spark 1.4+) in your program at the following coordinates:
 
 ```
 groupId: com.couchbase.client
 artifactId: spark-connector_2.10
-version: 1.0.0-dp2
+version: 1.0.0-beta
 ```
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "1.0.0-dp2"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "1.0.0-beta"
 ```
 
 Since right now only a developer preview is available, you also need to include the Couchbase Maven Repository. Once
