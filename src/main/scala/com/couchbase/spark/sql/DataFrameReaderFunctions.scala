@@ -76,7 +76,6 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
     schemaFilter: Option[Filter] = null): DataFrame = {
     val builder = dfr
       .format(source)
-      .options(options)
       .option("schemaFilter", schemaFilter.map(N1QLRelation.filterToExpression).orNull)
       .schema(schema)
 
