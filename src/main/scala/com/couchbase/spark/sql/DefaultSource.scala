@@ -44,7 +44,7 @@ class DefaultSource
    */
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]):
     BaseRelation = {
-    new N1QLRelation(parameters("bucket"), None, parameters)(sqlContext)
+    new N1QLRelation(parameters.get("bucket").orNull, None, parameters)(sqlContext)
   }
 
   /**
@@ -56,7 +56,7 @@ class DefaultSource
    */
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String],
     schema: StructType): BaseRelation = {
-    new N1QLRelation(parameters("bucket"), Some(schema), parameters)(sqlContext)
+    new N1QLRelation(parameters.get("bucket").orNull, Some(schema), parameters)(sqlContext)
   }
 
   /**
