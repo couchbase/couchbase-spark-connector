@@ -21,7 +21,7 @@
  */
 package com.couchbase.spark.sql
 
-import com.couchbase.client.java.query.Query
+import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.spark.connection.CouchbaseConfig
 import com.couchbase.spark.rdd.QueryRDD
 import org.apache.spark.Logging
@@ -60,7 +60,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
     sqlContext.read.json(
-      QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(_.value.toString)
+      QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query)).map(_.value.toString)
     ).schema
   }
 
@@ -82,7 +82,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
 
     logInfo(s"Executing generated query: '$query'")
     sqlContext.read.json(
-      QueryRDD(sqlContext.sparkContext, bucketName, Query.simple(query)).map(_.value.toString)
+      QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query)).map(_.value.toString)
     ).map(row => row)
   }
 

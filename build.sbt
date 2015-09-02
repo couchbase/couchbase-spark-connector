@@ -16,8 +16,8 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.4.0" % "provided",
   "org.apache.spark" %% "spark-streaming" % "1.4.0" % "provided",
   "org.apache.spark" %% "spark-sql" % "1.4.0" % "provided",
-  "com.couchbase.client" % "java-client" % "2.1.3",
-  "io.reactivex" %% "rxscala" % "0.23.1",
+  "com.couchbase.client" % "java-client" % "2.2.0",
+  "io.reactivex" %% "rxscala" % "0.25.0",
   "org.scalatest" %% "scalatest" % "2.2.5" % "test",
   "junit" % "junit" % "4.12" % "test"
 )

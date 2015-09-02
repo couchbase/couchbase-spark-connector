@@ -22,7 +22,7 @@
 package com.couchbase.spark.rdd
 
 import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.query.Query
+import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.internal.LazyIterator
 import org.apache.spark.{Logging, TaskContext, Partition, SparkContext}
@@ -32,7 +32,7 @@ import rx.lang.scala.JavaConversions._
 
 case class CouchbaseQueryRow(value: JsonObject)
 
-class QueryRDD(@transient sc: SparkContext, query: Query, bucketName: String = null)
+class QueryRDD(@transient sc: SparkContext, query: N1qlQuery, bucketName: String = null)
   extends RDD[CouchbaseQueryRow](sc, Nil)
   with Logging {
 
@@ -62,7 +62,7 @@ class QueryRDD(@transient sc: SparkContext, query: Query, bucketName: String = n
 
 object QueryRDD {
 
-  def apply(sc: SparkContext, bucketName: String, query: Query) =
+  def apply(sc: SparkContext, bucketName: String, query: N1qlQuery) =
     new QueryRDD(sc, query, bucketName)
 
 }

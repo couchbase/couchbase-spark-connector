@@ -23,7 +23,7 @@ package com.couchbase.spark.japi;
 
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.query.Query;
+import com.couchbase.client.java.query.N1qlQuery;
 import com.couchbase.client.java.view.SpatialViewQuery;
 import com.couchbase.client.java.view.ViewQuery;
 import com.couchbase.spark.rdd.CouchbaseQueryRow;
@@ -92,11 +92,11 @@ public class CouchbaseSparkContext {
         return new SpatialViewRDD(sc, query, bucket).toJavaRDD();
     }
 
-    public JavaRDD<CouchbaseQueryRow> couchbaseQuery(final Query query) {
+    public JavaRDD<CouchbaseQueryRow> couchbaseQuery(final N1qlQuery query) {
         return couchbaseQuery(query, null);
     }
 
-    public JavaRDD<CouchbaseQueryRow> couchbaseQuery(final Query query, final String bucket) {
+    public JavaRDD<CouchbaseQueryRow> couchbaseQuery(final N1qlQuery query, final String bucket) {
         return new QueryRDD(sc, query, bucket).toJavaRDD();
     }
 

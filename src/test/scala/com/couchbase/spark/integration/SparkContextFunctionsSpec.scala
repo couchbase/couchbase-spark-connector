@@ -25,12 +25,10 @@ import com.couchbase.client.java.Bucket
 import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.query.consistency.ScanConsistency
-import com.couchbase.client.java.query.{QueryParams, Query, SimpleQuery}
+import com.couchbase.client.java.query._
 import com.couchbase.client.java.view.{Stale, ViewQuery, DefaultView, DesignDocument}
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{SparkContext, SparkConf}
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, FlatSpec}
 import scala.collection.JavaConversions._
 
@@ -61,7 +59,7 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
     )
     bucket.bucketManager().upsertDesignDocument(ddoc)
 
-    bucket.query(Query.simple(s"CREATE PRIMARY INDEX ON $bucketName"))
+    bucket.query(N1qlQuery.simple(s"CREATE PRIMARY INDEX ON $bucketName"))
   }
 
   override def afterAll(): Unit = {
@@ -118,8 +116,8 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
 
     val result = sparkContext
       .couchbaseQuery(
-          Query.simple(s"SELECT META(`$bucketName`).id, `$bucketName`.* FROM `$bucketName` WHERE type = 'car'",
-          QueryParams.build().consistency(ScanConsistency.REQUEST_PLUS))
+          N1qlQuery.simple(s"SELECT META(`$bucketName`).id, `$bucketName`.* FROM `$bucketName` WHERE type = 'car'",
+          N1qlParams.build().consistency(ScanConsistency.REQUEST_PLUS))
       )
       .collect()
 
