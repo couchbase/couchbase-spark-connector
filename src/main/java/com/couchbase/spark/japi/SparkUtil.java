@@ -19,32 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
  * IN THE SOFTWARE.
  */
-package com.couchbase.spark.java;
+package com.couchbase.spark.japi;
 
-import com.couchbase.client.java.document.JsonDocument;
-import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.junit.Test;
-import java.util.Arrays;
+import scala.collection.Seq;
+import scala.reflect.ClassTag;
+import java.util.List;
 
-import static com.couchbase.spark.java.CouchbaseRDD.couchbaseRDD;
-import static com.couchbase.spark.java.CouchbaseSparkContext.couchbaseContext;
+public class SparkUtil {
 
-public class CouchbaseSparkContextTest {
-
-    @Test
-    public void shouldGetADocument() {
-        SparkConf conf = new SparkConf().setAppName("javaTest").setMaster("local[*]");
-        JavaSparkContext sc = new JavaSparkContext(conf);
-        CouchbaseSparkContext csc = couchbaseContext(sc);
-
-
-        JavaRDD<JsonDocument> jsonDocumentJavaRDD =
-            couchbaseRDD(sc.parallelize(Arrays.asList("airline_2357"))).couchbaseGet("default", JsonDocument.class);
-
-
-        System.out.println(jsonDocumentJavaRDD.collect());
+    public static <T> ClassTag<T> classTag(Class<T> source) {
+        return scala.reflect.ClassTag$.MODULE$.apply(source);
     }
 
+    public static <T> Seq<T> listToSeq(List<T> source) {
+        return scala.collection.JavaConversions.asScalaBuffer(source).seq();
+    }
 }

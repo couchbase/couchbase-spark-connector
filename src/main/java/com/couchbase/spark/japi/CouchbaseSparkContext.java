@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
  * IN THE SOFTWARE.
  */
-package com.couchbase.spark.java;
+package com.couchbase.spark.japi;
 
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
