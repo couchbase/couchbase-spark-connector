@@ -32,12 +32,12 @@ class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter) extends Seri
   private val source = "com.couchbase.spark.sql.DefaultSource"
 
   /**
-   * Stores the current [[DataFrame]] in the only open bucket.
+   * Stores the current DataFrame in the only open bucket.
    */
   def couchbase(options: Map[String, String] = null): Unit = writeFrame(options)
 
   /**
-   * Helper method to write the current [[DataFrame]] against the couchbase source.
+   * Helper method to write the current DataFrame against the couchbase source.
    */
   private def writeFrame(options: Map[String, String] = null): Unit = {
     val builder = dfw

@@ -33,7 +33,7 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
   private val source = "com.couchbase.spark.sql.DefaultSource"
 
   /**
-   * Creates a [[DataFrame]] through schema inference and no filter on the only bucket open.
+   * Creates a DataFrame through schema inference and no filter on the only bucket open.
    */
   def couchbase(): DataFrame = buildFrame(null, null, None)
 
@@ -41,7 +41,7 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
     buildFrame(options, null, None)
 
   /**
-   * Creates a [[DataFrame]] with a manually defined schema on the only bucket open.
+   * Creates a DataFrame with a manually defined schema on the only bucket open.
    *
    * @param schema the manual schema defined.
    */
@@ -52,7 +52,7 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
     buildFrame(null, schema, None)
 
   /**
-   * Creates a [[DataFrame]] through schema inference with a filter applied on the only bucket
+   * Creates a DataFrame through schema inference with a filter applied on the only bucket
    * open.
    *
    * The filter will be essentially turned into a WHERE clause on the N1QL query, which allows
@@ -67,7 +67,7 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
     buildFrame(null, null, Some(schemaFilter))
 
   /**
-   * Helper method to create the [[DataFrame]].
+   * Helper method to create the DataFrame.
    *
    * @param schema the manual schema defined.
    * @param schemaFilter the filter clause which constraints the document set used for inference.

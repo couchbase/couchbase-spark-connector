@@ -8,9 +8,9 @@ description := "Official Couchbase Spark Connector"
 
 organizationHomepage := Some(url("http://couchbase.com"))
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.10.5"
 
-crossScalaVersions := Seq("2.11.5", "2.10.4")
+crossScalaVersions := Seq("2.11.5", "2.10.5")
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.4.0" % "provided",

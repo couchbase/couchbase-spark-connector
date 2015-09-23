@@ -59,9 +59,13 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
 
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
-    sqlContext.read.json(
+    val schema = sqlContext.read.json(
       QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query)).map(_.value.toString)
     ).schema
+
+    logInfo(s"Inferred schema is $schema")
+
+    schema
   }
 
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
