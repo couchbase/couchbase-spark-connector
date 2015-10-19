@@ -85,9 +85,12 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       bucketName + "`" + stringFilter
 
     logInfo(s"Executing generated query: '$query'")
+
     sqlContext.read.json(
       QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query)).map(_.value.toString)
-    ).map(row => row)
+    ).map(row =>
+      Row.fromSeq(requiredColumns.map(col => row.get(row.fieldIndex(col))).toList)
+    )
   }
 
   /**
