@@ -23,28 +23,35 @@ package com.couchbase.spark.japi;
 
 import com.couchbase.client.java.document.JsonDocument;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 import java.util.Arrays;
+import java.util.List;
 
-import static com.couchbase.spark.japi.CouchbaseRDD.couchbaseRDD;
 import static com.couchbase.spark.japi.CouchbaseSparkContext.couchbaseContext;
+import static org.junit.Assert.assertEquals;
 
 public class CouchbaseSparkContextTest {
 
     @Test
     public void shouldGetADocument() {
-        SparkConf conf = new SparkConf().setAppName("javaTest").setMaster("local[*]");
+        SparkConf conf = new SparkConf()
+            .setAppName("javaTest")
+            .setMaster("local[*]")
+            .set("com.couchbase.bucket.travel-sample", "");
+
         JavaSparkContext sc = new JavaSparkContext(conf);
         CouchbaseSparkContext csc = couchbaseContext(sc);
 
+        String id = "airline_2357";
 
-        JavaRDD<JsonDocument> jsonDocumentJavaRDD =
-            couchbaseRDD(sc.parallelize(Arrays.asList("airline_2357"))).couchbaseGet("default", JsonDocument.class);
+        List<JsonDocument> found = csc
+            .couchbaseGet(Arrays.asList(id))
+            .collect();
 
-
-        System.out.println(jsonDocumentJavaRDD.collect());
+        assertEquals(1, found.size());
+        assertEquals(id, found.get(0).id());
+        assertEquals("First Choice Airways", found.get(0).content().getString("name"));
     }
 
 }
