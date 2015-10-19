@@ -89,7 +89,6 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
 
           val data = new Array[Byte](msg.content().readableBytes())
           msg.content().readBytes(data)
-          msg.content().release(msg.content().refCnt())
           val mutation = new Mutation(msg.key(), data, msg.expiration(), msg.cas(),
             msg.flags(), msg.lockTime())
           mutation
