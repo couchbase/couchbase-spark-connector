@@ -10,12 +10,12 @@ organizationHomepage := Some(url("http://couchbase.com"))
 
 scalaVersion := "2.10.5"
 
-crossScalaVersions := Seq("2.11.5", "2.10.5")
+crossScalaVersions := Seq("2.11.6", "2.10.5")
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "1.4.0" % "provided",
-  "org.apache.spark" %% "spark-streaming" % "1.4.0" % "provided",
-  "org.apache.spark" %% "spark-sql" % "1.4.0" % "provided",
+  "org.apache.spark" %% "spark-core" % "1.4.1" % "provided",
+  "org.apache.spark" %% "spark-streaming" % "1.4.1" % "provided",
+  "org.apache.spark" %% "spark-sql" % "1.4.1" % "provided",
   "com.couchbase.client" % "java-client" % "2.2.1",
   "io.reactivex" %% "rxscala" % "0.25.0",
   "org.scalatest" %% "scalatest" % "2.2.5" % "test",
@@ -61,6 +61,10 @@ pomExtra := (
     </developer>
   </developers>
 )
+
+test in assembly := {}
+
+assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false)
 
 assemblyMergeStrategy in assembly := {
   case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.rename
