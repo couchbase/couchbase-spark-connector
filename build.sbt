@@ -2,7 +2,7 @@ name := "spark-connector"
 
 organization := "com.couchbase.client"
 
-version := "1.0.0"
+version := "1.1.0-SNAPSHOT"
 
 description := "Official Couchbase Spark Connector"
 
@@ -10,12 +10,12 @@ organizationHomepage := Some(url("http://couchbase.com"))
 
 scalaVersion := "2.10.5"
 
-crossScalaVersions := Seq("2.11.6", "2.10.5")
+crossScalaVersions := Seq("2.11.7", "2.10.5")
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "1.4.1" % "provided",
-  "org.apache.spark" %% "spark-streaming" % "1.4.1" % "provided",
-  "org.apache.spark" %% "spark-sql" % "1.4.1" % "provided",
+  "org.apache.spark" %% "spark-core" % "1.5.1" % "provided",
+  "org.apache.spark" %% "spark-streaming" % "1.5.1" % "provided",
+  "org.apache.spark" %% "spark-sql" % "1.5.1" % "provided",
   "com.couchbase.client" % "java-client" % "2.2.1",
   "io.reactivex" %% "rxscala" % "0.25.0",
   "org.scalatest" %% "scalatest" % "2.2.5" % "test",
@@ -42,13 +42,6 @@ credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 pomExtra := (
   <url>https://github.com/couchbaselabs/couchbase-spark-connector</url>
-  <licenses>
-    <license>
-      <name>Apache License, Verision 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
   <scm>
     <url>git@github.com:couchbaselabs/couchbase-spark-connector.git</url>
     <connection>scm:git:git@github.com:couchbaselabs/couchbase-spark-connector.git</connection>
