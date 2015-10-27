@@ -34,6 +34,12 @@ class DStreamFunctions[D <: Document[_]](dstream: DStream[D]) extends Serializab
     dstream.foreachRDD(_.saveToCouchbase(bucketName))
   }
 
+  def saveToCouchbase(storeMode: StoreMode): Unit = {
+    saveToCouchbase(null, storeMode)
+  }
 
+  def saveToCouchbase(bucketName: String, storeMode: StoreMode): Unit = {
+    dstream.foreachRDD(_.saveToCouchbase(bucketName, storeMode))
+  }
 
 }
