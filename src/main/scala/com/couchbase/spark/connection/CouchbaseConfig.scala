@@ -32,6 +32,10 @@ object CouchbaseConfig {
   private val BUCKET_PREFIX = PREFIX + "bucket."
   private val NODES_PREFIX = PREFIX + "nodes"
 
+  private val COMPAT_PREFIX = "spark.couchbase."
+  private val COMPAT_BUCKET_PREFIX = COMPAT_PREFIX + "bucket."
+  private val COMPAT_NODES_PREFIX = COMPAT_PREFIX + "nodes"
+
   val DEFAULT_NODE = "127.0.0.1"
   val DEFAULT_BUCKET = "default"
   val DEFAULT_PASSWORD = ""
@@ -39,10 +43,15 @@ object CouchbaseConfig {
   def apply(cfg: SparkConf) = {
     val bucketConfigs = cfg
       .getAll.to[List]
-      .filter(pair => pair._1.startsWith(BUCKET_PREFIX))
-      .map(pair => CouchbaseBucket(pair._1.replace(BUCKET_PREFIX, ""), pair._2))
+      .filter(pair => pair._1.startsWith(BUCKET_PREFIX) || pair._1.startsWith(COMPAT_BUCKET_PREFIX))
+      .map(pair => CouchbaseBucket(
+        pair._1.replace(BUCKET_PREFIX, "").replace(COMPAT_BUCKET_PREFIX, ""),
+        pair._2
+    ))
 
     val nodes = cfg.get(NODES_PREFIX, DEFAULT_NODE).split(";")
+      .union(cfg.get(COMPAT_NODES_PREFIX, DEFAULT_NODE).split(";"))
+      .distinct
 
     if (bucketConfigs.isEmpty) {
       new CouchbaseConfig(nodes, Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)))
