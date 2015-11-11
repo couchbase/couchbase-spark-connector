@@ -11,6 +11,8 @@ organizationHomepage := Some(url("http://couchbase.com"))
 scalaVersion := "2.10.5"
 
 crossScalaVersions := Seq("2.11.6", "2.10.5")
+javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
+scalacOptions += "-target:jvm-1.7"
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.4.1" % "provided",
