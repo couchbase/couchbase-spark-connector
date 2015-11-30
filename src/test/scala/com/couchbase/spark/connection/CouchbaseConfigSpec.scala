@@ -92,4 +92,31 @@ class CouchbaseConfigSpec extends FlatSpec with Matchers {
     val cbConf = CouchbaseConfig.apply(sparkConf)
     cbConf.hosts should equal(Array("127.0.0.1"))
   }
+
+  it should "apply default retry values" in {
+    val sparkConf = new SparkConf()
+    val cbConf = CouchbaseConfig.apply(sparkConf)
+
+    cbConf.retryOpts should equal(RetryOptions(130, 1000, 0))
+  }
+
+  it should "set custom retry values on com prefix" in {
+    val sparkConf = new SparkConf()
+      .set("com.couchbase.maxRetries", "5")
+      .set("com.couchbase.maxRetryDelay", "10")
+      .set("com.couchbase.minRetryDelay", "1")
+    val cbConf = CouchbaseConfig.apply(sparkConf)
+
+    cbConf.retryOpts should equal(RetryOptions(5, 10, 1))
+  }
+
+  it should "set custom retry values on spark prefix" in {
+    val sparkConf = new SparkConf()
+      .set("spark.couchbase.maxRetries", "5")
+      .set("spark.couchbase.maxRetryDelay", "10")
+      .set("spark.couchbase.minRetryDelay", "1")
+    val cbConf = CouchbaseConfig.apply(sparkConf)
+
+    cbConf.retryOpts should equal(RetryOptions(5, 10, 1))
+  }
 }

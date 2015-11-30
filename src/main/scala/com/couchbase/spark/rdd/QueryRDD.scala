@@ -21,8 +21,14 @@
  */
 package com.couchbase.spark.rdd
 
+import java.util.concurrent.TimeUnit
+
+import com.couchbase.client.core.BackpressureException
+import com.couchbase.client.core.time.Delay
 import com.couchbase.client.java.document.json.JsonObject
+import com.couchbase.client.java.error.{CouchbaseOutOfMemoryException, TemporaryFailureException}
 import com.couchbase.client.java.query.N1qlQuery
+import com.couchbase.client.java.util.retry.RetryBuilder
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.internal.LazyIterator
 import org.apache.spark.{Logging, TaskContext, Partition, SparkContext}
@@ -41,8 +47,18 @@ class QueryRDD(@transient sc: SparkContext, query: N1qlQuery, bucketName: String
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseQueryRow] = {
     val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
 
+    val maxDelay = cbConfig.retryOpts.maxDelay
+    val minDelay = cbConfig.retryOpts.minDelay
+    val maxRetries = cbConfig.retryOpts.maxTries
+
     LazyIterator {
-      toScalaObservable(bucket.query(query))
+      toScalaObservable(bucket.query(query).retryWhen(
+        RetryBuilder
+          .anyOf(classOf[BackpressureException])
+          .delay(Delay.exponential(TimeUnit.MILLISECONDS, maxDelay, minDelay))
+          .max(maxRetries)
+          .build()
+        ))
         .doOnNext(result => {
           toScalaObservable(result.errors()).subscribe(err => {
             val statement = query.statement()

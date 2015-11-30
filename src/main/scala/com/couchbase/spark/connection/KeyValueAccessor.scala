@@ -21,7 +21,13 @@
  */
 package com.couchbase.spark.connection
 
+import java.util.concurrent.TimeUnit
+
+import com.couchbase.client.core.BackpressureException
+import com.couchbase.client.core.time.Delay
 import com.couchbase.client.java.document.Document
+import com.couchbase.client.java.error.{CouchbaseOutOfMemoryException, TemporaryFailureException}
+import com.couchbase.client.java.util.retry.RetryBuilder
 import com.couchbase.spark.internal.LazyIterator
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
@@ -40,10 +46,21 @@ class KeyValueAccessor[D <: Document[_]]
     val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
     val castTo = ct.runtimeClass.asInstanceOf[Class[D]]
 
+    val maxDelay = cbConfig.retryOpts.maxDelay
+    val minDelay = cbConfig.retryOpts.minDelay
+    val maxRetries = cbConfig.retryOpts.maxTries
+
     LazyIterator {
       Observable
         .from(ids)
-        .flatMap(id => toScalaObservable(bucket.get(id, castTo)))
+        .flatMap(id => toScalaObservable(bucket.get(id, castTo).retryWhen(
+          RetryBuilder
+            .anyOf(classOf[TemporaryFailureException], classOf[BackpressureException],
+              classOf[CouchbaseOutOfMemoryException])
+            .delay(Delay.exponential(TimeUnit.MILLISECONDS, maxDelay, minDelay))
+            .max(maxRetries)
+            .build())
+        ))
         .toBlocking
         .toIterable
         .iterator
