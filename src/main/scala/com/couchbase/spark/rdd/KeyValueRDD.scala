@@ -71,24 +71,26 @@ class KeyValueRDD[D <: Document[_]]
       .toBlocking
       .single
 
-
-    val parts = if (config.isInstanceOf[CouchbaseBucketConfig]) {
-      val bucketConfig = config.asInstanceOf[CouchbaseBucketConfig]
-      val numPartitions = bucketConfig.numberOfPartitions()
-      ids.groupBy(id => {
-        val crc32 = new CRC32()
-        crc32.update(id.getBytes("UTF-8"))
-        val rv = (crc32.getValue >> 16) & 0x7fff
-        rv.toInt & numPartitions - 1
-      }).map(grouped => {
-        val hostname = Some(
-          bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1)).hostname()
-        )
-        new KeyValuePartition(grouped._1, grouped._2, hostname)
-      }).toArray
-    } else {
-      logWarning("Memcached preferred locations currently not supported.")
-      Array(new KeyValuePartition(0, ids, None))
+    val parts = config match {
+      case bucketConfig: CouchbaseBucketConfig =>
+        val numPartitions = bucketConfig.numberOfPartitions()
+        var partitionIndex = 0
+        ids.groupBy(id => {
+          val crc32 = new CRC32()
+          crc32.update(id.getBytes("UTF-8"))
+          val rv = (crc32.getValue >> 16) & 0x7fff
+          rv.toInt & numPartitions - 1
+        }).map(grouped => {
+          val hostname = Some(
+            bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1)).hostname()
+          )
+          val currentIdx = partitionIndex
+          partitionIndex += 1
+          new KeyValuePartition(currentIdx, grouped._2, hostname)
+        }).toArray
+      case _ =>
+        logWarning("Memcached preferred locations currently not supported.")
+        Array(new KeyValuePartition(0, ids, None))
     }
 
     parts.asInstanceOf[Array[Partition]]
