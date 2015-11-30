@@ -21,7 +21,7 @@
  */
 package com.couchbase.spark.sql
 
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.{SaveMode, SQLContext}
 import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest._
@@ -63,7 +63,11 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     val landmark = ssc.read.couchbase(EqualTo("type", "landmark"), Map("bucket" -> "travel-sample"))
 
 
-    airline.limit(10).write.couchbase(Map("bucket" -> "default"))
+    airline
+      .limit(10)
+      .write
+      .mode(SaveMode.Overwrite)
+      .couchbase(Map("bucket" -> "default"))
 
     // TODO: validate schemas which are inferred on a field and type basis
 
