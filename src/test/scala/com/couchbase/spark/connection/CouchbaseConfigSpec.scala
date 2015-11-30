@@ -61,4 +61,35 @@ class CouchbaseConfigSpec extends FlatSpec with Matchers {
     cbConf.buckets.head.password should equal("")
   }
 
+  it should "work only with com prefix settings" in {
+    val sparkConf = new SparkConf()
+      .set("com.couchbase.nodes", "a;b;c;d")
+
+    val cbConf = CouchbaseConfig.apply(sparkConf)
+    cbConf.hosts should equal(Array("a", "b", "c", "d"))
+  }
+
+  it should "work only with spark prefix settings" in {
+    val sparkConf = new SparkConf()
+      .set("spark.couchbase.nodes", "d;e;f")
+
+    val cbConf = CouchbaseConfig.apply(sparkConf)
+    cbConf.hosts should equal(Array("d", "e", "f"))
+  }
+
+  it should "apply default settings with empty list on com prefix" in {
+    val sparkConf = new SparkConf()
+      .set("com.couchbase.nodes", "")
+
+    val cbConf = CouchbaseConfig.apply(sparkConf)
+    cbConf.hosts should equal(Array("127.0.0.1"))
+  }
+
+  it should "apply default settings with empty list on spark prefix" in {
+    val sparkConf = new SparkConf()
+      .set("spark.couchbase.nodes", "")
+
+    val cbConf = CouchbaseConfig.apply(sparkConf)
+    cbConf.hosts should equal(Array("127.0.0.1"))
+  }
 }

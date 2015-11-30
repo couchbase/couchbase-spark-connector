@@ -49,9 +49,14 @@ object CouchbaseConfig {
         pair._2
     ))
 
-    val nodes = cfg.get(NODES_PREFIX, DEFAULT_NODE).split(";")
-      .union(cfg.get(COMPAT_NODES_PREFIX, DEFAULT_NODE).split(";"))
+    var nodes = cfg.get(NODES_PREFIX, "").split(";")
+      .union(cfg.get(COMPAT_NODES_PREFIX, "").split(";"))
       .distinct
+      .filter(!_.isEmpty)
+
+    if (nodes.isEmpty) {
+      nodes = nodes ++ Array(DEFAULT_NODE)
+    }
 
     if (bucketConfigs.isEmpty) {
       new CouchbaseConfig(nodes, Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)))
