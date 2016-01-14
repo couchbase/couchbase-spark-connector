@@ -23,6 +23,7 @@ package com.couchbase.spark.streaming
 
 import com.couchbase.client.core.ClusterFacade
 import com.couchbase.client.core.config.CouchbaseBucketConfig
+import com.couchbase.client.core.dcp.BucketStreamAggregator
 import com.couchbase.client.core.message.cluster.{GetClusterConfigResponse, GetClusterConfigRequest}
 import com.couchbase.client.core.message.dcp._
 import com.couchbase.spark.connection.{CouchbaseConnection, CouchbaseConfig}
@@ -65,21 +66,12 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
 
     val bucket = CouchbaseConnection().bucket(config, bucketName).async()
     val core = bucket.core().toBlocking.single()
+    val aggregator = new BucketStreamAggregator("CouchbaseSpark(" + this.hashCode() + ")", core,
+      bucketName)
 
-    toScalaObservable(
-      core.send[OpenConnectionResponse](new OpenConnectionRequest("sparkstream", bucketName))
-    ).flatMap(res => {
-        val status = res.status()
-        if (status.isSuccess) {
-          logDebug("Stream Connection Request succeeded")
-        } else {
-          logError("Stream Connection Request failed $status")
-        }
-        partitionSize(core)
-      }).flatMap(partitions => {
-        logDebug("Found $partitions partitions to open connections against.")
-        requestStreams(core, partitions)
-      }).map[StreamMessage] {
+
+    toScalaObservable(aggregator.feed())
+      .map[StreamMessage] {
         case req@(_: SnapshotMarkerMessage) =>
           val msg = req.asInstanceOf[SnapshotMarkerMessage]
           new Snapshot(msg.startSequenceNumber(), msg.endSequenceNumber(), msg.memory(),
@@ -104,24 +96,6 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
 
   override def onStop(): Unit = {
     logInfo(s"Stopping Couchbase (DCP) Stream against Bucket $bucketName")
-  }
-
-  private def partitionSize(core: ClusterFacade): Observable[Integer] = {
-    toScalaObservable(core.send[GetClusterConfigResponse](new GetClusterConfigRequest))
-      .map(_.config().bucketConfig(bucketName).asInstanceOf[CouchbaseBucketConfig]
-      .numberOfPartitions())
-  }
-
-  private def requestStreams(core: ClusterFacade, numPartitions: Integer):
-    Observable[DCPRequest] = {
-      Observable
-        .from(0 to numPartitions)
-        .flatMap(partition => toScalaObservable(core.send[StreamRequestResponse](
-          new StreamRequestRequest(partition.toShort, bucketName)))
-        )
-        .map(res => toScalaObservable(res.stream()))
-        .flatten[DCPRequest]
-        .doOnNext(res => logTrace("Incoming Stream Message $res"))
   }
 
 }
