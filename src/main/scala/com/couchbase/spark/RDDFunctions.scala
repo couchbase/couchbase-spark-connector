@@ -21,8 +21,9 @@
  */
 package com.couchbase.spark
 
+import com.couchbase.client.java.view.ViewQuery
 import com.couchbase.spark.internal.{OnceIterable, LazyIterator}
-import com.couchbase.spark.rdd.KeyValueRDD
+import com.couchbase.spark.rdd.{ViewRDD, CouchbaseViewRow, KeyValueRDD}
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 

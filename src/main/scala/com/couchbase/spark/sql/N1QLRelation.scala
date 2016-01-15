@@ -128,11 +128,16 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
     var i = 0
 
     filters.foreach(f => {
-      if (i > 0) {
-        filter.append(" AND")
+      try {
+        val encoded = N1QLRelation.filterToExpression(f)
+        if (i > 0) {
+          filter.append(" AND")
+        }
+        filter.append(encoded)
+        i = i + 1
+      } catch {
+        case _: Exception => logInfo("Ignoring unsupported filter: " + f)
       }
-      filter.append(N1QLRelation.filterToExpression(f))
-      i = i + 1
     })
 
     filter.toString()
