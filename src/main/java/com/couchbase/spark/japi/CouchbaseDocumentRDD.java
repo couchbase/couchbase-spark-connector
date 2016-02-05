@@ -24,6 +24,7 @@ package com.couchbase.spark.japi;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.spark.DocumentRDDFunctions;
 import com.couchbase.spark.StoreMode;
+import com.couchbase.spark.connection.RetryOptions;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.rdd.RDD;
 import scala.reflect.ClassTag;
@@ -58,7 +59,11 @@ public class CouchbaseDocumentRDD<T extends Document<?>> extends JavaRDD<T> {
     }
 
     public void saveToCouchbase(StoreMode storeMode, String bucket) {
-        new DocumentRDDFunctions<T>(source.rdd()).saveToCouchbase(bucket, storeMode);
+        saveToCouchbase(storeMode, bucket, null);
+    }
+
+    public void saveToCouchbase(StoreMode storeMode, String bucket, RetryOptions retryOptions) {
+        new DocumentRDDFunctions<T>(source.rdd()).saveToCouchbase(bucket, storeMode, retryOptions);
     }
 
     @Override
