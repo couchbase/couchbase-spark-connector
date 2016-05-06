@@ -32,6 +32,11 @@ class CouchbaseConnection extends Serializable {
   @transient var buckets = new ConcurrentHashMap[String, Bucket]()
 
   def cluster(cfg: CouchbaseConfig): Cluster = {
+    val currentProp = System.getProperty("com.couchbase.dcpEnabled")
+    if (currentProp == null || currentProp.isEmpty) {
+      System.setProperty("com.couchbase.dcpEnabled", "true")
+    }
+
     this.synchronized {
       if (clusterRef.isEmpty) {
         clusterRef = Option(
