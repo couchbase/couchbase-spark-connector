@@ -66,6 +66,12 @@ class DataFrameReaderFunctions(@transient val dfr: DataFrameReader) extends Seri
   def couchbase(schemaFilter: Filter): DataFrame =
     buildFrame(null, null, Some(schemaFilter))
 
+  def couchbase(schema: StructType, schemaFilter: Filter): DataFrame =
+    buildFrame(null, schema, Some(schemaFilter))
+
+  def couchbase(schema: StructType, schemaFilter: Filter, options: Map[String, String]): DataFrame =
+    buildFrame(options, schema, Some(schemaFilter))
+
   /**
    * Helper method to create the DataFrame.
    *
