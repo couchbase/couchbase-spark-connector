@@ -19,14 +19,32 @@
   * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALING
   * IN THE SOFTWARE.
   */
-package com.couchbase.spark.streaming
+package com.couchbase.spark.samples
 
-sealed class StreamFrom
-case object FromBeginning extends StreamFrom
- case object FromNow extends StreamFrom
-// final case class FromSequence(seqno: Int) extends StreamFrom
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.{SparkConf, SparkContext}
+import com.couchbase.spark.sql._
 
+object SQLSample {
 
-sealed class StreamTo
-case object ToInfinity /* and beyond! */ extends StreamTo
-// final case class ToSequence(seqno: Int) extends StreamTo
+  def main(args: Array[String]): Unit = {
+    val conf = new SparkConf()
+      .setMaster("local[*]")
+      .setAppName("SQLSample")
+      .set("com.couchbase.bucket.travel-sample", "")
+
+    val ctx = new SparkContext(conf)
+    val sqlContext = new SQLContext(ctx)
+
+    val airline = sqlContext.read
+      .option("bucket","travel-sample")
+      .option("schemaFilter", "type = 'airline'")
+      .couchbase()
+
+    airline.printSchema()
+
+    println(airline.count())
+
+  }
+
+}
