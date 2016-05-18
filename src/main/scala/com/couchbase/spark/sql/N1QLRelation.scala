@@ -100,6 +100,10 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
    * @return the raw N1QL string
    */
   private def buildColumns(requiredColumns: Array[String], bucktName: String): String =  {
+    if (requiredColumns.isEmpty) {
+      return s"`$bucketName`.*"
+    }
+
     requiredColumns
       .map(column => {
         if (column == idFieldName) {
