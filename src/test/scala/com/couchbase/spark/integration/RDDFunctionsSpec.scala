@@ -18,10 +18,12 @@ package com.couchbase.spark.integration
 import com.couchbase.client.java.Bucket
 import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
+import com.couchbase.client.java.query.N1qlQuery
+import com.couchbase.client.java.query.core.N1qlQueryExecutor
+import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.{FlatSpec, Matchers, BeforeAndAfterAll}
-
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import com.couchbase.spark._
 
 /**

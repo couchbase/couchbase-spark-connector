@@ -18,6 +18,9 @@ package com.couchbase.spark.japi;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.spark.RDDFunctions;
+import com.couchbase.spark.rdd.CouchbaseQueryRow;
+import com.couchbase.spark.rdd.CouchbaseSpatialViewRow;
+import com.couchbase.spark.rdd.CouchbaseViewRow;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.rdd.RDD;
 import scala.Predef;
@@ -107,6 +110,36 @@ public class CouchbaseRDD<T> extends JavaRDD<T> {
     @Override
     public ClassTag<T> classTag() {
         return source.classTag();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseViewRow> couchbaseView() {
+        return new RDDFunctions<T>(source.rdd()).couchbaseView(null, LCLIdentity.INSTANCE).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseViewRow> couchbaseView(String bucket) {
+        return new RDDFunctions<T>(source.rdd()).couchbaseView(bucket, LCLIdentity.INSTANCE).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseSpatialViewRow> couchbaseSpatialView() {
+        return new RDDFunctions<T>(source.rdd()).couchbaseSpatialView(null, LCLIdentity.INSTANCE).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseSpatialViewRow> couchbaseSpatialView(String bucket) {
+        return new RDDFunctions<T>(source.rdd()).couchbaseSpatialView(bucket, LCLIdentity.INSTANCE).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseQueryRow> couchbaseQuery() {
+        return new RDDFunctions<T>(source.rdd()).couchbaseQuery(null, LCLIdentity.INSTANCE).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseQueryRow> couchbaseQuery(String bucket) {
+        return new RDDFunctions<T>(source.rdd()).couchbaseQuery(bucket, LCLIdentity.INSTANCE).toJavaRDD();
     }
 
     /**

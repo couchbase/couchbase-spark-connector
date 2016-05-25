@@ -15,15 +15,16 @@
  */
 package com.couchbase.spark
 
-import com.couchbase.client.java.view.ViewQuery
+import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
 import com.couchbase.spark.internal.{LazyIterator, OnceIterable}
-import com.couchbase.spark.rdd.{CouchbaseViewRow, KeyValueRDD, ViewRDD}
+import com.couchbase.spark.rdd._
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
 import scala.reflect.ClassTag
 import com.couchbase.client.java.document.Document
-import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, KeyValueAccessor}
+import com.couchbase.client.java.query.N1qlQuery
+import com.couchbase.spark.connection._
 import org.apache.spark.OneToOneDependency
 import org.apache.spark.rdd.RDD
 
@@ -52,4 +53,41 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
     }
   }
 
+  def couchbaseView(bucketName: String = null)
+                   (implicit evidence: RDD[T] <:< RDD[ViewQuery]) : RDD[CouchbaseViewRow] = {
+    val viewRDD: RDD[ViewQuery] = rdd
+    viewRDD.mapPartitions { valueIterator =>
+      if (valueIterator.isEmpty) {
+        Iterator[CouchbaseViewRow]()
+      } else {
+        new ViewAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+      }
+    }
+  }
+
+  def couchbaseSpatialView(bucketName: String = null)
+                   (implicit evidence: RDD[T] <:< RDD[SpatialViewQuery])
+    : RDD[CouchbaseSpatialViewRow] = {
+    val viewRDD: RDD[SpatialViewQuery] = rdd
+    viewRDD.mapPartitions { valueIterator =>
+      if (valueIterator.isEmpty) {
+        Iterator[CouchbaseSpatialViewRow]()
+      } else {
+        new SpatialViewAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+      }
+    }
+  }
+
+  def couchbaseQuery(bucketName: String = null)
+                          (implicit evidence: RDD[T] <:< RDD[N1qlQuery])
+  : RDD[CouchbaseQueryRow] = {
+    val queryRDD: RDD[N1qlQuery] = rdd
+    queryRDD.mapPartitions { valueIterator =>
+      if (valueIterator.isEmpty) {
+        Iterator[CouchbaseQueryRow]()
+      } else {
+        new QueryAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+      }
+    }
+  }
 }

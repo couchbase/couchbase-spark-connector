@@ -31,9 +31,7 @@ object DatasetSample {
       .setAppName("DatasetSample")
       .set("com.couchbase.bucket.travel-sample", "")
 
-    val sc = new SparkContext(conf)
-    val sql = new SQLContext(sc)
-
+    val sql = new SQLContext(new SparkContext(conf))
     import sql.implicits._
 
     val airlines = sql.read.couchbase(schemaFilter = EqualTo("type", "airline")).as[Airline]

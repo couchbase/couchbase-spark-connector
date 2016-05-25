@@ -22,7 +22,7 @@ import com.couchbase.client.core.time.Delay
 import com.couchbase.client.java.error.{CouchbaseOutOfMemoryException, TemporaryFailureException}
 import com.couchbase.client.java.util.retry.RetryBuilder
 import com.couchbase.client.java.view.ViewQuery
-import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, ViewAccessor}
 import com.couchbase.spark.internal.LazyIterator
 import org.apache.spark.{Dependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -36,33 +36,9 @@ class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery, bucketName: Str
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseViewRow] = {
-    val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
+  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseViewRow] =
+    new ViewAccessor(cbConfig, Seq(viewQuery), bucketName).compute()
 
-    val maxDelay = cbConfig.retryOpts.maxDelay
-    val minDelay = cbConfig.retryOpts.minDelay
-    val maxRetries = cbConfig.retryOpts.maxTries
-
-    LazyIterator {
-      toScalaObservable(bucket.query(viewQuery).retryWhen(
-        RetryBuilder
-          .anyOf(classOf[BackpressureException])
-          .delay(Delay.exponential(TimeUnit.MILLISECONDS, maxDelay, minDelay))
-          .max(maxRetries)
-          .build()
-        ))
-        .doOnNext(result => {
-          toScalaObservable(result.error()).subscribe(err => {
-            logError(s"Couchbase View Query $viewQuery failed with $err")
-          })
-        })
-        .flatMap(result => toScalaObservable(result.rows()))
-        .map(row => CouchbaseViewRow(row.id(), row.key(), row.value()))
-        .toBlocking
-        .toIterable
-        .iterator
-    }
-  }
 
   override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
 
