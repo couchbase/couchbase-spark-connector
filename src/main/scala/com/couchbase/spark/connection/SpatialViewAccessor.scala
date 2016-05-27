@@ -18,6 +18,10 @@ class SpatialViewAccessor(cbConfig: CouchbaseConfig, spatialQuery: Seq[SpatialVi
   extends Logging {
 
   def compute(): Iterator[CouchbaseSpatialViewRow] = {
+    if (spatialQuery.isEmpty) {
+      return Iterator[CouchbaseSpatialViewRow]()
+    }
+
     val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
 
     val maxDelay = cbConfig.retryOpts.maxDelay

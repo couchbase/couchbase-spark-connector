@@ -20,16 +20,16 @@ import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.query.N1qlQuery;
 import com.couchbase.client.java.view.SpatialViewQuery;
 import com.couchbase.client.java.view.ViewQuery;
-import com.couchbase.spark.rdd.CouchbaseQueryRow;
-import com.couchbase.spark.rdd.CouchbaseSpatialViewRow;
-import com.couchbase.spark.rdd.CouchbaseViewRow;
-import com.couchbase.spark.rdd.KeyValueRDD;
-import com.couchbase.spark.rdd.QueryRDD;
-import com.couchbase.spark.rdd.SpatialViewRDD;
-import com.couchbase.spark.rdd.ViewRDD;
+import com.couchbase.spark.RDDFunctions;
+import com.couchbase.spark.connection.SubdocLookupResult;
+import com.couchbase.spark.connection.SubdocLookupSpec;
+import com.couchbase.spark.rdd.*;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class CouchbaseSparkContext {
@@ -67,6 +67,28 @@ public class CouchbaseSparkContext {
             SparkUtil.listToSeq(ids),
             bucket,
             SparkUtil.classTag(clazz)
+        ).toJavaRDD();
+    }
+
+    public JavaRDD<SubdocLookupResult> couchbaseSubdocLookup(List<String> ids, List<String> get) {
+        return couchbaseSubdocLookup(ids, get, Collections.<String>emptyList(), null);
+    }
+
+    public JavaRDD<SubdocLookupResult> couchbaseSubdocLookup(List<String> ids, List<String> get, List<String> exists) {
+        return couchbaseSubdocLookup(ids, get, exists, null);
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocLookupResult> couchbaseSubdocLookup(List<String> ids, List<String> get, List<String> exists,
+        String bucket) {
+        List<SubdocLookupSpec> specs = new ArrayList<SubdocLookupSpec>(ids.size());
+        for (String id : ids) {
+            specs.add(new SubdocLookupSpec(id, SparkUtil.listToSeq(get), SparkUtil.listToSeq(exists)));
+        }
+        return new SubdocLookupRDD(
+            sc,
+            SparkUtil.listToSeq(specs),
+            bucket
         ).toJavaRDD();
     }
 

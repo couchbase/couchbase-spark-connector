@@ -17,6 +17,10 @@ class ViewAccessor(cbConfig: CouchbaseConfig, viewQuery: Seq[ViewQuery], bucketN
   extends Logging {
 
   def compute(): Iterator[CouchbaseViewRow] = {
+    if (viewQuery.isEmpty) {
+      return Iterator[CouchbaseViewRow]()
+    }
+
     val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
 
     val maxDelay = cbConfig.retryOpts.maxDelay

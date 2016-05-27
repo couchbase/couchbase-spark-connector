@@ -42,7 +42,6 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    */
   def couchbaseGet[D <: Document[_]](bucketName: String = null)
     (implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
-
     val idRDD: RDD[String] = rdd
     idRDD.mapPartitions { valueIterator =>
       if (valueIterator.isEmpty) {
@@ -54,7 +53,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
   }
 
   def couchbaseView(bucketName: String = null)
-                   (implicit evidence: RDD[T] <:< RDD[ViewQuery]) : RDD[CouchbaseViewRow] = {
+    (implicit evidence: RDD[T] <:< RDD[ViewQuery]) : RDD[CouchbaseViewRow] = {
     val viewRDD: RDD[ViewQuery] = rdd
     viewRDD.mapPartitions { valueIterator =>
       if (valueIterator.isEmpty) {
@@ -66,7 +65,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
   }
 
   def couchbaseSpatialView(bucketName: String = null)
-                   (implicit evidence: RDD[T] <:< RDD[SpatialViewQuery])
+    (implicit evidence: RDD[T] <:< RDD[SpatialViewQuery])
     : RDD[CouchbaseSpatialViewRow] = {
     val viewRDD: RDD[SpatialViewQuery] = rdd
     viewRDD.mapPartitions { valueIterator =>
@@ -79,7 +78,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
   }
 
   def couchbaseQuery(bucketName: String = null)
-                          (implicit evidence: RDD[T] <:< RDD[N1qlQuery])
+    (implicit evidence: RDD[T] <:< RDD[N1qlQuery])
   : RDD[CouchbaseQueryRow] = {
     val queryRDD: RDD[N1qlQuery] = rdd
     queryRDD.mapPartitions { valueIterator =>
@@ -87,6 +86,27 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
         Iterator[CouchbaseQueryRow]()
       } else {
         new QueryAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+      }
+    }
+  }
+
+  def couchbaseSubdocLookup(get: Seq[String])
+    (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] =
+    couchbaseSubdocLookup(get, Seq(), null)
+
+  def couchbaseSubdocLookup(get: Seq[String], exists: Seq[String])
+   (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] =
+    couchbaseSubdocLookup(get, exists, null)
+
+  def couchbaseSubdocLookup(get: Seq[String], exists: Seq[String], bucketName: String)
+    (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] = {
+    val subdocRDD: RDD[String] = rdd
+    subdocRDD.mapPartitions { valueIterator =>
+      if (valueIterator.isEmpty) {
+        Iterator[SubdocLookupResult]()
+      } else {
+        val specs = OnceIterable(valueIterator).toSeq.map(SubdocLookupSpec(_, get, exists))
+        new SubdocLookupAccessor(cbConfig, specs, bucketName).compute()
       }
     }
   }

@@ -16,6 +16,7 @@
 package com.couchbase.spark.japi;
 
 import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.spark.connection.SubdocLookupResult;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
@@ -46,6 +47,25 @@ public class CouchbaseSparkContextTest {
         assertEquals(1, found.size());
         assertEquals(id, found.get(0).id());
         assertEquals("First Choice Airways", found.get(0).content().getString("name"));
+    }
+
+    @Test
+    public void shouldGetViaSubdoc() {
+        SparkConf conf = new SparkConf()
+            .setAppName("javaTest")
+            .setMaster("local[*]")
+            .set("com.couchbase.bucket.travel-sample", "");
+
+        JavaSparkContext sc = new JavaSparkContext(conf);
+        CouchbaseSparkContext csc = couchbaseContext(sc);
+
+        String id = "airline_2357";
+
+        List<SubdocLookupResult> found = csc
+            .couchbaseSubdocLookup(Arrays.asList(id), Arrays.asList("name"))
+            .collect();
+
+        System.out.println(found);
     }
 
 }

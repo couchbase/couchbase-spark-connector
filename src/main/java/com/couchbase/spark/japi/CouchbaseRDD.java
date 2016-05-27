@@ -18,6 +18,7 @@ package com.couchbase.spark.japi;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.spark.RDDFunctions;
+import com.couchbase.spark.connection.SubdocLookupResult;
 import com.couchbase.spark.rdd.CouchbaseQueryRow;
 import com.couchbase.spark.rdd.CouchbaseSpatialViewRow;
 import com.couchbase.spark.rdd.CouchbaseViewRow;
@@ -25,6 +26,9 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.rdd.RDD;
 import scala.Predef;
 import scala.reflect.ClassTag;
+
+import java.util.Collections;
+import java.util.List;
 
 public class CouchbaseRDD<T> extends JavaRDD<T> {
 
@@ -98,6 +102,25 @@ public class CouchbaseRDD<T> extends JavaRDD<T> {
         return new RDDFunctions<T>(source.rdd()).couchbaseGet(
             bucket,
             SparkUtil.classTag(clazz),
+            LCLIdentity.INSTANCE
+        ).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocLookupResult> couchbaseSubdocLookup(List<String> get) {
+        return couchbaseSubdocLookup(get, Collections.<String>emptyList(), null);
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocLookupResult> couchbaseSubdocLookup(List<String> get, List<String> exists) {
+        return couchbaseSubdocLookup(get, exists, null);
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocLookupResult> couchbaseSubdocLookup(List<String> get, List<String> exists, String bucket) {
+        return new RDDFunctions<T>(source.rdd()).couchbaseSubdocLookup(
+            SparkUtil.listToSeq(get),
+            SparkUtil.listToSeq(exists),
             LCLIdentity.INSTANCE
         ).toJavaRDD();
     }
