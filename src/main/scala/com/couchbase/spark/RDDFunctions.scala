@@ -16,16 +16,13 @@
 package com.couchbase.spark
 
 import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
-import com.couchbase.spark.internal.{LazyIterator, OnceIterable}
+import com.couchbase.spark.internal.{OnceIterable}
 import com.couchbase.spark.rdd._
-import rx.lang.scala.JavaConversions._
-import rx.lang.scala.Observable
 
 import scala.reflect.ClassTag
 import com.couchbase.client.java.document.Document
 import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.spark.connection._
-import org.apache.spark.OneToOneDependency
 import org.apache.spark.rdd.RDD
 
 class RDDFunctions[T](rdd: RDD[T]) extends Serializable {

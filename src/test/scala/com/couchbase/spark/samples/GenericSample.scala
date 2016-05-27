@@ -15,10 +15,13 @@
  */
 package com.couchbase.spark.samples
 
+import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{SparkConf, SparkContext}
-import com.couchbase.spark._
 
-object SubdocExample {
+/**
+  * Created by daschl on 27/05/16.
+  */
+object GenericSample {
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf()
@@ -28,24 +31,18 @@ object SubdocExample {
 
     val sc = new SparkContext(conf)
 
-    val result = sc
+    // SparkConfig is not serializable, but the couchbase config is!
+    val cbConf = CouchbaseConfig(conf)
+
+    sc
       .parallelize(Seq("airline_10123"))
-      .couchbaseSubdocLookup(get = Seq("name", "iata"), exists = Seq("foobar"))
-      .collect()
-
-    val r2  = sc.couchbaseSubdocLookup(Seq("airline_10123"), Seq("name", "iata"))
-
-    // Prints
-    // SubdocLookupResult(
-    //    airline_10123,0,Map(name -> Texas Wings, iata -> TQ),Map(foobar -> false)
-    // )
-    result.foreach(println)
-
-    // Prints
-    // SubdocLookupResult(
-    //    airline_10123,0,Map(name -> Texas Wings, iata -> TQ),Map()
-    // )
-    r2.foreach(println)
-
+      .map(id => {
+        // Grab the bucket reference and perform ops on it
+        // !! MAKE SURE YOUR RETURN VALUE IS SERIAZLIABLE !!
+        val bucket = CouchbaseConnection().bucket(cbConf, "travel-sample")
+        bucket.lookupIn(id).get("name").execute().content("name")
+      })
+      .foreach(println)
   }
+
 }
