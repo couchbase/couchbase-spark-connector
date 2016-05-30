@@ -24,6 +24,7 @@ package com.couchbase.spark.sql
 import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.spark.connection.CouchbaseConfig
 import com.couchbase.spark.rdd.QueryRDD
+import org.apache.commons.lang.StringUtils
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
@@ -100,7 +101,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
    * @return the raw N1QL string
    */
   private def buildColumns(requiredColumns: Array[String], bucktName: String): String =  {
-    requiredColumns
+    val columns = requiredColumns
       .map(column => {
         if (column == idFieldName) {
           s"META(`$bucketName`).id as `$idFieldName`"
@@ -109,6 +110,12 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
         }
       })
       .mkString(",")
+
+    if (StringUtils.isEmpty(columns)){
+      "*"
+    } else {
+      columns
+    }
   }
 
 
