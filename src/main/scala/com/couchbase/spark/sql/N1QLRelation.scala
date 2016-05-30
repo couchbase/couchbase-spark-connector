@@ -155,15 +155,30 @@ object N1QLRelation {
    */
   def filterToExpression(filter: Filter): String = {
     filter match {
-      case EqualTo(attr, value) => s" `$attr` = '$value'"
-      case GreaterThan(attr, value) => s" `$attr` > $value"
-      case GreaterThanOrEqual(attr, value) => s" `$attr` >= $value"
-      case LessThan(attr, value) => s" `$attr` < $value"
-      case LessThanOrEqual(attr, value) => s" `$attr` <= $value"
-      case IsNull(attr) => s" `$attr` IS NULL"
-      case IsNotNull(attr) => s" `$attr` IS NOT NULL"
+      case EqualTo(attr, value) => s" ${filterAttribute(attr)} = '$value'"
+      case GreaterThan(attr, value) => s" ${filterAttribute(attr)} > $value"
+      case GreaterThanOrEqual(attr, value) => s" ${filterAttribute(attr)} >= $value"
+      case LessThan(attr, value) => s" ${filterAttribute(attr)} < $value"
+      case LessThanOrEqual(attr, value) => s" ${filterAttribute(attr)} <= $value"
+      case IsNull(attr) => s" ${filterAttribute(attr)} IS NULL"
+      case IsNotNull(attr) => s" ${filterAttribute(attr)} IS NOT NULL"
+      case And(leftFilter, rightFilter) =>
+        s" (${filterToExpression(leftFilter)} AND ${filterToExpression(rightFilter)})"
+      case Or(leftFilter, rightFilter) =>
+        s" (${filterToExpression(leftFilter)} OR ${filterToExpression(rightFilter)})"
       case _ => throw new Exception("Unsupported filter")
     }
+  }
+
+  private def filterAttribute(attr: String): String ={
+    attr match {
+      case r"(.*)${first}\.(.*)${second}" => s"`$first`.`$second`"
+      case _ => s"`$attr`"
+    }
+  }
+
+  implicit class Regex(sc: StringContext) {
+    def r = new util.matching.Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
   }
 
 }
