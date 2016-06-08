@@ -15,8 +15,10 @@
  */
 package com.couchbase.spark.sql
 
-import org.apache.spark.sql.{SaveMode, SQLContext}
+import org.apache.avro.generic.GenericData.StringType
+import org.apache.spark.sql.{SQLContext, SaveMode}
 import org.apache.spark.sql.sources.EqualTo
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest._
 
@@ -67,8 +69,20 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
 
   }
 
-  it should "query with predicate" in {
+  it should "write and ignore" in {
+    val ssc = new SQLContext(sparkContext)
+    import com.couchbase.spark.sql._
 
+    // create df, write it twice
+    val data = ("Michael", 28, true)
+    val df = ssc.createDataFrame(sparkContext.parallelize(Seq(data)))
+
+    df.write
+      .mode(SaveMode.Ignore)
+      .couchbase(options = Map("idField" -> "_1", "bucket" -> "default"))
+    df.write
+      .mode(SaveMode.Ignore)
+      .couchbase(options = Map("idField" -> "_1", "bucket" -> "default"))
   }
 
 }

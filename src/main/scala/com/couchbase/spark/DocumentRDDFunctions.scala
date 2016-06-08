@@ -49,7 +49,7 @@ class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D])
             }
           })
           .toBlocking
-          .last
+          .lastOrElse(null)
       }
     })
   }
