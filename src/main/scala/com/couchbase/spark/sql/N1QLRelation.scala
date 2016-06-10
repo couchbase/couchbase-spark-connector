@@ -153,16 +153,16 @@ object N1QLRelation {
    */
   def filterToExpression(filter: Filter): String = {
     filter match {
-      case EqualTo(attr, value) => s" `$attr` = " + valueToFilter(value)
-      case GreaterThan(attr, value) => s" `$attr` > " + valueToFilter(value)
-      case GreaterThanOrEqual(attr, value) => s" `$attr` >= " + valueToFilter(value)
-      case LessThan(attr, value) => s" `$attr` < " + valueToFilter(value)
-      case LessThanOrEqual(attr, value) => s" `$attr` <= " + valueToFilter(value)
-      case IsNull(attr) => s" `$attr` IS NULL"
-      case IsNotNull(attr) => s" `$attr` IS NOT NULL"
-      case StringContains(attr, value) => s" CONTAINS(`$attr`, '$value')"
-      case StringStartsWith(attr, value) => s" `$attr` LIKE '$value%'"
-      case StringEndsWith(attr, value) => s" `$attr` LIKE '%$value'"
+      case EqualTo(attr, value) => s" ${attrToFilter(attr)} = " + valueToFilter(value)
+      case GreaterThan(attr, value) => s" ${attrToFilter(attr)} > " + valueToFilter(value)
+      case GreaterThanOrEqual(attr, value) => s" ${attrToFilter(attr)} >= " + valueToFilter(value)
+      case LessThan(attr, value) => s" ${attrToFilter(attr)} < " + valueToFilter(value)
+      case LessThanOrEqual(attr, value) => s" ${attrToFilter(attr)} <= " + valueToFilter(value)
+      case IsNull(attr) => s" ${attrToFilter(attr)} IS NULL"
+      case IsNotNull(attr) => s" ${attrToFilter(attr)} IS NOT NULL"
+      case StringContains(attr, value) => s" CONTAINS(${attrToFilter(attr)}, '$value')"
+      case StringStartsWith(attr, value) => s" ${attrToFilter(attr)} LIKE '$value%'"
+      case StringEndsWith(attr, value) => s" ${attrToFilter(attr)} LIKE '%$value'"
       case In(attr, values) => {
         val encoded = values.map(valueToFilter).mkString(",")
         s" `$attr` IN [$encoded]"
@@ -182,6 +182,10 @@ object N1QLRelation {
         s" NOT ($v)"
       }
     }
+  }
+
+  def attrToFilter(attr: String): String = {
+    attr.split('.').map(elem => s"`$elem`").mkString(".")
   }
 
   def valueToFilter(value: Any): String = {
