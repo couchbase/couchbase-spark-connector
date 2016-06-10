@@ -153,14 +153,15 @@ object N1QLRelation {
    */
   def filterToExpression(filter: Filter): String = {
     filter match {
-      case EqualTo(attr, value) => s" `$attr` = " + valueToFilter(value)
-      case GreaterThan(attr, value) => s" `$attr` > " + valueToFilter(value)
-      case GreaterThanOrEqual(attr, value) => s" `$attr` >= " + valueToFilter(value)
-      case LessThan(attr, value) => s" `$attr` < " + valueToFilter(value)
-      case LessThanOrEqual(attr, value) => s" `$attr` <= " + valueToFilter(value)
-      case IsNull(attr) => s" `$attr` IS NULL"
-      case IsNotNull(attr) => s" `$attr` IS NOT NULL"
-      case StringContains(attr, value) => s" CONTAINS(`$attr`, '$value')"
+
+      case EqualTo(attr, value) => s" ${attrToFilter(attr)} = " + valueToFilter(value)
+      case GreaterThan(attr, value) => s" ${attrToFilter(attr)} > " + valueToFilter(value)
+      case GreaterThanOrEqual(attr, value) => s" ${attrToFilter(attr)} >= " + valueToFilter(value)
+      case LessThan(attr, value) => s" ${attrToFilter(attr)} < " + valueToFilter(value)
+      case LessThanOrEqual(attr, value) => s" ${attrToFilter(attr)} <= " + valueToFilter(value)
+      case IsNull(attr) => s" ${attrToFilter(attr)} IS NULL"
+      case IsNotNull(attr) => s" ${attrToFilter(attr)} IS NOT NULL"
+      case StringContains(attr, value) => s" CONTAINS(${attrToFilter(attr)}, '$value')"
       case StringStartsWith(attr, value) => s" `$attr` LIKE '" + escapeForLike(value) + "%'"
       case StringEndsWith(attr, value) => s" `$attr` LIKE '%" + escapeForLike(value) + "'"
       case In(attr, values) =>
@@ -183,9 +184,15 @@ object N1QLRelation {
   def escapeForLike(value: String): String =
     value.replaceAll("\\.", "\\\\.").replaceAll("\\*", "\\\\*")
 
-  def valueToFilter(value: Any): String = value match {
-    case v: String => s"'$v'"
-    case v => s"$v"
+  def attrToFilter(attr: String): String = {
+    attr.split('.').map(elem => s"`$elem`").mkString(".")
+  }
+
+  def valueToFilter(value: Any): String = {
+    value match {
+      case v: String => s"'$v'"
+      case v => s"$v"
+    }
   }
 
 }
