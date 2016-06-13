@@ -78,7 +78,7 @@ class DefaultSource
       .toJSON
       .map(rawJson => {
         val encoded = JsonObject.fromJson(rawJson)
-        val id = encoded.getString(idFieldName)
+        val id = encoded.get(idFieldName).toString
         encoded.removeKey(idFieldName)
         JsonDocument.create(id, encoded)
       })
