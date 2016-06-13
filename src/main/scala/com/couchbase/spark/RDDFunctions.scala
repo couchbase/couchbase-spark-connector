@@ -16,7 +16,7 @@
 package com.couchbase.spark
 
 import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
-import com.couchbase.spark.internal.{OnceIterable}
+import com.couchbase.spark.internal.OnceIterable
 import com.couchbase.spark.rdd._
 
 import scala.reflect.ClassTag
@@ -31,11 +31,6 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
 
   /**
    * Convert a RDD[String] to a RDD[D]. It's available if T is String.
-   *
-   * @param ct
-   * @param evidence
-   * @tparam D
-   * @return
    */
   def couchbaseGet[D <: Document[_]](bucketName: String = null)
     (implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {

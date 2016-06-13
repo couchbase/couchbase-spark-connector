@@ -163,24 +163,20 @@ object N1QLRelation {
       case StringContains(attr, value) => s" CONTAINS(`$attr`, '$value')"
       case StringStartsWith(attr, value) => s" `$attr` LIKE '" + escapeForLike(value) + "%'"
       case StringEndsWith(attr, value) => s" `$attr` LIKE '%" + escapeForLike(value) + "'"
-      case In(attr, values) => {
+      case In(attr, values) =>
         val encoded = values.map(valueToFilter).mkString(",")
         s" `$attr` IN [$encoded]"
-      }
-      case And(left, right) => {
+      case And(left, right) =>
         val l = filterToExpression(left)
         val r = filterToExpression(right)
         s" ($l AND $r)"
-      }
-      case Or(left, right) => {
+      case Or(left, right) =>
         val l = filterToExpression(left)
         val r = filterToExpression(right)
         s" ($l OR $r)"
-      }
-      case Not(f) => {
+      case Not(f) =>
         val v = filterToExpression(f)
         s" NOT ($v)"
-      }
     }
   }
 

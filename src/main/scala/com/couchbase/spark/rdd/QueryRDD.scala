@@ -15,19 +15,11 @@
  */
 package com.couchbase.spark.rdd
 
-import java.util.concurrent.TimeUnit
-
-import com.couchbase.client.core.BackpressureException
-import com.couchbase.client.core.time.Delay
 import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.error.{CouchbaseOutOfMemoryException, TemporaryFailureException}
 import com.couchbase.client.java.query.N1qlQuery
-import com.couchbase.client.java.util.retry.RetryBuilder
-import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, QueryAccessor}
-import com.couchbase.spark.internal.LazyIterator
+import com.couchbase.spark.connection.{CouchbaseConfig, QueryAccessor}
 import org.apache.spark.{Logging, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
-import rx.lang.scala.JavaConversions._
 
 case class CouchbaseQueryRow(value: JsonObject)
 

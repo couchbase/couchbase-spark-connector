@@ -15,19 +15,11 @@
  */
 package com.couchbase.spark.rdd
 
-import java.util.concurrent.TimeUnit
-
-import com.couchbase.client.core.BackpressureException
-import com.couchbase.client.core.time.Delay
 import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.error.{CouchbaseOutOfMemoryException, TemporaryFailureException}
-import com.couchbase.client.java.util.retry.RetryBuilder
 import com.couchbase.client.java.view.SpatialViewQuery
-import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, SpatialViewAccessor}
-import com.couchbase.spark.internal.LazyIterator
+import com.couchbase.spark.connection.{CouchbaseConfig, SpatialViewAccessor}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
-import rx.lang.scala.JavaConversions._
 
 case class CouchbaseSpatialViewRow(id: String, key: Any, value: Any, geometry: JsonObject)
 

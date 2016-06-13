@@ -15,8 +15,7 @@
  */
 package com.couchbase.spark.sql
 
-import org.apache.spark.sql.{DataFrame, DataFrameWriter}
-import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.DataFrameWriter
 
 class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter) extends Serializable  {
 

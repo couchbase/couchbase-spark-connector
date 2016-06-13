@@ -19,8 +19,7 @@ package com.couchbase.spark.rdd
 import java.net.InetAddress
 import java.util.zip.CRC32
 
-import com.couchbase.client.core.CouchbaseException
-import com.couchbase.client.core.config.{CouchbaseBucketConfig, BucketType}
+import com.couchbase.client.core.config.CouchbaseBucketConfig
 import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
 import com.couchbase.client.java.document.Document
 import com.couchbase.spark.connection.{CouchbaseConnection, KeyValueAccessor, CouchbaseConfig}
