@@ -161,8 +161,8 @@ object N1QLRelation {
       case IsNull(attr) => s" `$attr` IS NULL"
       case IsNotNull(attr) => s" `$attr` IS NOT NULL"
       case StringContains(attr, value) => s" CONTAINS(`$attr`, '$value')"
-      case StringStartsWith(attr, value) => s" `$attr` LIKE '$value%'"
-      case StringEndsWith(attr, value) => s" `$attr` LIKE '%$value'"
+      case StringStartsWith(attr, value) => s" `$attr` LIKE '" + escapeForLike(value) + "%'"
+      case StringEndsWith(attr, value) => s" `$attr` LIKE '%" + escapeForLike(value) + "'"
       case In(attr, values) => {
         val encoded = values.map(valueToFilter).mkString(",")
         s" `$attr` IN [$encoded]"
@@ -184,11 +184,12 @@ object N1QLRelation {
     }
   }
 
-  def valueToFilter(value: Any): String = {
-    value match {
-      case v: String => s"'$v'"
-      case v => s"$v"
-    }
+  def escapeForLike(value: String): String =
+    value.replaceAll("\\.", "\\\\.").replaceAll("\\*", "\\\\*")
+
+  def valueToFilter(value: Any): String = value match {
+    case v: String => s"'$v'"
+    case v => s"$v"
   }
 
 }

@@ -66,6 +66,22 @@ class FilterSpec extends FlatSpec with Matchers {
     filterToExpression(StringEndsWith("foo", "bar")) should equal(" `foo` LIKE '%bar'")
   }
 
+  it should "escape . for StringStartsWith" in {
+    filterToExpression(StringStartsWith("foo", "b.ar")) should equal(" `foo` LIKE 'b\\.ar%'")
+  }
+
+  it should "escape * for StringStartsWith" in {
+    filterToExpression(StringStartsWith("foo", "b*ar")) should equal(" `foo` LIKE 'b\\*ar%'")
+  }
+
+  it should "escape . for StringEndsWith" in {
+    filterToExpression(StringEndsWith("foo", "b.ar")) should equal(" `foo` LIKE '%b\\.ar'")
+  }
+
+  it should "escape * for StringEndsWith" in {
+    filterToExpression(StringEndsWith("foo", "b*ar")) should equal(" `foo` LIKE '%b\\*ar'")
+  }
+
   it should "convert In" in {
     filterToExpression(In("foo", Array("blub", 1, true))) should equal (" `foo` IN ['blub',1,true]")
   }
