@@ -76,7 +76,7 @@ class KeyValueRDD[D <: Document[_]]
           rv.toInt & numPartitions - 1
         }).map(grouped => {
           val hostname = Some(
-            bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1)).hostname()
+            bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1, false)).hostname()
           )
           val currentIdx = partitionIndex
           partitionIndex += 1

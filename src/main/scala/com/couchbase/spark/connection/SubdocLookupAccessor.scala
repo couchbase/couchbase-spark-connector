@@ -26,6 +26,8 @@ import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
+
 
 case class SubdocLookupSpec(id: String, get: Seq[String], exists: Seq[String])
 
@@ -50,8 +52,8 @@ class SubdocLookupAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocLookupSpe
         .from(specs)
         .flatMap(spec => {
             var builder = bucket.lookupIn(spec.id)
-            spec.exists.foreach(builder.exists)
-            spec.get.foreach(builder.get)
+            builder.exists(spec.exists: _*)
+            builder.get(spec.get: _*)
 
             toScalaObservable(builder.execute()).map(fragment => {
               val content = mutable.Map[String, Any]()

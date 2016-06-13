@@ -34,7 +34,7 @@ object StreamingSample {
     val ssc = new StreamingContext(conf, Seconds(5))
 
     ssc
-      .couchbaseStream(from = FromBeginning, storageLevel = StorageLevel.MEMORY_ONLY)
+      .couchbaseStream(from = FromNow, storageLevel = StorageLevel.MEMORY_ONLY)
       .map(_.getClass)
       .countByValue()
       .print()
