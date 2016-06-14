@@ -101,4 +101,27 @@ class FilterSpec extends FlatSpec with Matchers {
     filterToExpression(expr) should equal (" NOT ( ( `name` IS NULL AND  `age` IS NULL))")
   }
 
+  it should "parse paths in nested filter attributes" in {
+    val filter = EqualTo("flavour.type", "10")
+
+    val parsedFilter = N1QLRelation.filterToExpression(filter)
+
+    parsedFilter should equal(" `flavour`.`type` = '10'")
+  }
+
+  it should "parse paths without nested filter attributes" in {
+    val filter = EqualTo("type", "10")
+
+    val parsedFilter = N1QLRelation.filterToExpression(filter)
+
+    parsedFilter should equal(" `type` = '10'")
+  }
+
+  it should "parse deeply filter attributes" in {
+    val filter = EqualTo("flavour.origin.country.region", "tuscany")
+
+    val parsedFilter = N1QLRelation.filterToExpression(filter)
+
+    parsedFilter should equal(" `flavour`.`origin`.`country`.`region` = 'tuscany'")
+  }
 }
