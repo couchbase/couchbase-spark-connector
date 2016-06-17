@@ -52,8 +52,10 @@ class SubdocLookupAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocLookupSpe
         .from(specs)
         .flatMap(spec => {
             var builder = bucket.lookupIn(spec.id)
-            builder.exists(spec.exists: _*)
-            builder.get(spec.get: _*)
+            spec.exists.foreach(builder.exists(_))
+            spec.get.foreach(builder.get(_))
+           // builder.exists(spec.exists: _*)
+           // builder.get(spec.get: _*)
 
             toScalaObservable(builder.execute()).map(fragment => {
               val content = mutable.Map[String, Any]()
