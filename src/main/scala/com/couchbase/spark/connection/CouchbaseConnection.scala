@@ -15,11 +15,23 @@
  */
 package com.couchbase.spark.connection
 
-import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
-import com.couchbase.client.java.{Cluster, Bucket, CouchbaseCluster}
+import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvironment}
+import com.couchbase.client.java.{Bucket, Cluster, CouchbaseCluster}
+import org.apache.spark.Logging
 import org.jboss.netty.util.internal.ConcurrentHashMap
 
-class CouchbaseConnection extends Serializable {
+class CouchbaseConnection extends Serializable with Logging {
+
+  Runtime.getRuntime.addShutdownHook(new Thread {
+    override def run(): Unit = {
+      Thread.currentThread().setName("couchbase-shutdown-in-progress")
+      CouchbaseConnection().stop()
+      Thread.currentThread().setName("couchbase-shutdown-complete")
+
+    }
+  })
+
+  @transient var envRef: Option[CouchbaseEnvironment] = None
 
   @transient var clusterRef: Option[Cluster] = None
 
@@ -32,10 +44,11 @@ class CouchbaseConnection extends Serializable {
     }
 
     this.synchronized {
+      if (envRef.isEmpty) {
+        envRef = Option(DefaultCouchbaseEnvironment.create())
+      }
       if (clusterRef.isEmpty) {
-        clusterRef = Option(
-          CouchbaseCluster.create(DefaultCouchbaseEnvironment.create(), cfg.hosts:_*)
-        )
+        clusterRef = Option(CouchbaseCluster.create(envRef.get, cfg.hosts:_*))
       }
       clusterRef.get
     }
@@ -66,6 +79,20 @@ class CouchbaseConnection extends Serializable {
       bucket = cluster(cfg).openBucket(bname, foundBucketConfig.head.password)
       buckets.put(bname, bucket)
       bucket
+    }
+  }
+
+  def stop(): Unit = {
+    this.synchronized {
+      logInfo("Performing Couchbase SDK Shutdown")
+      if (clusterRef.isDefined) {
+        clusterRef.get.disconnect()
+        clusterRef = None
+      }
+      if (envRef.isDefined) {
+        envRef.get.shutdown()
+        envRef = None
+      }
     }
   }
 
