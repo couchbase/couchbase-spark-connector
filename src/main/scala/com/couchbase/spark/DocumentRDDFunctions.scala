@@ -15,11 +15,19 @@
  */
 package com.couchbase.spark
 
+import java.lang.Long
+import java.util.concurrent.TimeUnit
+
+import com.couchbase.client.core.BackpressureException
+import com.couchbase.client.core.time.Delay
 import com.couchbase.client.java.document.Document
-import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.client.java.error.{CouchbaseOutOfMemoryException, TemporaryFailureException}
+import com.couchbase.client.java.util.retry.RetryBuilder
+import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, RetryOptions}
 import com.couchbase.spark.internal.OnceIterable
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
+import rx.functions.Action4
 import rx.lang.scala.Observable
 import rx.lang.scala.JavaConversions._
 
@@ -30,6 +38,8 @@ class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D])
   private val cbConfig = CouchbaseConfig(rdd.context.getConf)
 
   def saveToCouchbase(bucketName: String = null, storeMode: StoreMode = StoreMode.UPSERT): Unit = {
+    val retryOpts = cbConfig.retryOpts
+
     rdd.foreachPartition(iter => {
       if (iter.nonEmpty) {
         val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
@@ -37,13 +47,18 @@ class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D])
           .from(OnceIterable(iter))
           .flatMap(doc =>  {
             storeMode match {
-              case StoreMode.UPSERT => toScalaObservable(bucket.upsert[D](doc))
-              case StoreMode.INSERT_AND_FAIL => toScalaObservable(bucket.insert[D](doc))
-              case StoreMode.REPLACE_AND_FAIL => toScalaObservable(bucket.replace[D](doc))
-              case StoreMode.INSERT_AND_IGNORE => toScalaObservable(bucket.insert[D](doc))
+              case StoreMode.UPSERT =>
+                maybeRetry(toScalaObservable(bucket.upsert[D](doc)), retryOpts, doc.id())
+              case StoreMode.INSERT_AND_FAIL =>
+                maybeRetry(toScalaObservable(bucket.insert[D](doc)), retryOpts, doc.id())
+              case StoreMode.REPLACE_AND_FAIL =>
+                maybeRetry(toScalaObservable(bucket.replace[D](doc)), retryOpts, doc.id())
+              case StoreMode.INSERT_AND_IGNORE =>
+                maybeRetry(toScalaObservable(bucket.insert[D](doc)), retryOpts, doc.id())
                 .doOnError(err => logWarning("Insert failed, but suppressed.", err))
                 .onErrorResumeNext(throwable => Observable.empty)
-              case StoreMode.REPLACE_AND_IGNORE => toScalaObservable(bucket.replace[D](doc))
+              case StoreMode.REPLACE_AND_IGNORE =>
+                maybeRetry(toScalaObservable(bucket.replace[D](doc)), retryOpts, doc.id())
                 .doOnError(err => logWarning("Replace failed, but suppressed.", err))
                 .onErrorResumeNext(throwable => Observable.empty)
             }
@@ -52,6 +67,25 @@ class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D])
           .lastOrElse(null)
       }
     })
+  }
+
+  def maybeRetry(input: Observable[D], options: RetryOptions, id: String): Observable[D] = {
+    options match {
+      case null => input
+      case _ => input.retryWhen(
+          RetryBuilder
+              .anyOf(classOf[TemporaryFailureException], classOf[BackpressureException],
+              classOf[CouchbaseOutOfMemoryException])
+          .delay(Delay.exponential(TimeUnit.MILLISECONDS, options.maxDelay, options.minDelay))
+          .max(options.maxTries)
+          .doOnRetry(new Action4[Integer, Throwable, java.lang.Long, TimeUnit] {
+            override def call(t1: Integer, t2: Throwable, t3: Long, t4: TimeUnit): Unit = {
+              logInfo(s"Transparently Retrying Operation for ID: ${id}")
+            }
+          })
+          .build()
+        )
+      }
   }
 
 }
