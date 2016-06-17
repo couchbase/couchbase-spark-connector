@@ -8,13 +8,13 @@ You can link against this library (for Spark 1.6) in your program at the followi
 ```
 groupId: com.couchbase.client
 artifactId: spark-connector_2.10
-version: 1.2.0
+version: 1.2.1
 ```
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "1.2.0"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "1.2.1"
 ```
 
 ## Documentation
