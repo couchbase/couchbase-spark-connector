@@ -15,12 +15,13 @@
  */
 package com.couchbase.spark.sql
 
-import com.couchbase.client.java.document.{JsonDocument}
+import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
-import org.apache.spark.sql.{DataFrame, SaveMode, SQLContext}
-import org.apache.spark.sql.sources.{CreatableRelationProvider, SchemaRelationProvider, BaseRelation, RelationProvider}
-import org.apache.spark.sql.types.StructType
 import com.couchbase.spark._
+import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, RelationProvider, SchemaRelationProvider}
+import org.apache.spark.sql.types.StructType
+import com.couchbase.spark.DocumentRDDFunctions
+import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 
 /**
  * The default couchbase source for Spark SQL.
@@ -28,7 +29,7 @@ import com.couchbase.spark._
 class DefaultSource
   extends RelationProvider
   with SchemaRelationProvider
-  with CreatableRelationProvider {
+    with CreatableRelationProvider {
 
   /**
    * Creates a new [[N1QLRelation]] with automatic schema inference.
@@ -74,8 +75,9 @@ class DefaultSource
       case SaveMode.Overwrite => StoreMode.UPSERT
     }
 
-    data
+    val datas = data
       .toJSON
+      .rdd
       .map(rawJson => {
         val encoded = JsonObject.fromJson(rawJson)
         val id = encoded.get(idFieldName).toString

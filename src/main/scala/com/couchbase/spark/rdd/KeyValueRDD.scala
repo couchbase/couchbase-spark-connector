@@ -22,9 +22,10 @@ import java.util.zip.CRC32
 import com.couchbase.client.core.config.CouchbaseBucketConfig
 import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
 import com.couchbase.client.java.document.Document
+import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConnection, KeyValueAccessor, CouchbaseConfig}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{TaskContext, Partition, Logging, SparkContext}
+import org.apache.spark.{TaskContext, Partition, SparkContext}
 
 import scala.reflect.ClassTag
 
@@ -38,10 +39,9 @@ class KeyValuePartition(id: Int, docIds: Seq[String], loc: Option[InetAddress]) 
 }
 
 class KeyValueRDD[D <: Document[_]]
-  (@transient sc: SparkContext, ids: Seq[String], bname: String = null)
+  (@transient private val sc: SparkContext, ids: Seq[String], bname: String = null)
   (implicit ct: ClassTag[D])
-  extends RDD[D](sc, Nil)
-  with Logging {
+  extends RDD[D](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
   private val bucketName = Option(bname).getOrElse(cbConfig.buckets.head.name)

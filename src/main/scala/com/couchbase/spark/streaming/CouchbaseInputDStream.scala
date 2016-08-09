@@ -16,9 +16,9 @@
 package com.couchbase.spark.streaming
 
 import com.couchbase.client.core.message.dcp._
+import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.streaming.state.NoopStateSerializer
-import org.apache.spark.Logging
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
@@ -37,8 +37,7 @@ case class Deletion(key: String, cas: Long) extends StreamMessage
 class CouchbaseInputDStream
   (@transient ssc: StreamingContext, storageLevel: StorageLevel, bucket: String = null,
    from: StreamFrom = FromNow, to: StreamTo = ToInfinity)
-  extends ReceiverInputDStream[StreamMessage](ssc)
-  with Logging {
+  extends ReceiverInputDStream[StreamMessage](ssc) {
 
   private val cbConfig = CouchbaseConfig(ssc.sparkContext.getConf)
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)

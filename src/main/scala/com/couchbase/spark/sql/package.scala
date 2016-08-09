@@ -15,15 +15,14 @@
  */
 package com.couchbase.spark
 
-import org.apache.spark.sql.{DataFrameWriter, DataFrameReader, SQLContext}
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.{DataFrameReader, DataFrameWriter, Row}
 
 package object sql {
 
   implicit def toDataFrameReaderFunctions(dfr: DataFrameReader): DataFrameReaderFunctions =
     new DataFrameReaderFunctions(dfr)
 
-  implicit def toDataFrameWriterFunctions(dfw: DataFrameWriter): DataFrameWriterFunctions =
+  implicit def toDataFrameWriterFunctions(dfw: DataFrameWriter[Row]): DataFrameWriterFunctions =
     new DataFrameWriterFunctions(dfw)
 
 }

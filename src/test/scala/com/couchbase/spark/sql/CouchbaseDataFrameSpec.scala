@@ -16,7 +16,7 @@
 package com.couchbase.spark.sql
 
 import org.apache.avro.generic.GenericData.StringType
-import org.apache.spark.sql.{SQLContext, SaveMode}
+import org.apache.spark.sql.{SparkSession, SQLContext, SaveMode}
 import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -28,7 +28,8 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
   private val appName = "cb-int-specs1"
   private val bucketName = "travel-sample"
 
-  private var sparkContext: SparkContext = null
+  private var spark: SparkSession = null
+
 
   override def beforeAll(): Unit = {
     val conf = new SparkConf()
@@ -36,13 +37,13 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
       .setAppName(appName)
       .set("com.couchbase.bucket.default", "")
       .set("com.couchbase.bucket.travel-sample", "")
-    sparkContext = new SparkContext(conf)
+    spark = SparkSession.builder().config(conf).getOrCreate()
 
     loadData()
   }
 
   override def afterAll(): Unit = {
-    sparkContext.stop()
+    spark.stop()
   }
 
   def loadData(): Unit = {
@@ -50,7 +51,7 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
   }
 
   "The DataFrame API" should "infer the schemas" in {
-    val ssc = new SQLContext(sparkContext)
+    val ssc = spark.sqlContext
     import com.couchbase.spark.sql._
 
     val airline = ssc.read.couchbase(EqualTo("type", "airline"), Map("bucket" -> "travel-sample"))
@@ -70,16 +71,17 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
   }
 
   it should "write and ignore" in {
-    val ssc = new SQLContext(sparkContext)
+    val ssc = spark.sqlContext
     import com.couchbase.spark.sql._
 
     // create df, write it twice
     val data = ("Michael", 28, true)
-    val df = ssc.createDataFrame(sparkContext.parallelize(Seq(data)))
+    val df = ssc.createDataFrame(spark.sparkContext.parallelize(Seq(data)))
 
     df.write
       .mode(SaveMode.Ignore)
       .couchbase(options = Map("idField" -> "_1", "bucket" -> "default"))
+
     df.write
       .mode(SaveMode.Ignore)
       .couchbase(options = Map("idField" -> "_1", "bucket" -> "default"))

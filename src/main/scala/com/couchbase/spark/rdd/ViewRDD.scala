@@ -22,8 +22,8 @@ import org.apache.spark.rdd.RDD
 
 case class CouchbaseViewRow(id: String, key: Any, value: Any)
 
-class ViewRDD(@transient sc: SparkContext, viewQuery: ViewQuery, bucketName: String = null,
-              deps: Seq[Dependency[_]])
+class ViewRDD(@transient private val sc: SparkContext, viewQuery: ViewQuery,
+              bucketName: String = null, deps: Seq[Dependency[_]])
   extends RDD[CouchbaseViewRow](sc, deps) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)

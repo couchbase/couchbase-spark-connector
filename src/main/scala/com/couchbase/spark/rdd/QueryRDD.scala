@@ -18,14 +18,14 @@ package com.couchbase.spark.rdd
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.spark.connection.{CouchbaseConfig, QueryAccessor}
-import org.apache.spark.{Logging, Partition, SparkContext, TaskContext}
+import org.apache.spark.{ Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.DataFrame
 
 case class CouchbaseQueryRow(value: JsonObject)
 
-class QueryRDD(@transient sc: SparkContext, query: N1qlQuery, bucketName: String = null)
-  extends RDD[CouchbaseQueryRow](sc, Nil)
-  with Logging {
+class QueryRDD(@transient private val sc: SparkContext, query: N1qlQuery, bucketName: String = null)
+  extends RDD[CouchbaseQueryRow](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
