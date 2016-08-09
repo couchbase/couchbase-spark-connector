@@ -17,7 +17,7 @@ package com.couchbase.spark.connection
 
 import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvironment}
 import com.couchbase.client.java.{Bucket, Cluster, CouchbaseCluster}
-import org.apache.spark.Logging
+import com.couchbase.spark.Logging
 import org.jboss.netty.util.internal.ConcurrentHashMap
 
 class CouchbaseConnection extends Serializable with Logging {
