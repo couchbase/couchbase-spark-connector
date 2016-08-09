@@ -22,6 +22,7 @@ import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.client.java.query.core.N1qlQueryExecutor
 import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import com.couchbase.spark._
@@ -43,7 +44,8 @@ class RDDFunctionsSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
   override def beforeAll() {
     val conf = new SparkConf().setMaster(master).setAppName(appName)
-    sparkContext = new SparkContext(conf)
+    val spark = SparkSession.builder().config(conf).getOrCreate()
+    sparkContext = spark.sparkContext
     bucket = CouchbaseConnection().bucket(CouchbaseConfig(conf), bucketName)
   }
 

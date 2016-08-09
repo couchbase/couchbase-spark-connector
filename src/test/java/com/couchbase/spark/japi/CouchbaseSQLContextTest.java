@@ -16,9 +16,7 @@
 package com.couchbase.spark.japi;
 
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
-import org.apache.spark.sql.catalyst.expressions.StartsWith;
 import org.apache.spark.sql.sources.EqualTo;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,13 +24,11 @@ import org.junit.Test;
 import java.util.List;
 
 import static com.couchbase.spark.japi.CouchbaseDataFrameReader.couchbaseReader;
-import static com.couchbase.spark.japi.CouchbaseDataFrameWriter.couchbaseWriter;
 import static org.junit.Assert.assertEquals;
 
 public class CouchbaseSQLContextTest {
 
     private static SQLContext sql;
-    private static JavaSparkContext sc;
 
     @BeforeClass
     public static void setup() {
@@ -40,14 +36,16 @@ public class CouchbaseSQLContextTest {
             .setAppName("javaTest")
             .setMaster("local[*]")
             .set("com.couchbase.bucket.travel-sample", "");
-
-        sc = new JavaSparkContext(conf);
-        sql = new SQLContext(sc);
+        SparkSession spark = SparkSession
+          .builder()
+          .config(conf)
+          .getOrCreate();
+        sql = spark.sqlContext();
     }
 
     @Test
     public void shouldQueryViaSQL() {
-        DataFrame airlines = couchbaseReader(sql.read()).couchbase(new EqualTo("type", "airline"));
+        Dataset<Row> airlines = couchbaseReader(sql.read()).couchbase(new EqualTo("type", "airline"));
         assertEquals(187, airlines.count());
     }
 
