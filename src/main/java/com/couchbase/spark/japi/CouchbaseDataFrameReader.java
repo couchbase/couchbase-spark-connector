@@ -16,8 +16,9 @@
 package com.couchbase.spark.japi;
 
 import com.couchbase.spark.sql.N1QLRelation;
-import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.DataFrameReader;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
 
@@ -37,42 +38,42 @@ public class CouchbaseDataFrameReader {
         return new CouchbaseDataFrameReader(dfr);
     }
 
-    public DataFrame couchbase() {
+    public Dataset<Row> couchbase() {
         prepare(null, null, null);
         return dfr.load();
     }
 
-    public DataFrame couchbase(Map<String, String> options) {
+    public Dataset<Row> couchbase(Map<String, String> options) {
         prepare(options, null, null);
         return dfr.load();
     }
 
-    public DataFrame couchbase(StructType schema, Map<String, String> options) {
+    public Dataset<Row> couchbase(StructType schema, Map<String, String> options) {
         prepare(options, schema, null);
         return dfr.load();
     }
 
-    public DataFrame couchbase(StructType schema) {
+    public Dataset<Row> couchbase(StructType schema) {
         prepare(null, schema, null);
         return dfr.load();
     }
 
-    public DataFrame couchbase(Filter schemaFilter, Map<String, String> options) {
+    public Dataset<Row> couchbase(Filter schemaFilter, Map<String, String> options) {
         prepare(options, null, schemaFilter);
         return dfr.load();
     }
 
-    public DataFrame couchbase(Filter schemaFilter) {
+    public Dataset<Row> couchbase(Filter schemaFilter) {
         prepare(null, null, schemaFilter);
         return dfr.load();
     }
 
-    public DataFrame couchbase(StructType schema, Filter schemaFilter) {
+    public Dataset<Row> couchbase(StructType schema, Filter schemaFilter) {
         prepare(null, schema, schemaFilter);
         return dfr.load();
     }
 
-    public DataFrame couchbase(StructType schema, Filter schemaFilter, Map<String, String> options) {
+    public Dataset<Row> couchbase(StructType schema, Filter schemaFilter, Map<String, String> options) {
         prepare(options, schema, schemaFilter);
         return dfr.load();
     }
