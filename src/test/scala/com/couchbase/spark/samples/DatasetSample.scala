@@ -16,7 +16,7 @@
 package com.couchbase.spark.samples
 
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.{SparkSession, SQLContext}
 import com.couchbase.spark.sql._
 import org.apache.spark.sql.sources.EqualTo
 
@@ -31,7 +31,8 @@ object DatasetSample {
       .setAppName("DatasetSample")
       .set("com.couchbase.bucket.travel-sample", "")
 
-    val sql = new SQLContext(new SparkContext(conf))
+    val spark = SparkSession.builder().config(conf).getOrCreate()
+    val sql = spark.sqlContext
     import sql.implicits._
 
     val airlines = sql.read.couchbase(schemaFilter = EqualTo("type", "airline")).as[Airline]
