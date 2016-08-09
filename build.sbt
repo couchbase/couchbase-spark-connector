@@ -2,26 +2,27 @@ name := "spark-connector"
 
 organization := "com.couchbase.client"
 
-version := "1.2.1"
+version := "1.2.2"
 
 description := "Official Couchbase Spark Connector"
 
 organizationHomepage := Some(url("http://couchbase.com"))
 
-scalaVersion := "2.10.5"
+scalaVersion := "2.11.8"
 
-crossScalaVersions := Seq("2.11.8", "2.10.6")
+crossScalaVersions := Seq("2.11.8", "2.11.0")
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 scalacOptions += "-target:jvm-1.7"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "1.6.1" % "provided",
-  "org.apache.spark" %% "spark-streaming" % "1.6.1" % "provided",
-  "org.apache.spark" %% "spark-sql" % "1.6.1" % "provided",
-  "com.couchbase.client" % "java-client" % "2.3.0",
+  "org.apache.spark" %% "spark-core" % "2.0.0" % "provided",
+  "org.apache.spark" %% "spark-streaming" % "2.0.0" % "provided",
+  "org.apache.spark" %% "spark-sql" % "2.0.0" % "provided",
+  "com.couchbase.client" % "java-client" % "2.3.1",
   "io.reactivex" %% "rxscala" % "0.26.1",
-  "org.scalatest" %% "scalatest" % "2.2.5" % "test",
-  "junit" % "junit" % "4.12" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.0" % "test",
+  "junit" % "junit" % "4.12" % "test",
+  "org.apache.logging.log4j" % "log4j-api" % "2.2"
 )
 
 resolvers += Resolver.mavenLocal
