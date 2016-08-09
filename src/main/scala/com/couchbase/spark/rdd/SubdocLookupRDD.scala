@@ -20,8 +20,9 @@ import java.util.zip.CRC32
 
 import com.couchbase.client.core.config.CouchbaseBucketConfig
 import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
+import com.couchbase.spark.Logging
 import com.couchbase.spark.connection._
-import org.apache.spark.{Logging, Partition, SparkContext, TaskContext}
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import rx.lang.scala.JavaConversions._
 
@@ -37,8 +38,7 @@ class SubdocLookupPartition(id: Int, specs: Seq[SubdocLookupSpec], loc: Option[I
 
 class SubdocLookupRDD(@transient sc: SparkContext, specs: Seq[SubdocLookupSpec],
                       bname: String = null)
-  extends RDD[SubdocLookupResult](sc, Nil)
-  with Logging  {
+  extends RDD[SubdocLookupResult](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
   private val bucketName = Option(bname).getOrElse(cbConfig.buckets.head.name)
