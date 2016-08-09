@@ -16,12 +16,12 @@
 package com.couchbase.spark.sql
 
 import com.couchbase.client.java.query.N1qlQuery
+import com.couchbase.spark.{sql, Logging}
 import com.couchbase.spark.connection.CouchbaseConfig
 import com.couchbase.spark.rdd.QueryRDD
-import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Row, SQLContext}
+import org.apache.spark.sql._
 import org.apache.spark.sql.sources._
 
 /**
@@ -78,13 +78,15 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
     val query = "SELECT " + buildColumns(requiredColumns, bucketName) + " FROM `" +
       bucketName + "`" + stringFilter
 
-    logInfo(s"Executing generated query: '$query'")
+    import sql.Encoder._
 
+    logInfo(s"Executing generated query: '$query'")
     sqlContext.read.json(
       QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query)).map(_.value.toString)
-    ).map(row =>
-      Row.fromSeq(requiredColumns.map(col => row.get(row.fieldIndex(col))).toList)
     )
+      .map(row => {
+        Row.fromSeq(requiredColumns.map(col => row.get(row.fieldIndex(col))).toList)
+      }).toJavaRDD
   }
 
   /**
