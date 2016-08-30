@@ -16,6 +16,7 @@
 package com.couchbase.spark.samples
 
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 
 /**
@@ -29,7 +30,8 @@ object GenericSample {
       .setAppName("DatasetSample")
       .set("com.couchbase.bucket.travel-sample", "")
 
-    val sc = new SparkContext(conf)
+    val spark = SparkSession.builder().config(conf).getOrCreate()
+    val sc = spark.sparkContext
 
     // SparkConfig is not serializable, but the couchbase config is!
     val cbConf = CouchbaseConfig(conf)

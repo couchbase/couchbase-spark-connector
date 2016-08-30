@@ -16,6 +16,7 @@
 package com.couchbase.spark.japi;
 
 import org.apache.spark.sql.DataFrameWriter;
+import org.apache.spark.sql.Row;
 
 import java.util.Map;
 
@@ -24,12 +25,12 @@ public class CouchbaseDataFrameWriter {
     private final DataFrameWriter dfw;
     private static final String SOURCE = "com.couchbase.spark.sql.DefaultSource";
 
-    private CouchbaseDataFrameWriter(DataFrameWriter dfw) {
+    private CouchbaseDataFrameWriter(DataFrameWriter<Row> dfw) {
         this.dfw = dfw;
         dfw.format(SOURCE);
     }
 
-    public static CouchbaseDataFrameWriter couchbaseWriter(DataFrameWriter dfw) {
+    public static CouchbaseDataFrameWriter couchbaseWriter(DataFrameWriter<Row> dfw) {
         return new CouchbaseDataFrameWriter(dfw);
     }
 

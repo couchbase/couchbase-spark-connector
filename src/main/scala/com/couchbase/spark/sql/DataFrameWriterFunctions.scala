@@ -17,7 +17,7 @@ package com.couchbase.spark.sql
 
 import org.apache.spark.sql.DataFrameWriter
 
-class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter) extends Serializable  {
+class DataFrameWriterFunctions(@transient val dfw: DataFrameWriter[AnyRef]) extends Serializable {
 
   /**
    * The classpath to the default source (which in turn results in a N1QLRelation)

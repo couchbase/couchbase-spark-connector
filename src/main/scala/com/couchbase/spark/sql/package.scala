@@ -15,15 +15,29 @@
  */
 package com.couchbase.spark
 
-import org.apache.spark.sql.{DataFrameWriter, DataFrameReader, SQLContext}
-import org.apache.spark.sql.sources.Filter
+
+import com.couchbase.client.java.document.JsonDocument
+import com.couchbase.spark.rdd.QueryRDD
+import org.apache.spark.sql._
 
 package object sql {
 
   implicit def toDataFrameReaderFunctions(dfr: DataFrameReader): DataFrameReaderFunctions =
     new DataFrameReaderFunctions(dfr)
 
-  implicit def toDataFrameWriterFunctions(dfw: DataFrameWriter): DataFrameWriterFunctions =
+  implicit def toDataFrameWriterFunctions(dfw: DataFrameWriter[Object]): DataFrameWriterFunctions =
     new DataFrameWriterFunctions(dfw)
 
+  implicit object Encoder {
+
+    implicit def beanEncoder = Encoders.kryo(getClass)
+
+    implicit def rowEncoder = Encoders.kryo(classOf[Row])
+
+    implicit def queryEncoder = Encoders.kryo(classOf[QueryRDD])
+
+    implicit def stringEncoder = Encoders.STRING
+
+    implicit def jsonEncoder = Encoders.kryo(classOf[JsonDocument])
+  }
 }

@@ -6,10 +6,9 @@ import com.couchbase.client.core.BackpressureException
 import com.couchbase.client.core.time.Delay
 import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.client.java.util.retry.RetryBuilder
-import com.couchbase.client.java.view.ViewQuery
+import com.couchbase.spark.Logging
 import com.couchbase.spark.internal.LazyIterator
-import com.couchbase.spark.rdd.{CouchbaseQueryRow, CouchbaseSpatialViewRow, CouchbaseViewRow}
-import org.apache.spark.Logging
+import com.couchbase.spark.rdd.CouchbaseQueryRow
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 

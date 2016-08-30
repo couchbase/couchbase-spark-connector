@@ -22,6 +22,7 @@ import com.couchbase.client.java.query.consistency.ScanConsistency
 import com.couchbase.client.java.query._
 import com.couchbase.client.java.view.{Stale, ViewQuery, DefaultView, DesignDocument}
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkContext, SparkConf}
 import org.scalatest.{BeforeAndAfterAll, Matchers, FlatSpec}
 import scala.collection.JavaConversions._
@@ -45,7 +46,8 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
 
   override def beforeAll(): Unit = {
     val conf = new SparkConf().setMaster(master).setAppName(appName)
-    sparkContext = new SparkContext(conf)
+     val spark = SparkSession.builder().config(conf).getOrCreate()
+    sparkContext = spark.sparkContext
     bucket = CouchbaseConnection().bucket(CouchbaseConfig(conf), bucketName)
 
     val ddoc = DesignDocument.create("spark_design", List(DefaultView.create("view",
@@ -79,10 +81,12 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
   it should "be created from a View" in {
 
     bucket.upsert(
-      JsonDocument.create("user-1", JsonObject.create().put("type", "user").put("username", "Michael"))
+      JsonDocument.create("user-1", JsonObject.create()
+        .put("type", "user").put("username", "Michael"))
     )
     bucket.upsert(
-      JsonDocument.create("user-2", JsonObject.create().put("type", "user").put("username", "Simon"))
+      JsonDocument.create("user-2", JsonObject.create()
+        .put("type", "user").put("username", "Simon"))
     )
 
     val result = sparkContext
@@ -101,7 +105,8 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
 
   it should "be created from a N1QL Query" in {
     bucket.upsert(
-      JsonDocument.create("car-1", JsonObject.create().put("type", "car").put("name", "Ford Mustang"))
+      JsonDocument.create("car-1", JsonObject.create()
+        .put("type", "car").put("name", "Ford Mustang"))
     )
 
     bucket.upsert(
@@ -110,7 +115,11 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
 
     val result = sparkContext
       .couchbaseQuery(
-          N1qlQuery.simple(s"SELECT META(`$bucketName`).id, `$bucketName`.* FROM `$bucketName` WHERE type = 'car'",
+        N1qlQuery.simple(
+          s"""SELECT META(`$bucketName`).id,
+              | `$bucketName`.*
+              | FROM `$bucketName`
+              |  WHERE type = 'car'""".stripMargin,
           N1qlParams.build().consistency(ScanConsistency.REQUEST_PLUS))
       )
       .collect()

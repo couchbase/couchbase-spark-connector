@@ -25,7 +25,6 @@ import com.couchbase.client.java.error.{CouchbaseOutOfMemoryException, Temporary
 import com.couchbase.client.java.util.retry.RetryBuilder
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, RetryOptions}
 import com.couchbase.spark.internal.OnceIterable
-import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import rx.functions.Action4
 import rx.lang.scala.Observable

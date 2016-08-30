@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark.samples
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import com.couchbase.spark._
 
@@ -26,8 +27,8 @@ object SubdocSample {
       .setAppName("DatasetSample")
       .set("com.couchbase.bucket.travel-sample", "")
 
-    val sc = new SparkContext(conf)
-
+    val spark = SparkSession.builder().config(conf).getOrCreate()
+    val sc = spark.sparkContext
     val result = sc
       .parallelize(Seq("airline_10123"))
       .couchbaseSubdocLookup(get = Seq("name", "iata"), exists = Seq("foobar"))
