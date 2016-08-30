@@ -63,7 +63,7 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     airline
       .limit(10)
       .write
-      .mode(SaveMode.Overwrite).
+      .mode(SaveMode.Overwrite)
       .couchbase(Map("bucket" -> "default"))
 
     // TODO: validate schemas which are inferred on a field and type basis
