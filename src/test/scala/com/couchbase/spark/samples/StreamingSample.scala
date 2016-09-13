@@ -30,11 +30,11 @@ object StreamingSample {
     val conf = new SparkConf()
       .setMaster("local[*]")
       .setAppName("StreamingSample")
-      .set("com.couchbase.bucket.beer-sample", "")
+      .set("com.couchbase.bucket.travel-sample", "")
     val ssc = new StreamingContext(conf, Seconds(5))
 
     ssc
-      .couchbaseStream(from = FromNow, storageLevel = StorageLevel.MEMORY_ONLY)
+      .couchbaseStream(from = FromBeginning, to = ToNow, storageLevel = StorageLevel.MEMORY_ONLY)
       .map(_.getClass)
       .countByValue()
       .print()

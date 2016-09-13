@@ -15,31 +15,31 @@
  */
 package com.couchbase.spark.streaming
 
-import com.couchbase.client.core.message.dcp._
+import com.couchbase.client.dcp._
+import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage, MessageUtil, RollbackMessage}
+import com.couchbase.client.deps.io.netty.buffer.ByteBuf
 import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.streaming.state.NoopStateSerializer
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
 import org.apache.spark.streaming.receiver.Receiver
-import rx.lang.scala.JavaConversions._
-
-import scala.collection.mutable.ArrayBuffer
+import rx.Completable.CompletableSubscriber
+import rx.Subscription
 
 abstract class StreamMessage
-case class Snapshot(seqStart: Long, seqEnd: Long, memory: Boolean, disk: Boolean,
-                    checkpoint: Boolean, ack: Boolean) extends StreamMessage
-case class Mutation(key: String, content: Array[Byte], expiry: Integer, cas: Long,
-                    flags: Int, lockTime: Int) extends StreamMessage
-case class Deletion(key: String, cas: Long) extends StreamMessage
+case class Mutation(key: Array[Byte], content: Array[Byte], expiry: Integer, cas: Long,
+                    flags: Int, lockTime: Int, bySeqno: Long,
+                    revisionSeqno: Long) extends StreamMessage
+case class Deletion(key: Array[Byte], cas: Long, partition: Short, bySeqno: Long,
+                    revisionSeqno: Long) extends StreamMessage
 
 class CouchbaseInputDStream
-  (@transient ssc: StreamingContext, storageLevel: StorageLevel, bucket: String = null,
+  (_ssc: StreamingContext, storageLevel: StorageLevel, bucket: String = null,
    from: StreamFrom = FromNow, to: StreamTo = ToInfinity)
-  extends ReceiverInputDStream[StreamMessage](ssc) {
+  extends ReceiverInputDStream[StreamMessage](_ssc) {
 
-  private val cbConfig = CouchbaseConfig(ssc.sparkContext.getConf)
+  private val cbConfig = CouchbaseConfig(_ssc.sparkContext.getConf)
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
 
   override def getReceiver(): Receiver[StreamMessage] = {
@@ -54,53 +54,93 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
   with Logging {
 
   override def onStart(): Unit = {
-    logInfo(s"Starting Couchbase (DCP) Stream against Bucket $bucketName")
+    val client = CouchbaseConnection().streamClient(config, bucketName)
 
-    val bucket = CouchbaseConnection().bucket(config, bucketName).async()
-    val core = bucket.core().toBlocking.single()
+    // Attach Callbacks
+    client.controlEventHandler(new ControlEventHandler {
+      override def onEvent(event: ByteBuf): Unit = {
+        if (RollbackMessage.is(event)) {
+          val partition = RollbackMessage.vbucket(event)
+          client.rollbackAndRestartStream(partition, RollbackMessage.seqno(event))
+            .subscribe(new CompletableSubscriber {
+              override def onCompleted(): Unit = {
+                logTrace("DCP Rollback completed")
+              }
 
-    val reader = new CouchbaseReader(bucketName, core, bucket.environment(),
-      new NoopStateSerializer())
+              override def onError(e: Throwable): Unit = {
+                logWarning("Error during DCP Rollback!", e)
+              }
 
-    reader.connect()
+              override def onSubscribe(d: Subscription): Unit = { }
+          })
+        } else {
+          throw new IllegalStateException("Got unexpected DCP Control Event "
+            + MessageUtil.humanize(event))
+        }
+        event.release()
+      }
+    })
 
-    val streamFrom = from match {
-      case FromBeginning => reader.startState()
-      case FromNow => reader.currentState()
-      case _ => throw new UnsupportedOperationException("This Streaming Start is not supported.")
+    client.dataEventHandler(new DataEventHandler {
+      override def onEvent(event: ByteBuf): Unit = {
+        val converted: StreamMessage = if (DcpMutationMessage.is(event)) {
+          val data = new Array[Byte](DcpMutationMessage.content(event).readableBytes())
+          DcpMutationMessage.content(event).readBytes(data)
+          val key = new Array[Byte](DcpMutationMessage.key(event).readableBytes())
+          DcpMutationMessage.key(event).readBytes(key)
+          Mutation(key,
+            data,
+            DcpMutationMessage.expiry(event),
+            DcpMutationMessage.cas(event),
+            DcpMutationMessage.flags(event),
+            DcpMutationMessage.lockTime(event),
+            DcpDeletionMessage.bySeqno(event),
+            DcpDeletionMessage.revisionSeqno(event)
+          )
+        } else if (DcpDeletionMessage.is(event)) {
+          val key = new Array[Byte](DcpDeletionMessage.key(event).readableBytes())
+          DcpDeletionMessage.key(event).readBytes(key)
+          Deletion(
+            key,
+            DcpDeletionMessage.cas(event),
+            DcpDeletionMessage.partition(event),
+            DcpDeletionMessage.bySeqno(event),
+            DcpDeletionMessage.revisionSeqno(event)
+          )
+        } else {
+          throw new IllegalStateException("Got unexpected DCP Data Event "
+            + MessageUtil.humanize(event))
+        }
+
+        store(converted)
+        client.acknowledgeBuffer(event)
+        event.release()
+      }
+    })
+
+
+    // Connect to the nodes
+    client.connect().await()
+
+    // Initialize the state as desired
+    if (from == FromNow && to == ToInfinity) {
+      client.initializeState(StreamFrom.NOW, StreamTo.INFINITY).await()
+    } else if (from == FromBeginning && to == ToInfinity) {
+      client.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).await()
+    } else if (from == FromBeginning && to == ToNow) {
+      client.initializeState(StreamFrom.BEGINNING, StreamTo.NOW).await()
+    } else {
+      throw new IllegalArgumentException("Unsupported From/To Combination!")
     }
 
-    val streamTo = to match {
-      case ToInfinity=> reader.endState()
-      case _ => throw new UnsupportedOperationException("This Streaming End is not supported.")
-    }
-
-    toScalaObservable(reader.run(streamFrom, streamTo))
-        .foreach(req => {
-          val converted = req match {
-            case msg: SnapshotMarkerMessage =>
-              new Snapshot(msg.startSequenceNumber(), msg.endSequenceNumber(), msg.memory(),
-                msg.disk(), msg.checkpoint(), msg.ack())
-            case msg: MutationMessage =>
-
-              val data = new Array[Byte](msg.content().readableBytes())
-              msg.content().readBytes(data)
-              val mutation = new Mutation(msg.key(), data, msg.expiration(), msg.cas(),
-                msg.flags(), msg.lockTime())
-              mutation
-            case msg: RemoveMessage =>
-              new Deletion(msg.key(), msg.cas())
-            case _ =>
-              logError("Unknown DCP Stream Message $msg")
-              null
-          }
-          store(ArrayBuffer[StreamMessage](converted))
-          reader.consumed(req.asInstanceOf[DCPMessage])
-        })
+    // Start streaming for partitions
+    client.startStreaming().await()
   }
 
   override def onStop(): Unit = {
-    logInfo(s"Stopping Couchbase (DCP) Stream against Bucket $bucketName")
+    val client = CouchbaseConnection().streamClient(config, bucketName)
+    client.stopStreaming().await()
+    client.disconnect().await()
   }
 
 }

@@ -17,10 +17,9 @@ package com.couchbase.spark.streaming
 
 sealed class StreamFrom
 case object FromBeginning extends StreamFrom
- case object FromNow extends StreamFrom
-// final case class FromSequence(seqno: Int) extends StreamFrom
+case object FromNow extends StreamFrom
 
 
 sealed class StreamTo
-case object ToInfinity /* and beyond! */ extends StreamTo
-// final case class ToSequence(seqno: Int) extends StreamTo
+case object ToNow extends StreamTo
+case object ToInfinity extends StreamTo
