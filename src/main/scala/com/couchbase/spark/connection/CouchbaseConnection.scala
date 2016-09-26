@@ -28,7 +28,6 @@ class CouchbaseConnection extends Serializable with Logging {
       Thread.currentThread().setName("couchbase-shutdown-in-progress")
       CouchbaseConnection().stop()
       Thread.currentThread().setName("couchbase-shutdown-complete")
-
     }
   })
 
@@ -41,11 +40,6 @@ class CouchbaseConnection extends Serializable with Logging {
   @transient var streamClients = new ConcurrentHashMap[String, Client]()
 
   def cluster(cfg: CouchbaseConfig): Cluster = {
-    val currentProp = System.getProperty("com.couchbase.dcpEnabled")
-    if (currentProp == null || currentProp.isEmpty) {
-      System.setProperty("com.couchbase.dcpEnabled", "true")
-    }
-
     this.synchronized {
       if (envRef.isEmpty) {
         envRef = Option(DefaultCouchbaseEnvironment.create())
