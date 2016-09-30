@@ -190,8 +190,11 @@ object N1QLRelation {
     case v => s"$v"
   }
 
-  def attrToFilter(attr: String): String = {
-    attr.split('.').map(elem => s"`$elem`").mkString(".")
+  val VerbatimRegex = """'(.*)'""".r
+
+  def attrToFilter(attr: String): String = attr match {
+    case VerbatimRegex(innerAttr) => innerAttr
+    case v => v.split('.').map(elem => s"`$elem`").mkString(".")
   }
 
 }
