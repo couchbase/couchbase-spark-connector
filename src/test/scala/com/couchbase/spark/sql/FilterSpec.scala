@@ -124,4 +124,12 @@ class FilterSpec extends FlatSpec with Matchers {
 
     parsedFilter should equal(" `flavour`.`origin`.`country`.`region` = 'tuscany'")
   }
+
+  it should "not parse text marked as verbatim" in {
+    val filter = EqualTo("'substr('textField',0,10)'", "2016-09-13")
+
+    val parsedFilter = N1QLRelation.filterToExpression(filter)
+
+    parsedFilter should equal(" substr('textField',0,10) = '2016-09-13'")
+  }
 }

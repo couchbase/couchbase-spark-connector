@@ -16,7 +16,7 @@
 package com.couchbase.spark.sql
 
 import org.apache.avro.generic.GenericData.StringType
-import org.apache.spark.sql.{SparkSession, SQLContext, SaveMode}
+import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -85,6 +85,16 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     df.write
       .mode(SaveMode.Ignore)
       .couchbase(options = Map("idField" -> "_1", "bucket" -> "default"))
+  }
+
+  it should "filter based on a function" in {
+    val ssc = spark.sqlContext
+    import com.couchbase.spark.sql._
+
+    val airlineBySubstrCountry: DataFrame = ssc.read.couchbase(
+      EqualTo("'substr(country, 0, 6)'", "United"), Map("bucket" -> "travel-sample"))
+
+    airlineBySubstrCountry.count() should equal(6797)
   }
 
 }
