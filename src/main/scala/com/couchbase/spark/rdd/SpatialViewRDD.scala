@@ -24,7 +24,7 @@ import org.apache.spark.rdd.RDD
 case class CouchbaseSpatialViewRow(id: String, key: Any, value: Any, geometry: JsonObject)
 
 class SpatialViewRDD
-  (@transient sc: SparkContext, viewQuery: SpatialViewQuery, bucketName: String = null)
+  (@transient private val sc: SparkContext, viewQuery: SpatialViewQuery, bucketName: String = null)
   extends RDD[CouchbaseSpatialViewRow](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)

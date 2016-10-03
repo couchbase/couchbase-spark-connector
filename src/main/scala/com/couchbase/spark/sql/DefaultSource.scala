@@ -15,12 +15,16 @@
  */
 package com.couchbase.spark.sql
 
+import com.couchbase.client.core.CouchbaseException
 import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.spark._
-import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, RelationProvider, SchemaRelationProvider}
+import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import com.couchbase.spark.DocumentRDDFunctions
+import com.couchbase.spark.sql.streaming.CouchbaseSink
+import org.apache.spark.sql.execution.streaming.Sink
+import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 
 /**
@@ -29,7 +33,11 @@ import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 class DefaultSource
   extends RelationProvider
   with SchemaRelationProvider
-    with CreatableRelationProvider {
+  with CreatableRelationProvider
+  with StreamSinkProvider
+  with DataSourceRegister {
+
+  override def shortName(): String = "couchbase"
 
   /**
    * Creates a new [[N1QLRelation]] with automatic schema inference.
@@ -80,13 +88,21 @@ class DefaultSource
       .rdd
       .map(rawJson => {
         val encoded = JsonObject.fromJson(rawJson)
-        val id = encoded.get(idFieldName).toString
+        val id = encoded.get(idFieldName)
+        if (id == null) {
+         throw new CouchbaseException(s"Could not find ID field $idFieldName in $encoded")
+        }
         encoded.removeKey(idFieldName)
-        JsonDocument.create(id, encoded)
+        JsonDocument.create(id.toString, encoded)
       })
       .saveToCouchbase(bucketName, storeMode)
 
     createRelation(sqlContext, parameters, data.schema)
+  }
+
+  override def createSink(sqlContext: SQLContext, parameters: Map[String, String],
+    partitionColumns: Seq[String], outputMode: OutputMode): Sink = {
+    new CouchbaseSink(parameters)
   }
 
 }
