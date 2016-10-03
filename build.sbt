@@ -2,7 +2,7 @@ name := "spark-connector"
 
 organization := "com.couchbase.client"
 
-version := "1.3.0"
+version := "2.0.0-SNAPSHOT"
 
 description := "Official Couchbase Spark Connector"
 
@@ -19,7 +19,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-streaming" % "2.0.0" % "provided",
   "org.apache.spark" %% "spark-sql" % "2.0.0" % "provided",
   "com.couchbase.client" % "java-client" % "2.3.3",
-  "com.couchbase.client" % "dcp-client" % "0.3.0",
+  "com.couchbase.client" % "dcp-client" % "0.4.0",
   "io.reactivex" %% "rxscala" % "0.26.1",
   "org.scalatest" %% "scalatest" % "2.2.5" % "test",
   "junit" % "junit" % "4.12" % "test",
