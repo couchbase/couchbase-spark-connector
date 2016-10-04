@@ -16,6 +16,7 @@
 package com.couchbase.spark.connection
 
 import com.couchbase.client.dcp.Client
+import com.couchbase.client.dcp.config.DcpControl
 import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvironment}
 import com.couchbase.client.java.{Bucket, Cluster, CouchbaseCluster}
 import com.couchbase.spark.Logging
@@ -102,6 +103,8 @@ class CouchbaseConnection extends Serializable with Logging {
       }
 
       streamClient = Client.configure()
+        .bufferAckWatermark(80) // at 80% of the watermark, acknowledge
+        .controlParam(DcpControl.Names.CONNECTION_BUFFER_SIZE, 1024 * 1000 * 50) // 50MB
         .hostnames(cfg.hosts:_*)
         .bucket(bname)
         .password(foundBucketConfig.head.password)

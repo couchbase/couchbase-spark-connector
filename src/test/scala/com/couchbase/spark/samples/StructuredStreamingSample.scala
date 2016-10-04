@@ -16,6 +16,7 @@
 package com.couchbase.spark.samples
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types._
 
 /**
   * This is a simple example that shows how to use structed streaming to
@@ -30,32 +31,52 @@ import org.apache.spark.sql.SparkSession
   */
 object StructuredStreamingSample {
 
+  // Feel Free to add more types here for beers or breweries!
+  val schema = StructType(
+    StructField("META_ID", StringType) ::
+    StructField("type", StringType) ::
+    StructField("name", StringType) ::
+    StructField("website", StringType) ::
+    StructField("abv", DoubleType) ::
+    StructField("address", ArrayType(StringType)) :: Nil
+  )
+
+
   def main(args: Array[String]): Unit = {
     val spark = SparkSession
-        .builder
-          .master("local[*]")
-        .appName("StructuredWordCount")
-        .getOrCreate()
+      .builder
+      .master("local[*]")
+      .appName("StructuredNetworkWordCount")
+      .config("com.couchbase.bucket.beer-sample", "")
+      .getOrCreate()
 
-    import spark.implicits._
-
+    // Create DataFrame representing the stream of input lines from connection to host:port
     val lines = spark.readStream
-      .format("socket")
-      .option("host", "localhost")
-      .option("port", 5050)
+      .format("com.couchbase.spark.sql")
+      .schema(schema)
       .load()
 
-    val words = lines.as[String].flatMap(_.split(" "))
+    // You can display all data or a grouping, as an example.
+    val count = false
 
-    val wordCounts = words.groupBy("value").count()
+    val query = if (count) {
+      // Generate running word count
+      val typeCounts = lines.groupBy("type").count()
 
-    val query = wordCounts.writeStream
-      .outputMode("complete")
-      .option("checkpointLocation", "foo")
-      .option("idField", "value")
+      // Start running the query that prints the running counts to the console
+      typeCounts.writeStream
+        .outputMode("complete")
+        .format("console")
+        .start()
+    } else {
+      // Generate running word count
 
-      .format("com.couchbase.spark.sql")
-      .start()
+      // Start running the query that prints the running counts to the console
+       lines.writeStream
+        .outputMode("append")
+        .format("console")
+        .start()
+    }
 
     query.awaitTermination()
   }

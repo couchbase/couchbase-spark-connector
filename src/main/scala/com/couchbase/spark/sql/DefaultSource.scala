@@ -22,8 +22,8 @@ import com.couchbase.spark._
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import com.couchbase.spark.DocumentRDDFunctions
-import com.couchbase.spark.sql.streaming.CouchbaseSink
-import org.apache.spark.sql.execution.streaming.Sink
+import com.couchbase.spark.sql.streaming.{CouchbaseSink, CouchbaseSource}
+import org.apache.spark.sql.execution.streaming.{Sink, Source}
 import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 
@@ -35,6 +35,7 @@ class DefaultSource
   with SchemaRelationProvider
   with CreatableRelationProvider
   with StreamSinkProvider
+  with StreamSourceProvider
   with DataSourceRegister {
 
   override def shortName(): String = "couchbase"
@@ -103,6 +104,16 @@ class DefaultSource
   override def createSink(sqlContext: SQLContext, parameters: Map[String, String],
     partitionColumns: Seq[String], outputMode: OutputMode): Sink = {
     new CouchbaseSink(parameters)
+  }
+
+  override def sourceSchema(sqlContext: SQLContext, schema: Option[StructType],
+    providerName: String, parameters: Map[String, String]): (String, StructType) = {
+    ("couchbase", schema.getOrElse(CouchbaseSource.DEFAULT_SCHEMA))
+  }
+
+  override def createSource(sqlContext: SQLContext, metadataPath: String,
+    schema: Option[StructType], providerName: String, parameters: Map[String, String]): Source = {
+    new CouchbaseSource(sqlContext, schema, parameters)
   }
 
 }

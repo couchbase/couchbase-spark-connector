@@ -29,10 +29,10 @@ import rx.Subscription
 
 abstract class StreamMessage
 case class Mutation(key: Array[Byte], content: Array[Byte], expiry: Integer, cas: Long,
-                    flags: Int, lockTime: Int, bySeqno: Long,
-                    revisionSeqno: Long) extends StreamMessage
+                    partition: Short, flags: Int, lockTime: Int, bySeqno: Long,
+                    revisionSeqno: Long, ackBytes: Int) extends StreamMessage
 case class Deletion(key: Array[Byte], cas: Long, partition: Short, bySeqno: Long,
-                    revisionSeqno: Long) extends StreamMessage
+                    revisionSeqno: Long, ackBytes: Int) extends StreamMessage
 
 class CouchbaseInputDStream
   (_ssc: StreamingContext, storageLevel: StorageLevel, bucket: String = null,
@@ -92,10 +92,12 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
             data,
             DcpMutationMessage.expiry(event),
             DcpMutationMessage.cas(event),
+            DcpMutationMessage.partition(event),
             DcpMutationMessage.flags(event),
             DcpMutationMessage.lockTime(event),
             DcpDeletionMessage.bySeqno(event),
-            DcpDeletionMessage.revisionSeqno(event)
+            DcpDeletionMessage.revisionSeqno(event),
+            event.readableBytes()
           )
         } else if (DcpDeletionMessage.is(event)) {
           val key = new Array[Byte](DcpDeletionMessage.key(event).readableBytes())
@@ -105,7 +107,8 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
             DcpDeletionMessage.cas(event),
             DcpDeletionMessage.partition(event),
             DcpDeletionMessage.bySeqno(event),
-            DcpDeletionMessage.revisionSeqno(event)
+            DcpDeletionMessage.revisionSeqno(event),
+            event.readableBytes()
           )
         } else {
           throw new IllegalStateException("Got unexpected DCP Data Event "
