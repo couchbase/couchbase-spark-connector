@@ -23,6 +23,7 @@ import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import com.couchbase.spark.DocumentRDDFunctions
 import com.couchbase.spark.sql.streaming.{CouchbaseSink, CouchbaseSource}
+import com.couchbase.spark.streaming.FromBeginning
 import org.apache.spark.sql.execution.streaming.{Sink, Source}
 import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
@@ -119,5 +120,7 @@ class DefaultSource
 }
 
 object DefaultSource {
+  val DEFAULT_STREAM_FROM: String = "BEGINNING"
+  val DEFAULT_STREAM_TO: String = "INFINITY"
   val DEFAULT_DOCUMENT_ID_FIELD: String = "META_ID"
 }

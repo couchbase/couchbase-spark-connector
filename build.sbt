@@ -15,11 +15,11 @@ javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 scalacOptions += "-target:jvm-1.7"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.0.0" % "provided",
-  "org.apache.spark" %% "spark-streaming" % "2.0.0" % "provided",
-  "org.apache.spark" %% "spark-sql" % "2.0.0" % "provided",
-  "com.couchbase.client" % "java-client" % "2.3.3",
-  "com.couchbase.client" % "dcp-client" % "0.4.0",
+  "org.apache.spark" %% "spark-core" % "2.0.1" % "provided",
+  "org.apache.spark" %% "spark-streaming" % "2.0.1" % "provided",
+  "org.apache.spark" %% "spark-sql" % "2.0.1" % "provided",
+  "com.couchbase.client" % "java-client" % "2.3.4",
+  "com.couchbase.client" % "dcp-client" % "0.6.0",
   "io.reactivex" %% "rxscala" % "0.26.1",
   "org.scalatest" %% "scalatest" % "2.2.5" % "test",
   "junit" % "junit" % "4.12" % "test",

@@ -16,7 +16,7 @@
 package com.couchbase.spark.streaming
 
 import com.couchbase.client.dcp._
-import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage, MessageUtil, RollbackMessage}
+import com.couchbase.client.dcp.message._
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf
 import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
@@ -71,9 +71,12 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
                 logWarning("Error during DCP Rollback!", e)
               }
 
-              override def onSubscribe(d: Subscription): Unit = { }
-          })
+              override def onSubscribe(d: Subscription): Unit = {}
+            })
+        } else if (DcpSnapshotMarkerMessage.is(event)) {
+          client.acknowledgeBuffer(event)
         } else {
+          event.release()
           throw new IllegalStateException("Got unexpected DCP Control Event "
             + MessageUtil.humanize(event))
         }
@@ -111,6 +114,7 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
             event.readableBytes()
           )
         } else {
+          event.release()
           throw new IllegalStateException("Got unexpected DCP Data Event "
             + MessageUtil.humanize(event))
         }

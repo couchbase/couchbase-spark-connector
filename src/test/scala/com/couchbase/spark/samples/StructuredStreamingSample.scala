@@ -53,11 +53,12 @@ object StructuredStreamingSample {
     // Create DataFrame representing the stream of input lines from connection to host:port
     val lines = spark.readStream
       .format("com.couchbase.spark.sql")
+        .option("streamFrom", "now")
       .schema(schema)
       .load()
 
     // You can display all data or a grouping, as an example.
-    val count = false
+    val count = true
 
     val query = if (count) {
       // Generate running word count

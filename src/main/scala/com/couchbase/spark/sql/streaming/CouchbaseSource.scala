@@ -1,9 +1,24 @@
+/*
+ * Copyright (c) 2015 Couchbase, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.couchbase.spark.sql.streaming
 
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue}
 import java.util.concurrent.atomic.AtomicReference
 
-import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage, MessageUtil}
+import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage, DcpSnapshotMarkerMessage, MessageUtil}
 import com.couchbase.client.dcp.state.SessionState
 import com.couchbase.client.dcp.{ControlEventHandler, DataEventHandler, StreamFrom, StreamTo}
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf
@@ -51,12 +66,21 @@ class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
   private val idFieldName = parameters.getOrElse("idField",
     DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
 
+  private val streamFrom = parameters.getOrElse("streamFrom",
+    DefaultSource.DEFAULT_STREAM_FROM)
+
+  private val streamTo = parameters.getOrElse("streamTo",
+    DefaultSource.DEFAULT_STREAM_TO)
+
   initialize()
 
   private def initialize(): Unit = synchronized {
     client.controlEventHandler(new ControlEventHandler {
       override def onEvent(event: ByteBuf): Unit = {
-
+        if (DcpSnapshotMarkerMessage.is(event)) {
+          client.acknowledgeBuffer(event)
+        }
+        event.release()
       }
     })
 
@@ -111,18 +135,30 @@ class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
       queues.put(p.toShort, new ConcurrentLinkedQueue[StreamMessage]())
     })
 
-    client.initializeState(StreamFrom.BEGINNING, StreamTo.INFINITY).await()
-    currentOffset.set(statesToOffsets(client.numPartitions().toShort, client.sessionState()))
+    val from = streamFrom.toLowerCase() match {
+      case "beginning" => StreamFrom.BEGINNING
+      case "now" => StreamFrom.NOW
+      case _ => throw new IllegalArgumentException("Could not match StreamFrom " + streamFrom)
+    }
+    val to = streamTo.toLowerCase() match {
+      case "infinity" => StreamTo.INFINITY
+      case "now" => StreamTo.NOW
+      case _ => throw new IllegalArgumentException("Could not match StreamTo " + streamFrom)
+    }
+    logInfo(s"Starting Couchbase Structured Stream from $from to $to")
+    client.initializeState(from, to).await()
+    currentOffset.set(statesToOffsets)
     client.startStreaming().await()
 
     Observable
       .interval(2.seconds)
-      .map(_ => statesToOffsets(client.numPartitions().toShort, client.sessionState()))
+      .map(_ => statesToOffsets)
       .foreach(offset => currentOffset.set(offset))
   }
 
-  def statesToOffsets(partitions: Short, ss: SessionState): CompositeOffset = {
-    val offsets = (0 until partitions)
+  def statesToOffsets: CompositeOffset = {
+    val ss: SessionState = client.sessionState()
+    val offsets = (0 until client.numPartitions())
       .map(s => (s, ss.get(s)))
       .map(s => Some(new PartitionOffset(s._1.toShort, s._2.getStartSeqno)))
     new CompositeOffset(offsets)
