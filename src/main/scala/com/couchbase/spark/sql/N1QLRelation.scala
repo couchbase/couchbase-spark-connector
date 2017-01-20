@@ -16,13 +16,15 @@
 package com.couchbase.spark.sql
 
 import com.couchbase.client.java.query.N1qlQuery
-import com.couchbase.spark.{sql, Logging}
+import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.CouchbaseConfig
 import com.couchbase.spark.rdd.QueryRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.apache.spark.sql._
 import org.apache.spark.sql.sources._
+
+import scala.util.matching.Regex
 
 /**
  * Implements a the BaseRelation for N1QL Queries.
@@ -41,9 +43,9 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
   private val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
 
-  override val schema = userSchema.getOrElse[StructType] {
+  override val schema: StructType = userSchema.getOrElse[StructType] {
     val queryFilter = if (parameters.get("schemaFilter").isDefined) {
-      "WHERE " + parameters.get("schemaFilter").get
+      "WHERE " + parameters("schemaFilter")
     } else {
       ""
     }
@@ -53,12 +55,13 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
 
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
-    val schema = sqlContext.read.json(
-      QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query)).map(_.value.toString)
-    ).schema
+    val schema = sqlContext
+      .read
+      .json(QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query))
+        .map(_.value.toString))
+      .schema
 
     logInfo(s"Inferred schema is $schema")
-
     schema
   }
 
@@ -68,7 +71,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       if (!stringFilter.isEmpty) {
         stringFilter = stringFilter + " AND "
       }
-      stringFilter += parameters.get("schemaFilter").get
+      stringFilter += parameters("schemaFilter")
     }
 
     if (!stringFilter.isEmpty) {
@@ -79,9 +82,17 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       bucketName + "`" + stringFilter
 
     logInfo(s"Executing generated query: '$query'")
-    val rows = QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query))
+
+    val rdd = QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query))
       .map(_.value.toString)
-    sqlContext.read.schema(schema).json(rows).rdd
+
+    val cols = requiredColumns.map(c => new Column(c))
+    sqlContext
+      .read
+      .schema(schema)
+      .json(rdd)
+      .select(cols: _*)
+      .rdd
   }
 
   /**
@@ -187,7 +198,7 @@ object N1QLRelation {
     case v => s"$v"
   }
 
-  val VerbatimRegex = """'(.*)'""".r
+  val VerbatimRegex: Regex = """'(.*)'""".r
 
   def attrToFilter(attr: String): String = attr match {
     case VerbatimRegex(innerAttr) => innerAttr
