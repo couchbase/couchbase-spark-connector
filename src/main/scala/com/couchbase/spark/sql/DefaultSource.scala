@@ -76,6 +76,7 @@ class DefaultSource
     parameters: Map[String, String], data: DataFrame): BaseRelation = {
     val bucketName = parameters.get("bucket").orNull
     val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
+    val removeIdField = parameters.getOrElse("removeIdField", "true").toBoolean
 
     val storeMode = mode match {
       case SaveMode.Append =>
@@ -94,7 +95,9 @@ class DefaultSource
         if (id == null) {
          throw new CouchbaseException(s"Could not find ID field $idFieldName in $encoded")
         }
-        encoded.removeKey(idFieldName)
+        if (removeIdField) {
+          encoded.removeKey(idFieldName)
+        }
         JsonDocument.create(id.toString, encoded)
       })
       .saveToCouchbase(bucketName, storeMode)
