@@ -27,12 +27,13 @@ branched away. Couchbase maintains bugfix releases for the branches where
 appropriate, please see [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Ccom.couchbase.client.spark) 
 or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-connector) for releases to download.
 
-| Connector | Spark |
-| --------- | ----- |
-| 2.0.x     | 2.0   |
-| 1.2.x     | 1.6   |
-| 1.1.x     | 1.5   |
-| 1.0.x     | 1.4   |
+| Connector | Apache Spark | Couchbase Server |
+| --------- | ------------ | ---------------- |
+| 2.1.x     | 2.1          | 2.5.x - 4.x      |
+| 2.0.x     | 2.0          | 2.5.x - 4.x      |
+| 1.2.x     | 1.6          | 2.5.x - 4.x      |
+| 1.1.x     | 1.5          | 2.5.x - 4.x      |
+| 1.0.x     | 1.4          | 2.5.x - 4.x      |
 
 
 ## License
