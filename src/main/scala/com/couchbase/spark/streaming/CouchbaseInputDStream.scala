@@ -24,8 +24,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.ReceiverInputDStream
 import org.apache.spark.streaming.receiver.Receiver
-import rx.Completable.CompletableSubscriber
-import rx.Subscription
+import rx.{CompletableSubscriber, Subscription}
 
 abstract class StreamMessage
 case class Mutation(key: Array[Byte], content: Array[Byte], expiry: Integer, cas: Long,
@@ -73,7 +72,7 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
 
               override def onSubscribe(d: Subscription): Unit = {}
             })
-        } else if (DcpSnapshotMarkerMessage.is(event)) {
+        } else if (DcpSnapshotMarkerRequest.is(event)) {
           client.acknowledgeBuffer(event)
         } else {
           event.release()

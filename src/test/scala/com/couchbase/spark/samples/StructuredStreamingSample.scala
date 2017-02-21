@@ -53,7 +53,7 @@ object StructuredStreamingSample {
     // Create DataFrame representing the stream of input lines from connection to host:port
     val lines = spark.readStream
       .format("com.couchbase.spark.sql")
-        .option("streamFrom", "now")
+        .option("streamFrom", "beginning")
       .schema(schema)
       .load()
 

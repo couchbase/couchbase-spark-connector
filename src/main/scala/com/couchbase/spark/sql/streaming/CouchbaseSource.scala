@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Couchbase, Inc.
+ * Copyright (c) 2017 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package com.couchbase.spark.sql.streaming
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue}
 import java.util.concurrent.atomic.AtomicReference
 
-import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage, DcpSnapshotMarkerMessage, MessageUtil}
+import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage, DcpSnapshotMarkerRequest, MessageUtil}
+import com.couchbase.client.dcp._
 import com.couchbase.client.dcp.state.SessionState
-import com.couchbase.client.dcp.{ControlEventHandler, DataEventHandler, StreamFrom, StreamTo}
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf
 import com.couchbase.client.deps.io.netty.util.CharsetUtil
 import com.couchbase.client.java.document.json.JsonObject
@@ -29,39 +29,24 @@ import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.sql.DefaultSource
 import com.couchbase.spark.streaming.{Deletion, Mutation, StreamMessage}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
-import org.apache.spark.sql.execution.streaming.{CompositeOffset, Offset, Source}
+import org.apache.spark.sql.execution.streaming.{Offset, Source}
 import org.apache.spark.sql.types.{BinaryType, StringType, StructField, StructType}
 import rx.lang.scala.Observable
 
-import scala.concurrent.duration._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import scala.concurrent.duration._
 
-class PartitionOffset(val vbid: Short, val seqno: Long) extends Offset {
-  override def compareTo(other: Offset): Int = other match {
-    case l: PartitionOffset => seqno.compareTo(l.seqno)
-    case _ =>
-      throw new IllegalArgumentException(s"Invalid comparison of $getClass with ${other.getClass}")
-  }
-
-
-  override def toString = s"PartitionOffset($vbid, $seqno)"
-}
-
-class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
+class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
   parameters: Map[String, String])
   extends Source
     with Logging {
 
   val queues = new ConcurrentHashMap[Short, ConcurrentLinkedQueue[StreamMessage]](1024)
-
   val currentOffset = new AtomicReference[Offset]()
-
   val config = CouchbaseConfig(sqlContext.sparkContext.getConf)
-
-  val client = CouchbaseConnection().streamClient(config)
-
-  val used_schema = user_schema.getOrElse(CouchbaseSource.DEFAULT_SCHEMA)
+  val client: Client = CouchbaseConnection().streamClient(config)
+  val usedSchema: StructType = userSchema.getOrElse(CouchbaseSource.DEFAULT_SCHEMA)
 
   private val idFieldName = parameters.getOrElse("idField",
     DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
@@ -77,10 +62,10 @@ class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
   private def initialize(): Unit = synchronized {
     client.controlEventHandler(new ControlEventHandler {
       override def onEvent(event: ByteBuf): Unit = {
-        if (DcpSnapshotMarkerMessage.is(event)) {
+        if (DcpSnapshotMarkerRequest.is(event)) {
           client.acknowledgeBuffer(event)
         }
-        event.release()
+        event.release
       }
     })
 
@@ -131,7 +116,7 @@ class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
 
     client.connect().await()
 
-    (0 until client.numPartitions()).foreach(p => {
+    (0 until client.numPartitions).foreach(p => {
       queues.put(p.toShort, new ConcurrentLinkedQueue[StreamMessage]())
     })
 
@@ -140,11 +125,13 @@ class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
       case "now" => StreamFrom.NOW
       case _ => throw new IllegalArgumentException("Could not match StreamFrom " + streamFrom)
     }
+
     val to = streamTo.toLowerCase() match {
       case "infinity" => StreamTo.INFINITY
       case "now" => StreamTo.NOW
       case _ => throw new IllegalArgumentException("Could not match StreamTo " + streamFrom)
     }
+
     logInfo(s"Starting Couchbase Structured Stream from $from to $to")
     client.initializeState(from, to).await()
     currentOffset.set(statesToOffsets)
@@ -154,86 +141,84 @@ class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
       .interval(2.seconds)
       .map(_ => statesToOffsets)
       .foreach(offset => currentOffset.set(offset))
+
   }
 
-  def statesToOffsets: CompositeOffset = {
+  private def statesToOffsets: Offset = {
     val ss: SessionState = client.sessionState()
-    val offsets = (0 until client.numPartitions())
-      .map(s => (s, ss.get(s)))
-      .map(s => Some(new PartitionOffset(s._1.toShort, s._2.getStartSeqno)))
-    new CompositeOffset(offsets)
+    val offsets = (0 until client.numPartitions)
+      .map(s => (s.toShort, ss.get(s).getStartSeqno))
+    CouchbaseSourceOffset(offsets.toMap)
   }
 
-  override def schema: StructType = used_schema
+  override def schema: StructType = usedSchema
 
   override def getOffset: Option[Offset] = Option(currentOffset.get())
 
+  /**
+    * Returns the data between the given start and end [[Offset]].
+    */
   override def getBatch(start: Option[Offset], end: Offset): DataFrame = {
+    logInfo(s"GetBatch called with start = $start, end = $end")
+
+    val startOffset = start.map(_.asInstanceOf[CouchbaseSourceOffset])
+    val endOffset = end.asInstanceOf[CouchbaseSourceOffset]
     val results = mutable.ArrayBuffer[(Array[Byte], Array[Byte])]()
 
-    val startOffset = start.map(_.asInstanceOf[CompositeOffset])
-    val endOffset = end.asInstanceOf[CompositeOffset]
+    endOffset.partitionToOffsets.foreach(o => {
+      val partition: Short = o._1
+      val endSeqno: Long = o._2
+      val queue = queues.get(partition)
 
-    endOffset.offsets.foreach(o => {
-      if (o.isDefined) {
-        val eo = o.get.asInstanceOf[PartitionOffset]
-        val queue = queues.get(eo.vbid)
-
-        var keepGoing = true
-        while(keepGoing) {
-          val item = queue.peek()
-          if (item == null) {
-            keepGoing = false
-          } else {
-            item match {
-              case m: Mutation => {
-                val so: Long = startOffset
-                  .map(_.offsets.get(eo.vbid).get.asInstanceOf[PartitionOffset].seqno)
-                  .getOrElse(0)
-                if (m.bySeqno < so) {
-                  queue.remove()
-                  ack(m)
-                } else if (m.bySeqno <= eo.seqno && m.bySeqno >= so) {
-                  queue.remove()
-                  ack(m)
-                  results.append((m.key, m.content))
-                } else {
-                  keepGoing = false
-                }
-              }
-              case _ => // todo: deletions are ignored right now.
+      var keepGoing = true
+      while(keepGoing) {
+        val item = queue.peek
+        if (item == null) {
+          keepGoing = false
+        } else item match {
+          case m: Mutation =>
+            val startSeqno: Long = startOffset.map(o => o.partitionToOffsets(partition))
+              .getOrElse(0)
+            if (m.bySeqno < startSeqno) {
+              queue.remove()
+              ack(m)
+            } else if (m.bySeqno <= endSeqno && m.bySeqno >= startSeqno) {
+              queue.remove()
+              ack(m)
+              results.append((m.key, m.content))
+            } else {
+              keepGoing = false
             }
-          }
+          case _ => // deletions are ignored for now
         }
       }
     })
 
     val keyIdx = try {
-      used_schema.fieldIndex(idFieldName)
+      usedSchema.fieldIndex(idFieldName)
     } catch {
-      case iae: IllegalArgumentException => -1
+      case _: IllegalArgumentException => -1
     }
 
-    if (used_schema == CouchbaseSource.DEFAULT_SCHEMA) {
-      sqlContext.createDataFrame(results.map(t =>
-        Row(new String(t._1, CharsetUtil.UTF_8), t._2)), used_schema)
+    if (usedSchema == CouchbaseSource.DEFAULT_SCHEMA) {
+      val rows = results.map(t => Row(new String(t._1, CharsetUtil.UTF_8), t._2))
+      sqlContext.createDataFrame(rows, usedSchema)
     } else {
-      sqlContext.read.schema(used_schema)
-        .json(sqlContext.sparkContext.parallelize(
-          results.map(t => {
-            if (keyIdx >= 0) {
-              JsonObject
-                .fromJson(new String(t._2, CharsetUtil.UTF_8))
-                .put(idFieldName, new String(t._1, CharsetUtil.UTF_8))
-                .toString
-            } else {
-              new String(t._2, CharsetUtil.UTF_8)
-            }
-          })))
+      val rdd = sqlContext.sparkContext.parallelize(results.map(t => {
+        if (keyIdx >= 0) {
+          JsonObject
+            .fromJson(new String(t._2, CharsetUtil.UTF_8))
+            .put(idFieldName, new String(t._1, CharsetUtil.UTF_8))
+            .toString
+        } else {
+          new String(t._2, CharsetUtil.UTF_8)
+        }
+      }))
+      sqlContext.read.schema(usedSchema).json(rdd)
     }
   }
 
-  def ack(m: Mutation): Unit = {
+  private def ack(m: Mutation): Unit = {
     client.acknowledgeBuffer(m.partition.toInt, m.ackBytes)
   }
 
@@ -244,8 +229,10 @@ class CouchbaseSource(sqlContext: SQLContext, user_schema: Option[StructType],
 }
 
 object CouchbaseSource {
-  val DEFAULT_SCHEMA = StructType(
-    StructField(DefaultSource.DEFAULT_DOCUMENT_ID_FIELD, StringType) ::
-    StructField("value", BinaryType) :: Nil
-  )
+
+  def DEFAULT_SCHEMA: StructType = StructType(Seq(
+    StructField(DefaultSource.DEFAULT_DOCUMENT_ID_FIELD, StringType),
+    StructField("value", BinaryType)
+  ))
+
 }
