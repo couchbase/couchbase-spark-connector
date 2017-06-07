@@ -43,7 +43,15 @@ class CouchbaseConnection extends Serializable with Logging {
   def cluster(cfg: CouchbaseConfig): Cluster = {
     this.synchronized {
       if (envRef.isEmpty) {
-        envRef = Option(DefaultCouchbaseEnvironment.create())
+        val builder = DefaultCouchbaseEnvironment.builder()
+
+        if (cfg.sslOptions.isDefined && cfg.sslOptions.get.enabled) {
+          builder.sslEnabled(true)
+          builder.sslKeystoreFile(cfg.sslOptions.get.keystorePath)
+          builder.sslKeystorePassword(cfg.sslOptions.get.keystorePassword)
+        }
+
+        envRef = Option(builder.build())
       }
       if (clusterRef.isEmpty) {
         clusterRef = Option(CouchbaseCluster.create(envRef.get, cfg.hosts:_*))
