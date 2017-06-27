@@ -17,6 +17,7 @@ package com.couchbase.spark.streaming
 
 import com.couchbase.client.dcp._
 import com.couchbase.client.dcp.message._
+import com.couchbase.client.dcp.transport.netty.ChannelFlowController
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf
 import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
@@ -57,7 +58,7 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
 
     // Attach Callbacks
     client.controlEventHandler(new ControlEventHandler {
-      override def onEvent(event: ByteBuf): Unit = {
+      override def onEvent(flowController: ChannelFlowController, event: ByteBuf): Unit = {
         if (RollbackMessage.is(event)) {
           val partition = RollbackMessage.vbucket(event)
           client.rollbackAndRestartStream(partition, RollbackMessage.seqno(event))
@@ -73,7 +74,7 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
               override def onSubscribe(d: Subscription): Unit = {}
             })
         } else if (DcpSnapshotMarkerRequest.is(event)) {
-          client.acknowledgeBuffer(event)
+          flowController.ack(event)
         } else {
           event.release()
           throw new IllegalStateException("Got unexpected DCP Control Event "
@@ -84,7 +85,7 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
     })
 
     client.dataEventHandler(new DataEventHandler {
-      override def onEvent(event: ByteBuf): Unit = {
+      override def onEvent(flowController: ChannelFlowController, event: ByteBuf): Unit = {
         val converted: StreamMessage = if (DcpMutationMessage.is(event)) {
           val data = new Array[Byte](DcpMutationMessage.content(event).readableBytes())
           DcpMutationMessage.content(event).readBytes(data)
@@ -119,7 +120,7 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
         }
 
         store(converted)
-        client.acknowledgeBuffer(event)
+        flowController.ack(event)
         event.release()
       }
     })

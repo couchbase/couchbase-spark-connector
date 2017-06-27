@@ -18,10 +18,11 @@ package com.couchbase.spark.connection
 import org.apache.spark.SparkConf
 
 case class CouchbaseBucket(name: String, password: String)
+case class Credential(username: String, password: String)
 case class RetryOptions(maxTries: Int, maxDelay: Int, minDelay: Int)
 case class SslOptions(enabled: Boolean, keystorePath: String, keystorePassword: String)
 case class CouchbaseConfig(hosts: Seq[String], buckets: Seq[CouchbaseBucket],
-  retryOpts: RetryOptions, sslOptions: Option[SslOptions])
+  retryOpts: RetryOptions, sslOptions: Option[SslOptions], credential: Option[Credential])
 
 object CouchbaseConfig {
 
@@ -40,6 +41,8 @@ object CouchbaseConfig {
   private val SSL_ENABLED = PREFIX + "sslEnabled"
   private val SSL_KEYSTORE_FILE = PREFIX + "sslKeyStore"
   private val SSL_KEYSTORE_PASSWORD = PREFIX + "sslKeyStorePassword"
+  private val USERNAME = PREFIX + "username"
+  private val PASSWORD = PREFIX + "password"
 
   private val COMPAT_PREFIX = SPARK_PREFIX + "couchbase."
   private val COMPAT_BUCKET_PREFIX = COMPAT_PREFIX + "bucket."
@@ -50,6 +53,8 @@ object CouchbaseConfig {
   private val COMPAT_SSL_ENABLED = COMPAT_PREFIX + "sslEnabled"
   private val COMPAT_SSL_KEYSTORE_FILE = COMPAT_PREFIX + "sslKeyStore"
   private val COMPAT_SSL_KEYSTORE_PASSWORD = COMPAT_PREFIX + "sslKeyStorePassword"
+  private val COMPAT_USERNAME = "username"
+  private val COMPAT_PASSWORD = "password"
 
   val DEFAULT_NODE = "127.0.0.1"
   val DEFAULT_BUCKET = "default"
@@ -59,6 +64,20 @@ object CouchbaseConfig {
   val DEFAULT_MIN_RETRY_DELAY = "0"
 
   def apply(cfg: SparkConf) = {
+    val username = cfg
+      .getOption(USERNAME)
+      .orElse(cfg.getOption(COMPAT_USERNAME))
+
+    val password = cfg
+      .getOption(PASSWORD)
+      .orElse(cfg.getOption(COMPAT_PASSWORD))
+
+    val credential = if (username.isDefined) {
+      Some(Credential(username.get, password.get))
+    } else {
+      None
+    }
+
     val bucketConfigs = cfg
       .getAll.to[List]
       .filter(pair => pair._1.startsWith(BUCKET_PREFIX) || pair._1.startsWith(COMPAT_BUCKET_PREFIX))
@@ -132,9 +151,9 @@ object CouchbaseConfig {
 
     if (bucketConfigs.isEmpty) {
       new CouchbaseConfig(nodes, Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)),
-        retryOptions, sslOptions)
+        retryOptions, sslOptions, credential)
     } else {
-      new CouchbaseConfig(nodes, bucketConfigs, retryOptions, sslOptions)
+      new CouchbaseConfig(nodes, bucketConfigs, retryOptions, sslOptions, credential)
     }
   }
 
@@ -142,7 +161,7 @@ object CouchbaseConfig {
     Seq(DEFAULT_NODE),
     Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)),
     RetryOptions(DEFAULT_MAX_RETRIES.toInt, DEFAULT_MAX_RETRY_DELAY.toInt,
-      DEFAULT_MIN_RETRY_DELAY.toInt), None
+      DEFAULT_MIN_RETRY_DELAY.toInt), None, None
   )
 
 }

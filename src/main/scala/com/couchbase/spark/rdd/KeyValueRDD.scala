@@ -79,7 +79,8 @@ class KeyValueRDD[D <: Document[_]]
           )
           val currentIdx = partitionIndex
           partitionIndex += 1
-          new KeyValuePartition(currentIdx, grouped._2, hostname)
+          new KeyValuePartition(currentIdx, grouped._2,
+            Some(InetAddress.getByName(hostname.get.address())))
         }).toArray
       case _ =>
         logWarning("Memcached preferred locations currently not supported.")

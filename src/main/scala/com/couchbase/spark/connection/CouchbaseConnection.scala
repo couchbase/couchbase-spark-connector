@@ -55,6 +55,11 @@ class CouchbaseConnection extends Serializable with Logging {
       }
       if (clusterRef.isEmpty) {
         clusterRef = Option(CouchbaseCluster.create(envRef.get, cfg.hosts:_*))
+
+        if (cfg.credential.isDefined) {
+          val c = cfg.credential.get
+          clusterRef.get.authenticate(c.username, c.password)
+        }
       }
       clusterRef.get
     }
@@ -82,7 +87,11 @@ class CouchbaseConnection extends Serializable with Logging {
         throw new IllegalStateException("Not able to find bucket password for bucket " + bname)
       }
 
-      bucket = cluster(cfg).openBucket(bname, foundBucketConfig.head.password)
+      if (cfg.credential.isDefined) {
+        bucket = cluster(cfg).openBucket(bname)
+      } else {
+        bucket = cluster(cfg).openBucket(bname, foundBucketConfig.head.password)
+      }
       buckets.put(bname, bucket)
       bucket
     }
@@ -110,13 +119,19 @@ class CouchbaseConnection extends Serializable with Logging {
         throw new IllegalStateException("Not able to find bucket password for bucket " + bname)
       }
 
-      streamClient = Client.configure()
+      var conf = Client.configure()
         .bufferAckWatermark(80) // at 80% of the watermark, acknowledge
         .controlParam(DcpControl.Names.CONNECTION_BUFFER_SIZE, 1024 * 1000 * 50) // 50MB
         .hostnames(cfg.hosts:_*)
         .bucket(bname)
         .password(foundBucketConfig.head.password)
-        .build()
+
+      if (cfg.credential.isDefined) {
+        conf = conf
+          .username(cfg.credential.get.username)
+          .password(cfg.credential.get.password)
+      }
+      streamClient = conf.build()
 
       streamClients.put(bname, streamClient)
       streamClient

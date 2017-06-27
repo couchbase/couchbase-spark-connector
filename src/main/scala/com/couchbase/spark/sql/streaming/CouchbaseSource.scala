@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference
 import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage, DcpSnapshotMarkerRequest, MessageUtil}
 import com.couchbase.client.dcp._
 import com.couchbase.client.dcp.state.SessionState
+import com.couchbase.client.dcp.transport.netty.ChannelFlowController
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf
 import com.couchbase.client.deps.io.netty.util.CharsetUtil
 import com.couchbase.client.java.document.json.JsonObject
@@ -43,6 +44,7 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
     with Logging {
 
   val queues = new ConcurrentHashMap[Short, ConcurrentLinkedQueue[StreamMessage]](1024)
+  val flowControllers = new ConcurrentHashMap[Short, ChannelFlowController](1024)
   val currentOffset = new AtomicReference[Offset]()
   val config = CouchbaseConfig(sqlContext.sparkContext.getConf)
   val client: Client = CouchbaseConnection().streamClient(config)
@@ -61,16 +63,16 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
 
   private def initialize(): Unit = synchronized {
     client.controlEventHandler(new ControlEventHandler {
-      override def onEvent(event: ByteBuf): Unit = {
+      override def onEvent(flowController: ChannelFlowController, event: ByteBuf): Unit = {
         if (DcpSnapshotMarkerRequest.is(event)) {
-          client.acknowledgeBuffer(event)
+          flowController.ack(event)
         }
         event.release
       }
     })
 
     client.dataEventHandler(new DataEventHandler {
-      override def onEvent(event: ByteBuf): Unit = {
+      override def onEvent(flowController: ChannelFlowController, event: ByteBuf): Unit = {
         var vbucket = -1
         val converted: StreamMessage = if (DcpMutationMessage.is(event)) {
           val data = new Array[Byte](DcpMutationMessage.content(event).readableBytes())
@@ -101,14 +103,17 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
             DcpDeletionMessage.revisionSeqno(event),
             event.readableBytes()
           )
-          client.acknowledgeBuffer(event)
+          flowController.ack(event)
           deletion
         } else {
-          client.acknowledgeBuffer(event)
+          flowController.ack(event)
           throw new IllegalStateException("Got unexpected DCP Data Event "
             + MessageUtil.humanize(event))
         }
 
+        if (!flowControllers.containsKey(vbucket)) {
+          flowControllers.put(vbucket.toShort, flowController)
+        }
         queues.get(vbucket.toShort).add(converted)
         event.release()
       }
@@ -219,7 +224,7 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
   }
 
   private def ack(m: Mutation): Unit = {
-    client.acknowledgeBuffer(m.partition.toInt, m.ackBytes)
+    flowControllers.get(m.partition).ack(m.ackBytes)
   }
 
   override def stop(): Unit = {

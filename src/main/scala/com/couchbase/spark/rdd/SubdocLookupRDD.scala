@@ -77,7 +77,8 @@ class SubdocLookupRDD(@transient private val sc: SparkContext, specs: Seq[Subdoc
           )
           val currentIdx = partitionIndex
           partitionIndex += 1
-          new SubdocLookupPartition(currentIdx, grouped._2, hostname)
+          new SubdocLookupPartition(currentIdx, grouped._2,
+            Some(InetAddress.getByName(hostname.get.address())))
         }).toArray
       case _ =>
         logWarning("Memcached preferred locations currently not supported.")
