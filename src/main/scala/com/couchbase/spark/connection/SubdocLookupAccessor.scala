@@ -26,8 +26,6 @@ import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
 import scala.collection.mutable
-import scala.collection.JavaConverters._
-
 
 case class SubdocLookupSpec(id: String, get: Seq[String], exists: Seq[String])
 

@@ -23,6 +23,8 @@ import com.couchbase.client.java.view.ViewQuery;
 import com.couchbase.spark.RDDFunctions;
 import com.couchbase.spark.connection.SubdocLookupResult;
 import com.couchbase.spark.connection.SubdocLookupSpec;
+import com.couchbase.spark.connection.SubdocMutationResult;
+import com.couchbase.spark.connection.SubdocMutationSpec;
 import com.couchbase.spark.rdd.*;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
@@ -86,6 +88,20 @@ public class CouchbaseSparkContext {
             specs.add(new SubdocLookupSpec(id, SparkUtil.listToSeq(get), SparkUtil.listToSeq(exists)));
         }
         return new SubdocLookupRDD(
+            sc,
+            SparkUtil.listToSeq(specs),
+            bucket
+        ).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocMutationResult> couchbaseSubdocMutate(List<SubdocMutationSpec> specs) {
+        return couchbaseSubdocMutate(specs, null);
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocMutationResult> couchbaseSubdocMutate(List<SubdocMutationSpec> specs, String bucket) {
+        return new SubdocMutateRDD(
             sc,
             SparkUtil.listToSeq(specs),
             bucket

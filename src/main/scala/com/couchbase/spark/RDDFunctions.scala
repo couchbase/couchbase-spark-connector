@@ -102,4 +102,23 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       }
     }
   }
+
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec])
+                           (implicit evidence: RDD[T] <:< RDD[String])
+  : RDD[SubdocMutationResult] = {
+    couchbaseSubdocMutate(specs, null)
+  }
+
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], bucketName: String)
+                           (implicit evidence: RDD[T] <:< RDD[String])
+    : RDD[SubdocMutationResult] = {
+    val subdocRDD: RDD[String] = rdd
+    subdocRDD.mapPartitions { valueIterator =>
+      if (valueIterator.isEmpty) {
+        Iterator[SubdocMutationResult]()
+      } else {
+        new SubdocMutationAccessor(cbConfig, specs, bucketName).compute()
+      }
+    }
+  }
 }

@@ -19,6 +19,8 @@ import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.spark.RDDFunctions;
 import com.couchbase.spark.connection.SubdocLookupResult;
+import com.couchbase.spark.connection.SubdocMutationResult;
+import com.couchbase.spark.connection.SubdocMutationSpec;
 import com.couchbase.spark.rdd.CouchbaseQueryRow;
 import com.couchbase.spark.rdd.CouchbaseSpatialViewRow;
 import com.couchbase.spark.rdd.CouchbaseViewRow;
@@ -121,6 +123,21 @@ public class CouchbaseRDD<T> extends JavaRDD<T> {
         return new RDDFunctions<T>(source.rdd()).couchbaseSubdocLookup(
             SparkUtil.listToSeq(get),
             SparkUtil.listToSeq(exists),
+            bucket,
+            LCLIdentity.INSTANCE
+        ).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocMutationResult> couchbaseSubdocMutate(List<SubdocMutationSpec> specs) {
+        return couchbaseSubdocMutate(specs, null);
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<SubdocMutationResult> couchbaseSubdocMutate(List<SubdocMutationSpec> specs, String bucket) {
+        return new RDDFunctions<T>(source.rdd()).couchbaseSubdocMutate(
+            SparkUtil.listToSeq(specs),
+            bucket,
             LCLIdentity.INSTANCE
         ).toJavaRDD();
     }

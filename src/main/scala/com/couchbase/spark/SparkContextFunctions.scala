@@ -18,7 +18,7 @@ package com.couchbase.spark
 import com.couchbase.client.java.document.Document
 import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
-import com.couchbase.spark.connection.{SubdocLookupResult, SubdocLookupSpec}
+import com.couchbase.spark.connection.{SubdocLookupResult, SubdocLookupSpec, SubdocMutationResult, SubdocMutationSpec}
 import com.couchbase.spark.rdd._
 import org.apache.spark.SparkContext
 
@@ -41,6 +41,15 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseSubdocLookup(ids: Seq[String], get: Seq[String], exists: Seq[String],
     bucketName: String): RDD[SubdocLookupResult] = {
     new SubdocLookupRDD(sc, ids.map(SubdocLookupSpec(_, get, exists)), bucketName)
+  }
+
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], bucketName: String):
+    RDD[SubdocMutationResult] = {
+    new SubdocMutateRDD(sc, specs, bucketName)
+  }
+
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec]): RDD[SubdocMutationResult] = {
+    couchbaseSubdocMutate(specs, null)
   }
 
   def couchbaseView(query: ViewQuery, bucketName: String = null) = ViewRDD(sc, bucketName, query)

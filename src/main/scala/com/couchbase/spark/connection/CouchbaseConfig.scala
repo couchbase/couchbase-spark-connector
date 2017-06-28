@@ -53,8 +53,8 @@ object CouchbaseConfig {
   private val COMPAT_SSL_ENABLED = COMPAT_PREFIX + "sslEnabled"
   private val COMPAT_SSL_KEYSTORE_FILE = COMPAT_PREFIX + "sslKeyStore"
   private val COMPAT_SSL_KEYSTORE_PASSWORD = COMPAT_PREFIX + "sslKeyStorePassword"
-  private val COMPAT_USERNAME = "username"
-  private val COMPAT_PASSWORD = "password"
+  private val COMPAT_USERNAME = COMPAT_PREFIX + "username"
+  private val COMPAT_PASSWORD = COMPAT_PREFIX + "password"
 
   val DEFAULT_NODE = "127.0.0.1"
   val DEFAULT_BUCKET = "default"
