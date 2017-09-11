@@ -19,6 +19,7 @@ import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.spark.connection.SubdocLookupResult;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
@@ -28,16 +29,21 @@ import static org.junit.Assert.assertEquals;
 
 public class CouchbaseSparkContextTest {
 
-    @Test
-    public void shouldGetADocument() {
+    private static CouchbaseSparkContext csc;
+
+    @BeforeClass
+    public static void setup() {
         SparkConf conf = new SparkConf()
             .setAppName("javaTest")
             .setMaster("local[*]")
             .set("com.couchbase.bucket.travel-sample", "");
 
         JavaSparkContext sc = new JavaSparkContext(conf);
-        CouchbaseSparkContext csc = couchbaseContext(sc);
+        csc = couchbaseContext(sc);
+    }
 
+    @Test
+    public void shouldGetADocument() {
         String id = "airline_2357";
 
         List<JsonDocument> found = csc
@@ -51,14 +57,6 @@ public class CouchbaseSparkContextTest {
 
     @Test
     public void shouldGetViaSubdoc() {
-        SparkConf conf = new SparkConf()
-            .setAppName("javaTest")
-            .setMaster("local[*]")
-            .set("com.couchbase.bucket.travel-sample", "");
-
-        JavaSparkContext sc = new JavaSparkContext(conf);
-        CouchbaseSparkContext csc = couchbaseContext(sc);
-
         String id = "airline_2357";
 
         List<SubdocLookupResult> found = csc
