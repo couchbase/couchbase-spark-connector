@@ -51,6 +51,38 @@ class CouchbaseConnection extends Serializable with Logging {
           builder.sslKeystorePassword(cfg.sslOptions.get.keystorePassword)
         }
 
+        if (cfg.timeouts.query.isDefined) {
+          builder.queryTimeout(cfg.timeouts.query.get)
+        }
+
+        if (cfg.timeouts.analytics.isDefined) {
+          builder.analyticsTimeout(cfg.timeouts.analytics.get)
+        }
+
+        if (cfg.timeouts.view.isDefined) {
+          builder.viewTimeout(cfg.timeouts.view.get)
+        }
+
+        if (cfg.timeouts.search.isDefined) {
+          builder.searchTimeout(cfg.timeouts.search.get)
+        }
+
+        if (cfg.timeouts.kv.isDefined) {
+          builder.kvTimeout(cfg.timeouts.kv.get)
+        }
+
+        if (cfg.timeouts.connect.isDefined) {
+          builder.connectTimeout(cfg.timeouts.connect.get)
+        }
+
+        if (cfg.timeouts.disconnect.isDefined) {
+          builder.disconnectTimeout(cfg.timeouts.disconnect.get)
+        }
+
+        if (cfg.timeouts.management.isDefined) {
+          builder.managementTimeout(cfg.timeouts.management.get)
+        }
+
         envRef = Option(builder.build())
       }
       if (clusterRef.isEmpty) {

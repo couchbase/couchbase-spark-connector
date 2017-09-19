@@ -21,8 +21,12 @@ case class CouchbaseBucket(name: String, password: String)
 case class Credential(username: String, password: String)
 case class RetryOptions(maxTries: Int, maxDelay: Int, minDelay: Int)
 case class SslOptions(enabled: Boolean, keystorePath: String, keystorePassword: String)
+case class Timeouts(query: Option[Long], view: Option[Long], search: Option[Long],
+                    analytics: Option[Long], kv: Option[Long], connect: Option[Long],
+                    disconnect: Option[Long], management: Option[Long])
 case class CouchbaseConfig(hosts: Seq[String], buckets: Seq[CouchbaseBucket],
-  retryOpts: RetryOptions, sslOptions: Option[SslOptions], credential: Option[Credential])
+                           retryOpts: RetryOptions, sslOptions: Option[SslOptions],
+                           credential: Option[Credential], timeouts: Timeouts)
 
 object CouchbaseConfig {
 
@@ -43,6 +47,14 @@ object CouchbaseConfig {
   private val SSL_KEYSTORE_PASSWORD = PREFIX + "sslKeyStorePassword"
   private val USERNAME = PREFIX + "username"
   private val PASSWORD = PREFIX + "password"
+  private val QUERY_TIMEOUT = PREFIX + "queryTimeout"
+  private val VIEW_TIMEOUT = PREFIX + "viewTimeout"
+  private val SEARCH_TIMEOUT = PREFIX + "searchTimeout"
+  private val ANALYTICS_TIMEOUT = PREFIX + "analyticsTimeout"
+  private val KV_TIMEOUT = PREFIX + "kvTimeout"
+  private val CONNECT_TIMEOUT = PREFIX + "connectTimeout"
+  private val MANAGEMENT_TIMEOUT = PREFIX + "managementTimeout"
+  private val DISCONNECT_TIMEOUT = PREFIX + "disconnectTimeout"
 
   private val COMPAT_PREFIX = SPARK_PREFIX + "couchbase."
   private val COMPAT_BUCKET_PREFIX = COMPAT_PREFIX + "bucket."
@@ -55,6 +67,14 @@ object CouchbaseConfig {
   private val COMPAT_SSL_KEYSTORE_PASSWORD = COMPAT_PREFIX + "sslKeyStorePassword"
   private val COMPAT_USERNAME = COMPAT_PREFIX + "username"
   private val COMPAT_PASSWORD = COMPAT_PREFIX + "password"
+  private val COMPAT_QUERY_TIMEOUT = COMPAT_PREFIX + "queryTimeout"
+  private val COMPAT_VIEW_TIMEOUT = COMPAT_PREFIX + "viewTimeout"
+  private val COMPAT_SEARCH_TIMEOUT = COMPAT_PREFIX + "searchTimeout"
+  private val COMPAT_ANALYTICS_TIMEOUT = COMPAT_PREFIX + "analyticsTimeout"
+  private val COMPAT_KV_TIMEOUT = COMPAT_PREFIX + "kvTimeout"
+  private val COMPAT_CONNECT_TIMEOUT = COMPAT_PREFIX + "connectTimeout"
+  private val COMPAT_MANAGEMENT_TIMEOUT = COMPAT_PREFIX + "managementTimeout"
+  private val COMPAT_DISCONNECT_TIMEOUT = COMPAT_PREFIX + "disconnectTimeout"
 
   val DEFAULT_NODE = "127.0.0.1"
   val DEFAULT_BUCKET = "default"
@@ -149,19 +169,39 @@ object CouchbaseConfig {
       None
     }
 
+    val timeouts = parseTimeouts(cfg)
+
     if (bucketConfigs.isEmpty) {
       new CouchbaseConfig(nodes, Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)),
-        retryOptions, sslOptions, credential)
+        retryOptions, sslOptions, credential, timeouts)
     } else {
-      new CouchbaseConfig(nodes, bucketConfigs, retryOptions, sslOptions, credential)
+      new CouchbaseConfig(nodes, bucketConfigs, retryOptions, sslOptions, credential, timeouts)
     }
+  }
+
+  def parseTimeouts(cfg: SparkConf): Timeouts = {
+    Timeouts(
+      parseTimeout(cfg, QUERY_TIMEOUT, COMPAT_QUERY_TIMEOUT),
+      parseTimeout(cfg, VIEW_TIMEOUT, COMPAT_VIEW_TIMEOUT),
+      parseTimeout(cfg, SEARCH_TIMEOUT, COMPAT_SEARCH_TIMEOUT),
+      parseTimeout(cfg, ANALYTICS_TIMEOUT, COMPAT_ANALYTICS_TIMEOUT),
+      parseTimeout(cfg, KV_TIMEOUT, COMPAT_KV_TIMEOUT),
+      parseTimeout(cfg, CONNECT_TIMEOUT, COMPAT_CONNECT_TIMEOUT),
+      parseTimeout(cfg, DISCONNECT_TIMEOUT, COMPAT_DISCONNECT_TIMEOUT),
+      parseTimeout(cfg, MANAGEMENT_TIMEOUT, COMPAT_MANAGEMENT_TIMEOUT)
+    )
+  }
+
+  def parseTimeout(cfg: SparkConf, input: String, compat: String): Option[Long] = {
+    cfg.getOption(input).orElse(cfg.getOption(compat)).map(_.toLong)
   }
 
   def apply() = new CouchbaseConfig(
     Seq(DEFAULT_NODE),
     Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)),
     RetryOptions(DEFAULT_MAX_RETRIES.toInt, DEFAULT_MAX_RETRY_DELAY.toInt,
-      DEFAULT_MIN_RETRY_DELAY.toInt), None, None
+      DEFAULT_MIN_RETRY_DELAY.toInt), None, None,
+    Timeouts(None, None, None, None, None, None, None, None)
   )
 
 }
