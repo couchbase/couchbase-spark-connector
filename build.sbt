@@ -2,7 +2,7 @@ name := "spark-connector"
 
 organization := "com.couchbase.client"
 
-version := "2.2.0-SNAPSHOT"
+version := "2.2.0"
 
 description := "Official Couchbase Spark Connector"
 
