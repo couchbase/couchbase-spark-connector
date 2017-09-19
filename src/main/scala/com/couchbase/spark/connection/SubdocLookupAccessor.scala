@@ -26,6 +26,7 @@ import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
 import scala.collection.mutable
+import scala.concurrent.duration.Duration
 
 case class SubdocLookupSpec(id: String, get: Seq[String], exists: Seq[String])
 
@@ -33,7 +34,7 @@ case class SubdocLookupResult(id: String, cas: Long, content: Map[String, Any],
                         exists: Map[String, Boolean])
 
 class SubdocLookupAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocLookupSpec],
-                          bucketName: String = null) {
+                          bucketName: String = null, timeout: Option[Duration]) {
 
   def compute(): Iterator[SubdocLookupResult] = {
     if (specs.isEmpty) {
@@ -45,6 +46,12 @@ class SubdocLookupAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocLookupSpe
     val minDelay = cbConfig.retryOpts.minDelay
     val maxRetries = cbConfig.retryOpts.maxTries
 
+    val kvTimeout = timeout
+      .map(_.toMillis)
+      .orElse(cbConfig.timeouts.kv)
+      .getOrElse(bucket.environment().kvTimeout())
+
+
     LazyIterator {
       Observable
         .from(specs)
@@ -52,7 +59,8 @@ class SubdocLookupAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocLookupSpe
             var builder = bucket.lookupIn(spec.id)
             spec.exists.foreach(builder.exists(_))
             spec.get.foreach(builder.get(_))
-            toScalaObservable(builder.execute()).map(fragment => {
+            toScalaObservable(builder.execute().timeout(kvTimeout, TimeUnit.MILLISECONDS)
+            ).map(fragment => {
               val content = mutable.Map[String, Any]()
               spec.get.foreach(path => content.put(path, fragment.content(path)))
               val exists = mutable.Map[String, Boolean]()

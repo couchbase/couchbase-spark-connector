@@ -30,34 +30,49 @@ import rx.functions.Action4
 import rx.lang.scala.Observable
 import rx.lang.scala.JavaConversions._
 
+import scala.concurrent.duration.Duration
+
 class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D])
   extends Serializable
   with Logging {
 
   private val cbConfig = CouchbaseConfig(rdd.context.getConf)
 
-  def saveToCouchbase(bucketName: String = null, storeMode: StoreMode = StoreMode.UPSERT): Unit = {
+  def saveToCouchbase(bucketName: String = null, storeMode: StoreMode = StoreMode.UPSERT,
+                      timeout: Option[Duration] = None): Unit = {
     val retryOpts = cbConfig.retryOpts
+
 
     rdd.foreachPartition(iter => {
       if (iter.nonEmpty) {
         val bucket = CouchbaseConnection().bucket(cbConfig, bucketName).async()
+
+        val kvTimeout = timeout
+          .map(_.toMillis)
+          .orElse(cbConfig.timeouts.kv)
+          .getOrElse(bucket.environment().kvTimeout())
+
         Observable
           .from(OnceIterable(iter))
           .flatMap(doc =>  {
             storeMode match {
               case StoreMode.UPSERT =>
-                maybeRetry(toScalaObservable(bucket.upsert[D](doc)), retryOpts, doc.id())
+                maybeRetry(toScalaObservable(bucket.upsert[D](doc)
+                  .timeout(kvTimeout, TimeUnit.MILLISECONDS)), retryOpts, doc.id())
               case StoreMode.INSERT_AND_FAIL =>
-                maybeRetry(toScalaObservable(bucket.insert[D](doc)), retryOpts, doc.id())
+                maybeRetry(toScalaObservable(bucket.insert[D](doc)
+                  .timeout(kvTimeout, TimeUnit.MILLISECONDS)), retryOpts, doc.id())
               case StoreMode.REPLACE_AND_FAIL =>
-                maybeRetry(toScalaObservable(bucket.replace[D](doc)), retryOpts, doc.id())
+                maybeRetry(toScalaObservable(bucket.replace[D](doc)
+                  .timeout(kvTimeout, TimeUnit.MILLISECONDS)), retryOpts, doc.id())
               case StoreMode.INSERT_AND_IGNORE =>
-                maybeRetry(toScalaObservable(bucket.insert[D](doc)), retryOpts, doc.id())
+                maybeRetry(toScalaObservable(bucket.insert[D](doc)
+                  .timeout(kvTimeout, TimeUnit.MILLISECONDS)), retryOpts, doc.id())
                 .doOnError(err => logWarning("Insert failed, but suppressed.", err))
                 .onErrorResumeNext(throwable => Observable.empty)
               case StoreMode.REPLACE_AND_IGNORE =>
-                maybeRetry(toScalaObservable(bucket.replace[D](doc)), retryOpts, doc.id())
+                maybeRetry(toScalaObservable(bucket.replace[D](doc)
+                  .timeout(kvTimeout, TimeUnit.MILLISECONDS)), retryOpts, doc.id())
                 .doOnError(err => logWarning("Replace failed, but suppressed.", err))
                 .onErrorResumeNext(throwable => Observable.empty)
             }

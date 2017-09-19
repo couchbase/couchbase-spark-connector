@@ -21,23 +21,27 @@ import com.couchbase.spark.connection.{CouchbaseConfig, SpatialViewAccessor}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.duration.Duration
+
 case class CouchbaseSpatialViewRow(id: String, key: Any, value: Any, geometry: JsonObject)
 
 class SpatialViewRDD
-  (@transient private val sc: SparkContext, viewQuery: SpatialViewQuery, bucketName: String = null)
+  (@transient private val sc: SparkContext, viewQuery: SpatialViewQuery, bucketName: String = null,
+   timeout: Option[Duration] = None)
   extends RDD[CouchbaseSpatialViewRow](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext):
     Iterator[CouchbaseSpatialViewRow] =
-    new SpatialViewAccessor(cbConfig, Seq(viewQuery), bucketName).compute()
+    new SpatialViewAccessor(cbConfig, Seq(viewQuery), bucketName, timeout).compute()
 
   override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
 
 }
 
 object SpatialViewRDD {
-  def apply(sc: SparkContext, bucketName: String, viewQuery: SpatialViewQuery) =
-    new SpatialViewRDD(sc, viewQuery, bucketName)
+  def apply(sc: SparkContext, bucketName: String, viewQuery: SpatialViewQuery,
+            timeout: Option[Duration] = None) =
+    new SpatialViewRDD(sc, viewQuery, bucketName, timeout)
 }

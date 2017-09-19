@@ -28,6 +28,8 @@ import org.apache.spark.sql.execution.streaming.{Sink, Source}
 import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 
+import scala.concurrent.duration.Duration
+
 /**
  * The default couchbase source for Spark SQL.
  */
@@ -74,9 +76,12 @@ class DefaultSource
    */
   override def createRelation(sqlContext: SQLContext, mode: SaveMode,
     parameters: Map[String, String], data: DataFrame): BaseRelation = {
+    import scala.concurrent.duration._
+
     val bucketName = parameters.get("bucket").orNull
     val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
     val removeIdField = parameters.getOrElse("removeIdField", "true").toBoolean
+    val timeout = parameters.get("timeout").map(v => Duration(v.toLong, MILLISECONDS))
 
     val storeMode = mode match {
       case SaveMode.Append =>
@@ -100,7 +105,7 @@ class DefaultSource
         }
         JsonDocument.create(id.toString, encoded)
       })
-      .saveToCouchbase(bucketName, storeMode)
+      .saveToCouchbase(bucketName, storeMode, timeout)
 
     createRelation(sqlContext, parameters, data.schema)
   }

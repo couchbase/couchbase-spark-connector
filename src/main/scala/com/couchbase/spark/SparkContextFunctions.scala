@@ -25,37 +25,56 @@ import org.apache.spark.SparkContext
 import scala.reflect.ClassTag
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.duration.Duration
+
 class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
 
   def couchbaseGet[D <: Document[_]: ClassTag](ids: Seq[String], bucketName: String = null,
-    numSlices: Int = sc.defaultParallelism): RDD[D] = {
-    new KeyValueRDD[D](sc, ids, bucketName)
+    numSlices: Int = sc.defaultParallelism, timeout: Option[Duration] = None): RDD[D] = {
+    new KeyValueRDD[D](sc, ids, bucketName, timeout)
   }
 
+  def couchbaseSubdocLookup(ids: Seq[String], get: Seq[String], timeout: Option[Duration])
+    : RDD[SubdocLookupResult] = couchbaseSubdocLookup(ids, get, Seq(), null, timeout)
+
   def couchbaseSubdocLookup(ids: Seq[String], get: Seq[String])
-    : RDD[SubdocLookupResult] = couchbaseSubdocLookup(ids, get, Seq(), null)
+  : RDD[SubdocLookupResult] = couchbaseSubdocLookup(ids, get, Seq(), null, None)
 
   def couchbaseSubdocLookup(ids: Seq[String], get: Seq[String], exists: Seq[String])
-  : RDD[SubdocLookupResult] = couchbaseSubdocLookup(ids, get, exists, null)
+  : RDD[SubdocLookupResult] = couchbaseSubdocLookup(ids, get, exists, null, None)
 
   def couchbaseSubdocLookup(ids: Seq[String], get: Seq[String], exists: Seq[String],
-    bucketName: String): RDD[SubdocLookupResult] = {
-    new SubdocLookupRDD(sc, ids.map(SubdocLookupSpec(_, get, exists)), bucketName)
+                            timeout: Option[Duration])
+  : RDD[SubdocLookupResult] = couchbaseSubdocLookup(ids, get, exists, null, timeout)
+
+  def couchbaseSubdocLookup(ids: Seq[String], get: Seq[String], exists: Seq[String],
+    bucketName: String, timeout: Option[Duration] = None): RDD[SubdocLookupResult] = {
+    new SubdocLookupRDD(sc, ids.map(SubdocLookupSpec(_, get, exists)), bucketName, timeout)
+  }
+
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], bucketName: String,
+                            timeout: Option[Duration]):
+    RDD[SubdocMutationResult] = {
+    new SubdocMutateRDD(sc, specs, bucketName, timeout)
   }
 
   def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], bucketName: String):
-    RDD[SubdocMutationResult] = {
-    new SubdocMutateRDD(sc, specs, bucketName)
+  RDD[SubdocMutationResult] = {
+    new SubdocMutateRDD(sc, specs, bucketName, None)
   }
 
-  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec]): RDD[SubdocMutationResult] = {
-    couchbaseSubdocMutate(specs, null)
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], timeout: Option[Duration] = None):
+  RDD[SubdocMutationResult] = {
+    couchbaseSubdocMutate(specs, null, timeout)
   }
 
-  def couchbaseView(query: ViewQuery, bucketName: String = null) = ViewRDD(sc, bucketName, query)
+  def couchbaseView(query: ViewQuery, bucketName: String = null,
+                    timeout: Option[Duration] = None) = ViewRDD(sc, bucketName, query, timeout)
 
-  def couchbaseSpatialView(query: SpatialViewQuery, bucketName: String = null) =
-    SpatialViewRDD(sc, bucketName, query)
+  def couchbaseSpatialView(query: SpatialViewQuery,
+                           bucketName: String = null, timeout: Option[Duration] = None) =
+    SpatialViewRDD(sc, bucketName, query, timeout)
 
-  def couchbaseQuery(query: N1qlQuery, bucketName: String = null) = QueryRDD(sc, bucketName, query)
+  def couchbaseQuery(query: N1qlQuery, bucketName: String = null,
+                     timeout: Option[Duration] = None) = QueryRDD(sc, bucketName, query, timeout)
 }

@@ -26,6 +26,8 @@ import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import rx.lang.scala.JavaConversions._
 
+import scala.concurrent.duration.Duration
+
 
 class SubdocLookupPartition(id: Int, specs: Seq[SubdocLookupSpec], loc: Option[InetAddress])
   extends Partition {
@@ -37,7 +39,7 @@ class SubdocLookupPartition(id: Int, specs: Seq[SubdocLookupSpec], loc: Option[I
 
 
 class SubdocLookupRDD(@transient private val sc: SparkContext, specs: Seq[SubdocLookupSpec],
-                      bname: String = null)
+                      bname: String = null, timeout: Option[Duration] = None)
   extends RDD[SubdocLookupResult](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
@@ -46,7 +48,7 @@ class SubdocLookupRDD(@transient private val sc: SparkContext, specs: Seq[Subdoc
 
   override def compute(split: Partition, context: TaskContext): Iterator[SubdocLookupResult] = {
     val p = split.asInstanceOf[SubdocLookupPartition]
-    new SubdocLookupAccessor(cbConfig, p.ids, bucketName).compute()
+    new SubdocLookupAccessor(cbConfig, p.ids, bucketName, timeout).compute()
   }
 
   override protected def getPartitions: Array[Partition] = {

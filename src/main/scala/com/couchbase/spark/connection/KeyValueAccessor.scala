@@ -26,10 +26,12 @@ import com.couchbase.spark.internal.LazyIterator
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
+import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 
 class KeyValueAccessor[D <: Document[_]]
-  (cbConfig: CouchbaseConfig, ids: Seq[String], bucketName: String = null)
+  (cbConfig: CouchbaseConfig, ids: Seq[String], bucketName: String = null,
+   timeout: Option[Duration])
   (implicit ct: ClassTag[D]) {
 
   def compute(): Iterator[D] = {
@@ -44,10 +46,17 @@ class KeyValueAccessor[D <: Document[_]]
     val minDelay = cbConfig.retryOpts.minDelay
     val maxRetries = cbConfig.retryOpts.maxTries
 
+    val kvTimeout = timeout
+      .map(_.toMillis)
+      .orElse(cbConfig.timeouts.kv)
+      .getOrElse(bucket.environment().kvTimeout())
+
     LazyIterator {
       Observable
         .from(ids)
-        .flatMap(id => toScalaObservable(bucket.get(id, castTo).retryWhen(
+        .flatMap(id => toScalaObservable(bucket.get(id, castTo)
+          .timeout(kvTimeout, TimeUnit.MILLISECONDS)
+          .retryWhen(
           RetryBuilder
             .anyOf(classOf[TemporaryFailureException], classOf[BackpressureException],
               classOf[CouchbaseOutOfMemoryException])

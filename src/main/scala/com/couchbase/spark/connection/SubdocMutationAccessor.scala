@@ -12,6 +12,8 @@ import rx.lang.scala.JavaConversions.toScalaObservable
 import rx.lang.scala.JavaConversions.toJavaObservable
 import rx.lang.scala.Observable
 
+import scala.concurrent.duration.Duration
+
 
 sealed trait SubdocMutationSpec { def id: String }
 case class SubdocUpsert(override val id: String, path: String, value: Any,
@@ -38,7 +40,7 @@ case class SubdocArrayPrependAll(override val id: String, path: String, values: 
 case class SubdocMutationResult(cas: Seq[(String, Long)])
 
 class SubdocMutationAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocMutationSpec],
-                             bucketName: String = null) {
+                             bucketName: String = null, timeout: Option[Duration]) {
 
   def compute(): Iterator[SubdocMutationResult] = {
     if (specs.isEmpty) {
@@ -49,6 +51,12 @@ class SubdocMutationAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocMutatio
     val maxDelay = cbConfig.retryOpts.maxDelay
     val minDelay = cbConfig.retryOpts.minDelay
     val maxRetries = cbConfig.retryOpts.maxTries
+
+    val kvTimeout = timeout
+      .map(_.toMillis)
+      .orElse(cbConfig.timeouts.kv)
+      .getOrElse(bucket.environment().kvTimeout())
+
 
 
     // 1: group specs by id
@@ -98,7 +106,8 @@ class SubdocMutationAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocMutatio
       Observable
         .from(convertedSpecs)
         .flatMap(builder =>
-          toScalaObservable(builder.execute()).retryWhen(input =>
+          toScalaObservable(builder.execute().timeout(kvTimeout, TimeUnit.MILLISECONDS)
+          ).retryWhen(input =>
             retry.call(toJavaObservable(input))
           ))
         .toList

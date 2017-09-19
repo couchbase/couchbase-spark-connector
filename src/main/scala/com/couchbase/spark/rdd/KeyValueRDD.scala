@@ -23,13 +23,14 @@ import com.couchbase.client.core.config.CouchbaseBucketConfig
 import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
 import com.couchbase.client.java.document.Document
 import com.couchbase.spark.Logging
-import com.couchbase.spark.connection.{CouchbaseConnection, KeyValueAccessor, CouchbaseConfig}
+import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, KeyValueAccessor}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{TaskContext, Partition, SparkContext}
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 
 import scala.reflect.ClassTag
-
 import rx.lang.scala.JavaConversions._
+
+import scala.concurrent.duration.Duration
 
 class KeyValuePartition(id: Int, docIds: Seq[String], loc: Option[InetAddress]) extends Partition {
   override def index: Int = id
@@ -39,7 +40,8 @@ class KeyValuePartition(id: Int, docIds: Seq[String], loc: Option[InetAddress]) 
 }
 
 class KeyValueRDD[D <: Document[_]]
-  (@transient private val sc: SparkContext, ids: Seq[String], bname: String = null)
+  (@transient private val sc: SparkContext, ids: Seq[String], bname: String = null,
+   timeout: Option[Duration] = None)
   (implicit ct: ClassTag[D])
   extends RDD[D](sc, Nil) {
 
@@ -48,7 +50,7 @@ class KeyValueRDD[D <: Document[_]]
 
   override def compute(split: Partition, context: TaskContext): Iterator[D] = {
     val p = split.asInstanceOf[KeyValuePartition]
-    new KeyValueAccessor[D](cbConfig, p.ids, bucketName).compute()
+    new KeyValueAccessor[D](cbConfig, p.ids, bucketName, timeout).compute()
   }
 
   override protected def getPartitions: Array[Partition] = {

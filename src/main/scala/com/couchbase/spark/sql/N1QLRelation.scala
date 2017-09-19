@@ -24,6 +24,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql._
 import org.apache.spark.sql.sources._
 
+import scala.concurrent.duration.{Duration, MILLISECONDS}
 import scala.util.matching.Regex
 
 /**
@@ -42,6 +43,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
   private val cbConfig = CouchbaseConfig(sqlContext.sparkContext.getConf)
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
   private val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
+  private val timeout = parameters.get("timeout").map(v => Duration(v.toLong, MILLISECONDS))
 
   override val schema: StructType = userSchema.getOrElse[StructType] {
     val queryFilter = if (parameters.get("schemaFilter").isDefined) {
@@ -57,7 +59,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
 
     val schema = sqlContext
       .read
-      .json(QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query))
+      .json(QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query), timeout)
         .map(_.value.toString))
       .schema
 
@@ -83,7 +85,7 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
 
     logInfo(s"Executing generated query: '$query'")
 
-    val rdd = QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query))
+    val rdd = QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query), timeout)
       .map(_.value.toString)
 
     val cols = requiredColumns.map(c => new Column(c))

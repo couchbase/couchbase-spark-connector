@@ -25,6 +25,8 @@ import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import rx.lang.scala.JavaConversions._
 
+import scala.concurrent.duration.Duration
+
 class SubdocMutationPartition(id: Int, specs: Seq[SubdocMutationSpec], loc: Option[InetAddress])
   extends Partition {
   override def index: Int = id
@@ -34,7 +36,7 @@ class SubdocMutationPartition(id: Int, specs: Seq[SubdocMutationSpec], loc: Opti
 }
 
 class SubdocMutateRDD(@transient private val sc: SparkContext, specs: Seq[SubdocMutationSpec],
-                      bname: String = null)
+                      bname: String = null, timeout: Option[Duration] = None)
   extends RDD[SubdocMutationResult](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
@@ -43,7 +45,7 @@ class SubdocMutateRDD(@transient private val sc: SparkContext, specs: Seq[Subdoc
 
   override def compute(split: Partition, context: TaskContext): Iterator[SubdocMutationResult] = {
     val p = split.asInstanceOf[SubdocMutationPartition]
-    new SubdocMutationAccessor(cbConfig, p.ids, bucketName).compute()
+    new SubdocMutationAccessor(cbConfig, p.ids, bucketName, timeout).compute()
   }
 
   override protected def getPartitions: Array[Partition] = {

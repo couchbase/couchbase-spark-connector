@@ -25,6 +25,8 @@ import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.spark.connection._
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.duration.Duration
+
 class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
 
   private val cbConfig = CouchbaseConfig(rdd.sparkContext.getConf)
@@ -32,31 +34,32 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
   /**
    * Convert a RDD[String] to a RDD[D]. It's available if T is String.
    */
-  def couchbaseGet[D <: Document[_]](bucketName: String = null)
+  def couchbaseGet[D <: Document[_]](bucketName: String = null, timeout: Option[Duration] = None)
     (implicit ct: ClassTag[D], evidence: RDD[T] <:< RDD[String]): RDD[D] = {
     val idRDD: RDD[String] = rdd
     idRDD.mapPartitions { valueIterator =>
       if (valueIterator.isEmpty) {
         Iterator[D]()
       } else {
-        new KeyValueAccessor[D](cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+        new KeyValueAccessor[D](cbConfig, OnceIterable(valueIterator).toSeq, bucketName,
+          timeout).compute()
       }
     }
   }
 
-  def couchbaseView(bucketName: String = null)
+  def couchbaseView(bucketName: String = null, timeout: Option[Duration] = None)
     (implicit evidence: RDD[T] <:< RDD[ViewQuery]) : RDD[CouchbaseViewRow] = {
     val viewRDD: RDD[ViewQuery] = rdd
     viewRDD.mapPartitions { valueIterator =>
       if (valueIterator.isEmpty) {
         Iterator[CouchbaseViewRow]()
       } else {
-        new ViewAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+        new ViewAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName, timeout).compute()
       }
     }
   }
 
-  def couchbaseSpatialView(bucketName: String = null)
+  def couchbaseSpatialView(bucketName: String = null, timeout: Option[Duration] = None)
     (implicit evidence: RDD[T] <:< RDD[SpatialViewQuery])
     : RDD[CouchbaseSpatialViewRow] = {
     val viewRDD: RDD[SpatialViewQuery] = rdd
@@ -64,12 +67,13 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (valueIterator.isEmpty) {
         Iterator[CouchbaseSpatialViewRow]()
       } else {
-        new SpatialViewAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+        new SpatialViewAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName,
+          timeout).compute()
       }
     }
   }
 
-  def couchbaseQuery(bucketName: String = null)
+  def couchbaseQuery(bucketName: String = null, timeout: Option[Duration] = None)
     (implicit evidence: RDD[T] <:< RDD[N1qlQuery])
   : RDD[CouchbaseQueryRow] = {
     val queryRDD: RDD[N1qlQuery] = rdd
@@ -77,20 +81,30 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (valueIterator.isEmpty) {
         Iterator[CouchbaseQueryRow]()
       } else {
-        new QueryAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName).compute()
+        new QueryAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName,
+          timeout).compute()
       }
     }
   }
 
-  def couchbaseSubdocLookup(get: Seq[String])
+  def couchbaseSubdocLookup(get: Seq[String], timeout: Option[Duration])
     (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] =
-    couchbaseSubdocLookup(get, Seq(), null)
+    couchbaseSubdocLookup(get, Seq(), null, timeout)
+
+  def couchbaseSubdocLookup(get: Seq[String], exists: Seq[String], timeout: Option[Duration])
+   (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] =
+    couchbaseSubdocLookup(get, exists, null, timeout)
+
+  def couchbaseSubdocLookup(get: Seq[String])
+                           (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] =
+    couchbaseSubdocLookup(get, Seq(), null, None)
 
   def couchbaseSubdocLookup(get: Seq[String], exists: Seq[String])
-   (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] =
-    couchbaseSubdocLookup(get, exists, null)
+                           (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] =
+    couchbaseSubdocLookup(get, exists, null, None)
 
-  def couchbaseSubdocLookup(get: Seq[String], exists: Seq[String], bucketName: String)
+  def couchbaseSubdocLookup(get: Seq[String], exists: Seq[String], bucketName: String,
+      timeout: Option[Duration] = None)
     (implicit evidence: RDD[T] <:< RDD[String]): RDD[SubdocLookupResult] = {
     val subdocRDD: RDD[String] = rdd
     subdocRDD.mapPartitions { valueIterator =>
@@ -98,18 +112,25 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
         Iterator[SubdocLookupResult]()
       } else {
         val specs = OnceIterable(valueIterator).toSeq.map(SubdocLookupSpec(_, get, exists))
-        new SubdocLookupAccessor(cbConfig, specs, bucketName).compute()
+        new SubdocLookupAccessor(cbConfig, specs, bucketName, timeout).compute()
       }
     }
+  }
+
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], timeout: Option[Duration])
+                           (implicit evidence: RDD[T] <:< RDD[String])
+  : RDD[SubdocMutationResult] = {
+    couchbaseSubdocMutate(specs, null, timeout)
   }
 
   def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec])
                            (implicit evidence: RDD[T] <:< RDD[String])
   : RDD[SubdocMutationResult] = {
-    couchbaseSubdocMutate(specs, null)
+    couchbaseSubdocMutate(specs, null, None)
   }
 
-  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], bucketName: String)
+  def couchbaseSubdocMutate(specs: Seq[SubdocMutationSpec], bucketName: String,
+                            timeout: Option[Duration] = None)
                            (implicit evidence: RDD[T] <:< RDD[String])
     : RDD[SubdocMutationResult] = {
     val subdocRDD: RDD[String] = rdd
@@ -117,7 +138,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (valueIterator.isEmpty) {
         Iterator[SubdocMutationResult]()
       } else {
-        new SubdocMutationAccessor(cbConfig, specs, bucketName).compute()
+        new SubdocMutationAccessor(cbConfig, specs, bucketName, timeout).compute()
       }
     }
   }

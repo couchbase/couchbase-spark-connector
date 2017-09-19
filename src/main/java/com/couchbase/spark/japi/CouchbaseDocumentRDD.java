@@ -20,7 +20,10 @@ import com.couchbase.spark.DocumentRDDFunctions;
 import com.couchbase.spark.StoreMode;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.rdd.RDD;
+import scala.concurrent.duration.Duration;
 import scala.reflect.ClassTag;
+
+import java.util.concurrent.TimeUnit;
 
 public class CouchbaseDocumentRDD<T extends Document<?>> extends JavaRDD<T> {
 
@@ -52,7 +55,24 @@ public class CouchbaseDocumentRDD<T extends Document<?>> extends JavaRDD<T> {
     }
 
     public void saveToCouchbase(StoreMode storeMode, String bucket) {
-        new DocumentRDDFunctions<T>(source.rdd()).saveToCouchbase(bucket, storeMode);
+        new DocumentRDDFunctions<T>(source.rdd()).saveToCouchbase(bucket, storeMode, scala.Option.<Duration>apply(null));
+    }
+
+    public void saveToCouchbase(long timeout) {
+        saveToCouchbase(StoreMode.UPSERT, null, timeout);
+    }
+
+    public void saveToCouchbase(StoreMode storeMode, long timeout) {
+        saveToCouchbase(storeMode, null, timeout);
+    }
+
+    public void saveToCouchbase(String bucket, long timeout) {
+        saveToCouchbase(StoreMode.UPSERT, bucket, timeout);
+    }
+
+    public void saveToCouchbase(StoreMode storeMode, String bucket, long timeout) {
+        new DocumentRDDFunctions<T>(source.rdd()).saveToCouchbase(bucket, storeMode,
+            scala.Option.<Duration>apply(Duration.create(timeout, TimeUnit.MILLISECONDS)));
     }
 
     @Override

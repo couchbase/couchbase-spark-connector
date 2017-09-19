@@ -12,8 +12,11 @@ import com.couchbase.spark.rdd.CouchbaseQueryRow
 import rx.lang.scala.JavaConversions._
 import rx.lang.scala.Observable
 
+import scala.concurrent.duration.Duration
 
-class QueryAccessor(cbConfig: CouchbaseConfig, query: Seq[N1qlQuery], bucketName: String = null)
+
+class QueryAccessor(cbConfig: CouchbaseConfig, query: Seq[N1qlQuery], bucketName: String = null,
+                    timeout: Option[Duration])
   extends Logging {
 
   def compute(): Iterator[CouchbaseQueryRow] = {
@@ -27,9 +30,16 @@ class QueryAccessor(cbConfig: CouchbaseConfig, query: Seq[N1qlQuery], bucketName
     val minDelay = cbConfig.retryOpts.minDelay
     val maxRetries = cbConfig.retryOpts.maxTries
 
+    val queryTimeout = timeout
+      .map(_.toMillis)
+      .orElse(cbConfig.timeouts.query)
+      .getOrElse(bucket.environment().queryTimeout())
+
     LazyIterator {
       Observable.from(query)
-        .flatMap(vq => toScalaObservable(bucket.query(vq).retryWhen(
+        .flatMap(vq => toScalaObservable(bucket.query(vq)
+          .timeout(queryTimeout, TimeUnit.MILLISECONDS)
+          .retryWhen(
           RetryBuilder
             .anyOf(classOf[BackpressureException])
             .delay(Delay.exponential(TimeUnit.MILLISECONDS, maxDelay, minDelay))

@@ -20,16 +20,18 @@ import com.couchbase.spark.connection.{CouchbaseConfig, ViewAccessor}
 import org.apache.spark.{Dependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.duration.Duration
+
 case class CouchbaseViewRow(id: String, key: Any, value: Any)
 
 class ViewRDD(@transient private val sc: SparkContext, viewQuery: ViewQuery,
-              bucketName: String = null, deps: Seq[Dependency[_]])
+              bucketName: String = null, timeout: Option[Duration] = None, deps: Seq[Dependency[_]])
   extends RDD[CouchbaseViewRow](sc, deps) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseViewRow] =
-    new ViewAccessor(cbConfig, Seq(viewQuery), bucketName).compute()
+    new ViewAccessor(cbConfig, Seq(viewQuery), bucketName, timeout).compute()
 
 
   override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
@@ -37,6 +39,7 @@ class ViewRDD(@transient private val sc: SparkContext, viewQuery: ViewQuery,
 }
 
 object ViewRDD {
-  def apply(sc: SparkContext, bucketName: String, viewQuery: ViewQuery) =
-    new ViewRDD(sc, viewQuery, bucketName, Nil)
+  def apply(sc: SparkContext, bucketName: String, viewQuery: ViewQuery,
+            timeout: Option[Duration] = None) =
+    new ViewRDD(sc, viewQuery, bucketName, timeout, Nil)
 }
