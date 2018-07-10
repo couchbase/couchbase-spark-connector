@@ -1,0 +1,36 @@
+== Spark Connector 2.2
+
+The Couchbase Spark Connector provides first-class integration between your high performance Couchbase Server cluster and the Apache Spark data processing platform.
+
+Every version of the Couchbase Spark connector is compiled against a specific Spark target.
+The following table lists the compatible versions:
+
+[cols="1,1", options="header"]
+|===
+|Couchbase Spark connector version
+|Apache Spark target version
+
+|2.2.x
+|2.2.x
+
+|2.1.x
+|2.1.x
+
+|2.0.x
+|2.0.x
+
+|1.2.x
+|1.6.x
+
+|1.1.x
+|1.5.x
+
+|1.0.x
+|1.4.x
+|===
+
+Note that if the internal Spark APIs do not break between minor versions, it is possible to use different version combinations.
+The table above shows the combination Couchbase tests and supports.
+
+Couchbase welcomes community contributions to the Spark connector.
+The https://github.com/couchbase/couchbase-spark-connector[Spark connector source code] is available on GitHub and contains instructions to contribute.
