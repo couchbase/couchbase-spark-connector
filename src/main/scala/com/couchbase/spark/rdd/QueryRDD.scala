@@ -15,15 +15,22 @@
  */
 package com.couchbase.spark.rdd
 
+import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
+import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.query.N1qlQuery
-import com.couchbase.spark.connection.{CouchbaseConfig, QueryAccessor}
+import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, QueryAccessor}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
+import rx.lang.scala.JavaConversions.toScalaObservable
 
 import scala.concurrent.duration.Duration
 
 case class CouchbaseQueryRow(value: JsonObject)
+
+class QueryPartition(val index: Int, val hostnames: Seq[String]) extends Partition {
+  override def toString = s"QueryPartition($index, $hostnames)"
+}
 
 class QueryRDD(@transient private val sc: SparkContext, query: N1qlQuery,
                bucketName: String = null,
@@ -35,7 +42,50 @@ class QueryRDD(@transient private val sc: SparkContext, query: N1qlQuery,
   override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseQueryRow] =
     new QueryAccessor(cbConfig, Seq(query), bucketName, timeout).compute()
 
-  override protected def getPartitions: Array[Partition] = Array(new CouchbasePartition(0))
+  override protected def getPartitions: Array[Partition] = {
+    val addressesWithQueryService = couchbaseNodesWithQueryServices()
+
+    // A single query can only run on one node, so return one partition
+    Array(new QueryPartition(0, addressesWithQueryService))
+  }
+
+  private def couchbaseNodesWithQueryServices(): Seq[String] = {
+    val core = CouchbaseConnection().bucket(cbConfig, bucketName).core()
+    import collection.JavaConverters._
+
+    val req = new GetClusterConfigRequest()
+    val config = toScalaObservable(core.send[GetClusterConfigResponse](req))
+      .toBlocking
+      .single
+
+    val addressesWithQueryService: Seq[String] = config.config().bucketConfigs().asScala
+      .flatMap(v => {
+        val bucketConfig = v._2
+        val nodesWithQueryService = bucketConfig.nodes.asScala
+          .filter(node => node.services()
+            .asScala
+            .contains(ServiceType.QUERY))
+        nodesWithQueryService
+      })
+      .map(v => v.hostname().hostname())
+      .toSeq
+      .distinct
+
+    addressesWithQueryService
+  }
+
+  override protected def getPreferredLocations(split: Partition): Seq[String] = {
+    val p = split.asInstanceOf[QueryPartition]
+
+    // If the user has co-located Spark worker services on Couchbase nodes, this will get the query
+    // to run on a Spark worker running on a Couchbase query node, if possible
+    val out = if (p.hostnames.nonEmpty) {
+      p.hostnames
+    } else {
+      Nil
+    }
+    out
+  }
 }
 
 object QueryRDD {
