@@ -284,6 +284,16 @@ public class CouchbaseRDD<T> extends JavaRDD<T> {
     }
 
     @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseQueryRow> couchbaseAnalytics() {
+        return new RDDFunctions<T>(source.rdd()).couchbaseAnalytics(null, scala.Option.<Duration>apply(null), LCLIdentity.INSTANCE).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public JavaRDD<CouchbaseQueryRow> couchbaseAnalytics(String bucket) {
+        return new RDDFunctions<T>(source.rdd()).couchbaseAnalytics(bucket, scala.Option.<Duration>apply(null), LCLIdentity.INSTANCE).toJavaRDD();
+    }
+
+    @SuppressWarnings({"unchecked"})
     public JavaRDD<CouchbaseViewRow> couchbaseView(long timeout) {
         return new RDDFunctions<T>(source.rdd()).couchbaseView(null, scala.Option.<Duration>apply(Duration.create(timeout, TimeUnit.MILLISECONDS)), LCLIdentity.INSTANCE).toJavaRDD();
     }

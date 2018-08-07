@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark
 
+import com.couchbase.client.java.analytics.AnalyticsQuery
 import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
 import com.couchbase.spark.internal.OnceIterable
 import com.couchbase.spark.rdd._
@@ -82,6 +83,20 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
         Iterator[CouchbaseQueryRow]()
       } else {
         new QueryAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName,
+          timeout).compute()
+      }
+    }
+  }
+
+  def couchbaseAnalytics(bucketName: String = null, timeout: Option[Duration] = None)
+                    (implicit evidence: RDD[T] <:< RDD[AnalyticsQuery])
+  : RDD[CouchbaseAnalyticsRow] = {
+    val analyticsRDD: RDD[AnalyticsQuery] = rdd
+    analyticsRDD.mapPartitions { valueIterator =>
+      if (valueIterator.isEmpty) {
+        Iterator[CouchbaseAnalyticsRow]()
+      } else {
+        new AnalyticsAccessor(cbConfig, OnceIterable(valueIterator).toSeq, bucketName,
           timeout).compute()
       }
     }

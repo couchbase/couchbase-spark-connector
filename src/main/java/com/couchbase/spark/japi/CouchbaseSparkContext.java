@@ -15,15 +15,13 @@
  */
 package com.couchbase.spark.japi;
 
+import com.couchbase.client.java.analytics.AnalyticsQuery;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.query.N1qlQuery;
 import com.couchbase.client.java.view.SpatialViewQuery;
 import com.couchbase.client.java.view.ViewQuery;
-import com.couchbase.spark.connection.SubdocLookupResult;
-import com.couchbase.spark.connection.SubdocLookupSpec;
-import com.couchbase.spark.connection.SubdocMutationResult;
-import com.couchbase.spark.connection.SubdocMutationSpec;
+import com.couchbase.spark.connection.*;
 import com.couchbase.spark.rdd.*;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
@@ -200,7 +198,7 @@ public class CouchbaseSparkContext {
     }
 
     public JavaRDD<CouchbaseSpatialViewRow> couchbaseSpatialView(final SpatialViewQuery query, long timeout) {
-        return couchbaseSpatialView(query, null);
+        return couchbaseSpatialView(query, null, timeout);
     }
 
     public JavaRDD<CouchbaseSpatialViewRow> couchbaseSpatialView(final SpatialViewQuery query, final String bucket, long timeout) {
@@ -216,11 +214,26 @@ public class CouchbaseSparkContext {
     }
 
     public JavaRDD<CouchbaseQueryRow> couchbaseQuery(final N1qlQuery query, long timeout) {
-        return couchbaseQuery(query, null);
+        return couchbaseQuery(query, null, timeout);
     }
 
     public JavaRDD<CouchbaseQueryRow> couchbaseQuery(final N1qlQuery query, final String bucket, long timeout) {
         return new QueryRDD(sc, query, bucket, scala.Option.<Duration>apply(Duration.create(timeout, TimeUnit.MILLISECONDS))).toJavaRDD();
     }
 
+    public JavaRDD<CouchbaseAnalyticsRow> couchbaseAnalytics(final AnalyticsQuery query) {
+        return couchbaseAnalytics(query, null);
+    }
+
+    public JavaRDD<CouchbaseAnalyticsRow> couchbaseAnalytics(final AnalyticsQuery query, final String bucket) {
+        return new AnalyticsRDD(sc, query, bucket, scala.Option.<Duration>apply(null)).toJavaRDD();
+    }
+
+    public JavaRDD<CouchbaseAnalyticsRow> couchbaseAnalytics(final AnalyticsQuery query, long timeout) {
+        return couchbaseAnalytics(query, null, timeout);
+    }
+
+    public JavaRDD<CouchbaseAnalyticsRow> couchbaseAnalytics(final AnalyticsQuery query, final String bucket, long timeout) {
+        return new AnalyticsRDD(sc, query, bucket, scala.Option.<Duration>apply(Duration.create(timeout, TimeUnit.MILLISECONDS))).toJavaRDD();
+    }
 }

@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark
 
+import com.couchbase.client.java.analytics.AnalyticsQuery
 import com.couchbase.client.java.document.Document
 import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.client.java.view.{SpatialViewQuery, ViewQuery}
@@ -77,4 +78,9 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
 
   def couchbaseQuery(query: N1qlQuery, bucketName: String = null,
                      timeout: Option[Duration] = None) = QueryRDD(sc, bucketName, query, timeout)
+
+  def couchbaseAnalytics(query: AnalyticsQuery, bucketName: String = null,
+                         timeout: Option[Duration] = None): AnalyticsRDD = {
+    new AnalyticsRDD(sc, query, bucketName, timeout)
+  }
 }

@@ -17,39 +17,36 @@ package com.couchbase.spark.rdd
 
 import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
 import com.couchbase.client.core.service.ServiceType
-import com.couchbase.client.java.document.json.JsonObject
+import com.couchbase.client.java.analytics.AnalyticsQuery
 import com.couchbase.client.java.query.N1qlQuery
-import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection, QueryAccessor}
-import org.apache.spark.{Partition, SparkContext, TaskContext}
+import com.couchbase.spark.connection._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 import rx.lang.scala.JavaConversions.toScalaObservable
 
 import scala.concurrent.duration.Duration
 
-case class CouchbaseQueryRow(value: JsonObject)
-
-class QueryPartition(val index: Int, val hostnames: Seq[String]) extends Partition {
-  override def toString = s"QueryPartition($index, $hostnames)"
-}
-
-class QueryRDD(@transient private val sc: SparkContext, query: N1qlQuery,
-               bucketName: String = null,
-               timeout: Option[Duration] = None)
-  extends RDD[CouchbaseQueryRow](sc, Nil) {
+/**
+  * Wraps a Couchbase Analytics query in an RDD
+  */
+class AnalyticsRDD(@transient private val sc: SparkContext, query: AnalyticsQuery,
+                   bucketName: String = null,
+                   timeout: Option[Duration] = None)
+  extends RDD[CouchbaseAnalyticsRow](sc, Nil) {
 
   private val cbConfig = CouchbaseConfig(sc.getConf)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseQueryRow] =
-    new QueryAccessor(cbConfig, Seq(query), bucketName, timeout).compute()
+  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseAnalyticsRow] =
+    new AnalyticsAccessor(cbConfig, Seq(query), bucketName, timeout).compute()
 
   override protected def getPartitions: Array[Partition] = {
-    // Try to run the query on a Spark worker co-located on a Couchbase query node
-    val addressesWithQueryService = RDDSupport.couchbaseNodesWithService(cbConfig,
+    // Try to run the query on a Spark worker co-located on a Couchbase analytics node
+    val addressesWithAnalyticsService = RDDSupport.couchbaseNodesWithService(cbConfig,
       bucketName,
-      ServiceType.QUERY)
+      ServiceType.ANALYTICS)
 
     // A single query can only run on one node, so return one partition
-    Array(new QueryPartition(0, addressesWithQueryService))
+    Array(new QueryPartition(0, addressesWithAnalyticsService))
   }
 
   override protected def getPreferredLocations(split: Partition): Seq[String] = {
@@ -57,10 +54,4 @@ class QueryRDD(@transient private val sc: SparkContext, query: N1qlQuery,
   }
 }
 
-object QueryRDD {
 
-  def apply(sc: SparkContext, bucketName: String, query: N1qlQuery,
-            timeout: Option[Duration] = None) =
-    new QueryRDD(sc, query, bucketName, timeout)
-
-}
