@@ -1,18 +1,21 @@
-== Spark Streaming Integration
+= Spark Streaming Integration
+:page-topic-type: concept
 
+[abstract]
 The Couchbase Spark connector works with Spark Streaming by using the Couchbase Server replication protocol (called DCP) to receive mutations on the server side as they happen and provide them to you in the form of a DStream.
 The DStream is the primary format used by Spark Streaming.
 You can create and persist DStreams.
 
-Note: Creating DStreams from DCP through Couchbase is still rough around the edges and experimental.
+== DStream Creation
+
+NOTE: Creating DStreams from DCP through Couchbase is still rough around the edges and experimental.
 We appreciate any feedback until we stabilize this module.
 
 The following example will print count all mutations that have happened and all mutations which are going to happen.
 You can then utilize them through all the common DStream methods.
 
-[source]
+[source,scala]
 ----
-
 // Create the Spark Config and instruct to use the travel-sample bucket
   // with no password.
   val conf = new SparkConf()
@@ -37,19 +40,20 @@ You can then utilize them through all the common DStream methods.
 
 Don't forget to add the implicit import:
 
-[source]
+[source,scala]
 ----
-
 import com.couchbase.spark.streaming._
 ----
 
-Note: In the previous example the connector issues a backfill, which means that all data stored in the bucket will be streamed first, so you might want to try it on an empty bucket or use from = FromNow right away.
+NOTE: In the previous example the connector issues a backfill, which means that all data stored in the bucket will be streamed first, so you might want to try it on an empty bucket or use `from = FromNow` right away.
 
-Since DStreams are RDDs, the same persistence mechanisms apply (see link:working-with-rdds.html#spark-working-with-rdds[Working with RDDs] for more information). Here is an example that streams tweets from Twitter and persists them in a Couchbase bucket:
+== DStream Persistence
 
-[source]
+Since DStreams are RDDs, the same persistence mechanisms apply (see xref:working-with-rdds.adoc[Working with RDDs] for more information).
+Here is an example that streams tweets from Twitter and persists them in a Couchbase bucket:
+
+[source,scala]
 ----
-
 // Configure Spark
 val cfg = new SparkConf()
   .setAppName("TwitterFeed")
