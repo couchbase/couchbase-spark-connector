@@ -1,14 +1,17 @@
-== Using the Spark Shell
+= Using the Spark Shell
+:page-topic-type: concept
 
+[abstract]
 The interactive shell can be used together with the couchbase connector for quick and easy data exploration.
+
+== Getting Started
 
 The Spark shell provides an easy and convenient way to prototype certain operations quickly,without having to develop a full program, packaging it and then deploying it.
 
-You need to https://spark.apache.org/downloads.html[download] Apache Spark from the website, then navigate into the bin directory and run the spark-shell command:
+You need to https://spark.apache.org/downloads.html[download^] Apache Spark from the website, then navigate into the `bin` directory and run the `spark-shell` command:
 
-[source]
+[source,scala]
 ----
-
 michael@daschlbook ~/spark/spark-2.2.0-bin-hadoop2.7/bin $ ./spark-shell -h
 Usage: ./bin/spark-shell [options]
 
@@ -26,19 +29,19 @@ Options:
 If you run the Spark shell as it is, you will only have the built-in Spark commands available.
 If you want to use it with the Couchbase Connector, the easiest way is to provide a specific argument that locates the dependency and pulls it in:
 
-[source]
+[source,scala]
 ----
-
 ./spark-shell --packages com.couchbase.client:spark-connector_2.11:2.2.0
 ----
 
 Now you're all set!
 
-Once you've loaded the shell, both the SparkContext (sc) and the surrounding SparkSession are ready to go:
+== Usage
 
-[source]
+Once you've loaded the shell, both the `SparkContext (sc)` and the surrounding `SparkSession` are ready to go:
+
+[source,scala]
 ----
-
 scala> sc
 res0: org.apache.spark.SparkContext = org.apache.spark.SparkContext@708dfe10
 
@@ -48,9 +51,8 @@ res1: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@1716
 
 To load the Couchbase-specific implicit imports, run the following commands:
 
-[source]
+[source,scala]
 ----
-
 scala> import com.couchbase.spark._
 import com.couchbase.spark._
 
@@ -61,9 +63,8 @@ import com.couchbase.spark.sql._
 Now you can run all commands like in a regular program, just in an interactive fashion.
 The following example stores a document and then retrieves it through KeyValue:
 
-[source]
+[source,scala]
 ----
-
 scala> import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.JsonDocument
 
@@ -81,18 +82,15 @@ JsonDocument{id='mydoc', cas=39773408329728, expiry=0, content={"hello":"spark"}
 
 If you need to pass custom properties (like connect to a different bucket or hostnames) you can do it like this:
 
-[source]
 ----
-
 ./spark-shell --packages com.couchbase.client:spark-connector_2.11:2.2.0 --conf "spark.couchbase.bucket.travel-sample="
 ----
 
 You can also make use of the first-class N1QL integration.
-The following example creates a data frame for airlines travel-sample bucket.
+The following example creates a data frame for airlines `travel-sample` bucket.
 
-[source]
+[source,scala]
 ----
-
 scala> val airlines = spark.read.couchbase(schemaFilter = org.apache.spark.sql.sources.EqualTo("type", "airline"))
 15/10/20 15:02:51 INFO N1QLRelation: Inferring schema from bucket travel-sample with query 'SELECT META(`travel-sample`).id as `META_ID`, `travel-sample`.* FROM `travel-sample` WHERE  `type` = 'airline' LIMIT 1000'
 ...
@@ -102,9 +100,8 @@ airlines: org.apache.spark.sql.DataFrame = [META_ID: string, callsign: string, c
 
 Now you can print the schema and run ad-hoc data exploration:
 
-[source]
+[source,scala]
 ----
-
 scala> airlines.printSchema
 root
  |-- META_ID: string (nullable = true)
@@ -117,9 +114,8 @@ root
  |-- type: string (nullable = true)
 ----
 
-[source]
+[source,scala]
 ----
-
 scala> airlines.select("name", "callsign").sort(airlines("callsign").desc).show(5)
 ...
 +----------------+--------+

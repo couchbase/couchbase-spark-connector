@@ -1,5 +1,7 @@
-== Development Workflow
+= Development Workflow
+:page-topic-type: concept
 
+[abstract]
 Developing and Deploying Spark applications can be a challenge upfront.
 This section helps you through the development and deployment workflow.
 
@@ -13,12 +15,13 @@ This documentation is intended to guide you through and to help you get set up a
 
 There are two ways the problem is typically approached: you can either add the dependencies to the classpath when you submit the application or you can create a big jar which contains all dependencies.
 
+== Adding the Connector to the Executor's classpath
+
 If you want to manage the dependency directly on the worker, the actual project setup is quite simple.
-You don't need to set up shadowing and can use a build.sbt like this:
+You don't need to set up shadowing and can use a `build.sbt` like this:
 
-[source]
+[source,scala]
 ----
-
 name := "your-awesome-app"
 
 organization := "com.acme"
@@ -35,13 +38,12 @@ libraryDependencies ++= Seq(
 )
 ----
 
-when developing the application you need to make sure that the master is not set, since you need to deploy it eventually to a non-local master.
+when developing the application you need to make sure that the `master` is not set, since you need to deploy it eventually to a non-local master.
 
-Note that since Spark 2.0 it is recommended to use the SparkSession instead of initializing the SparkContext directly, but it is still supported and behaves the same like noted below.
+Note that since Spark 2.0 it is recommended to use the `SparkSession` instead of initializing the `SparkContext` directly, but it is still supported and behaves the same like noted below.
 
-[source]
+[source,scala]
 ----
-
 object Main {
   def main(args: Array[String]): Unit = {
     // Configure Spark
@@ -60,19 +62,16 @@ object Main {
 
 If you run this, Spark will complain:
 
-[source]
-----
-
+....
 Exception in thread "main" org.apache.spark.SparkException: A master URL must be set in your configuration
-----
+....
 
 There are different approaches to handle this, but all boil down to conditionally setting the system property for the master.
-One approach that is useful is to have a runnable class in the test (or somewhere else) directory which sets the property and then runs the application.
+One approach that is useful is to have a runnable class in the `test` (or somewhere else) directory which sets the property and then runs the application.
 This also has additional benefits that are discussed in the next section.
 
-[source]
+[source,scala]
 ----
-
 object RunLocal {
   def main(args: Array[String]): Unit = {
     System.setProperty("spark.master", "local[*]")
@@ -81,28 +80,27 @@ object RunLocal {
 }
 ----
 
-You can then build your application via sbt package on the command line and submit it to Spark via spark-submit.
-Because Couchbase distributes the connector via maven, you can just include it with the --packages flag:
+You can then build your application via `sbt package` on the command line and submit it to Spark via `spark-submit`.
+Because Couchbase distributes the connector via maven, you can just include it with the `--packages` flag:
 
-[source]
 ----
-
 /spark/bin/spark-submit --master spark://your-spark-master:7077 --packages com.couchbase.client:spark-connector_2.10:1.2.1 /path/to/app/target/scala-2.10/your_app_2.10-1.0.jar
 ----
 
-If your environment does not have access to the internet you can use the --jars argument instead and grab the assembly with all the dependencies from here: link:download-links.html[Download and API Reference].
+If your environment does not have access to the internet you can use the `--jars` argument instead and grab the assembly with all the dependencies from here: xref:download-links.adoc[Download and API Reference].
+
+== Deploying a jar with dependencies included
 
 The previous example shows how to add the connector during the submit phase as a dependency.
-If more than one dependency needs to be managed this can become cumbersome quickly since you also need to make sure that your build.sbt is always in sync with your command line parameters.
+If more than one dependency needs to be managed this can become cumbersome quickly since you also need to make sure that your `build.sbt` is always in sync with your command line parameters.
 
-The alternative is to create a "fat jar" with batteries included that ships everything in the first place.
+The alternative is to create a "`fat jar`" with batteries included that ships everything in the first place.
 This requires more setup on the project side but saves you some work later on.
 
-The build.sbt looks a bit different here:
+The `build.sbt` looks a bit different here:
 
-[source]
+[source,scala]
 ----
-
 lazy val root = (project in file(".")).
   settings(
     name := "my-app",
@@ -118,24 +116,21 @@ libraryDependencies ++= Seq(
 )
 ----
 
-The important piece here is that the Spark dependencies are scoped to provided and test.
+The important piece here is that the Spark dependencies are scoped to `provided` and `test`.
 We need this to not include Spark in the shadowed jar but still allow it to run in the IDE for development.
 
-Also, create project/assembly.sbt if it doesn't exist and add:
+Also, create `project/assembly.sbt` if it doesn't exist and add:
 
-[source]
 ----
-
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.3")
 ----
 
 The code now is similar to the previous section, but you need to make sure that the class you run in your IDE is in the test namespace so that Spark is actually included during development:
 
-In src/main/scala:
+In `src/main/scala`:
 
-[source]
+[source,scala]
 ----
-
 object Main {
 
   def main(args: Array[String]): Unit = {
@@ -150,11 +145,10 @@ object Main {
 }
 ----
 
-Under src/test/scala:
+Under `src/test/scala`:
 
-[source]
+[source,scala]
 ----
-
 object RunLocal {
   def main(args: Array[String]): Unit = {
     System.setProperty("spark.master", "local[*]")
@@ -163,12 +157,10 @@ object RunLocal {
 }
 ----
 
-Now instead of sbt package you need to use sbt assembly which will create the shadowed jar under target/scala_2.1X/your-app-assembly-1.0.jar.
+Now instead of `sbt package` you need to use `sbt assembly` which will create the shadowed jar under `target/scala_2.1X/your-app-assembly-1.0.jar`.
 
 The jar can be submitted without further dependency shenanigans:
 
-[source]
 ----
-
 /spark/bin/spark-submit --master spark://your-spark-master:7077 /path/to/app/target/scala-2.11/your_app-assembly-1.0.jar
 ----
