@@ -1,6 +1,10 @@
-== Release Notes
+= Release Notes
+:page-topic-type: concept
 
+[abstract]
 Release notes for the 2.2 version of the Spark Connector.
+
+== Couchbase Spark Connector 2.2.0 GA (September 2017)
 
 Version 2.2.0 is the first stable release of the 2.2.x series.
 It brings support for Spark 2.2 and the following enhancements and bugfixes:
@@ -8,14 +12,14 @@ It brings support for Spark 2.2 and the following enhancements and bugfixes:
 *Spark Core*
 
 * Support for Apache Spark 2.2.0
-* https://issues.couchbase.com/browse/SPARKC-80[SPARKC-80]: Support for Couchbase Server 5.0 and Role-Based Access Control
-* https://issues.couchbase.com/browse/SPARKC-77[SPARKC-77]: Global and per-operation timeout configuration is now possible
-* https://issues.couchbase.com/browse/SPARKC-44[SPARKC-44]: Support for Subdocument Mutations has been added.
-* https://issues.couchbase.com/browse/SPARKC-79[SPARKC-79]: Support for easier SSL/TLS configuration via spark config.
+* https://issues.couchbase.com/browse/SPARKC-80[SPARKC-80^]: Support for Couchbase Server 5.0 and Role-Based Access Control
+* https://issues.couchbase.com/browse/SPARKC-77[SPARKC-77^]: Global and per-operation timeout configuration is now possible
+* https://issues.couchbase.com/browse/SPARKC-44[SPARKC-44^]: Support for Subdocument Mutations has been added.
+* https://issues.couchbase.com/browse/SPARKC-79[SPARKC-79^]: Support for easier SSL/TLS configuration via spark config.
 
 *Spark SQL*
 
-* https://issues.couchbase.com/browse/SPARKC-77[SPARKC-77]: per-operation timeout configuration is now possible
+* https://issues.couchbase.com/browse/SPARKC-77[SPARKC-77^]: per-operation timeout configuration is now possible
 
 *Spark Streaming*
 
