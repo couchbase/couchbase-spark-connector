@@ -1,0 +1,5 @@
+name: spark-connector
+version: '2.1'
+title: Spark Connector
+nav:
+- modules/ROOT/nav.adoc

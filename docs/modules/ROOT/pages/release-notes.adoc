@@ -1,0 +1,25 @@
+= Release Notes
+:page-topic-type: concept
+
+[abstract]
+Release notes for the 2.1 version of the Spark Connector.
+
+== Couchbase Spark Connector 2.1.0 GA (February 2017)
+
+Version 2.1.0 is the first stable release of the 2.1.x series.
+It brings support for Spark 2.1 and the following enhancements and bugfixes:
+
+*Spark Core*
+
+* Support for Apache Spark 2.1.x
+* Updated the Couchbase Java SDK to 2.4.2
+* Update dcp-client to 0.8.0
+
+*Spark SQL*
+
+* https://issues.couchbase.com/browse/SPARKC-71[SPARKC-71^]: Various fixes for custom nested schemas.
+* https://issues.couchbase.com/browse/SPARKC-73[SPARKC-73^]: Add a config option to also store the document ID in the document instead of removing it proactively.
+
+*Spark Streaming*
+
+* Internals reworked for Structured Streaming, Adaptations for dcp-client 0.8.0.
