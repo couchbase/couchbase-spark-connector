@@ -18,7 +18,7 @@ libraryDependencies += "com.couchbase.client" %% "spark-connector" % "2.2.0"
 ```
 
 ## Documentation
-The official documentation, including a quickstart guide can be found [here](http://developer.couchbase.com/documentation/server/current/connectors/spark-2.2/spark-intro.html)).
+The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/2.2/index.html).
 
 ## Version Compatibility
 
@@ -38,7 +38,7 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 
 
 ## License
-Copyright 2015-2017 Couchbase Inc.
+Copyright 2015-2019 Couchbase Inc.
 
 Licensed under the Apache License, Version 2.0.
 
