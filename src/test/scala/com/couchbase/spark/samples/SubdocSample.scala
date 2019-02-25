@@ -25,6 +25,8 @@ object SubdocSample {
     val conf = new SparkConf()
       .setMaster("local[*]")
       .setAppName("DatasetSample")
+      .set("com.couchbase.username", "Administrator")
+      .set("com.couchbase.password", "password")
       .set("com.couchbase.bucket.travel-sample", "")
 
     val spark = SparkSession.builder().config(conf).getOrCreate()

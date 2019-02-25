@@ -22,7 +22,7 @@ import java.util.Map;
 
 public class CouchbaseDataFrameWriter {
 
-    private final DataFrameWriter dfw;
+    private final DataFrameWriter<Row> dfw;
     private static final String SOURCE = "com.couchbase.spark.sql.DefaultSource";
 
     private CouchbaseDataFrameWriter(DataFrameWriter<Row> dfw) {

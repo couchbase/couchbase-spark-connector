@@ -4,3 +4,4 @@ build/
 **/*.iml
 **/target/*
 **/.DS_Store
+out/*

@@ -20,7 +20,6 @@ import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.query.N1qlQuery;
 import com.couchbase.client.java.view.SpatialViewQuery;
 import com.couchbase.client.java.view.ViewQuery;
-import com.couchbase.spark.RDDFunctions;
 import com.couchbase.spark.connection.SubdocLookupResult;
 import com.couchbase.spark.connection.SubdocLookupSpec;
 import com.couchbase.spark.connection.SubdocMutationResult;
@@ -29,7 +28,6 @@ import com.couchbase.spark.rdd.*;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import scala.Option;
 import scala.concurrent.duration.Duration;
 
 import java.util.ArrayList;

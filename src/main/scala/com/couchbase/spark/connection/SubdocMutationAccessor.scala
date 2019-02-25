@@ -66,30 +66,30 @@ class SubdocMutationAccessor(cbConfig: CouchbaseConfig, specs: Seq[SubdocMutatio
 
       specs.foreach {
         case SubdocUpsert(_, path, fragment, createParents) => builder.upsert(path, fragment,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocInsert(_, path, fragment, createParents) => builder.insert(path, fragment,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocReplace(_, path, fragment) => builder.replace(path, fragment)
         case SubdocCounter(_, path, delta, createParents) => builder.counter(path, delta,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocArrayAppend(_, path, fragment, createParents) => builder.arrayAppend(path,
           fragment,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocArrayPrepend(_, path, fragment, createParents) => builder.arrayPrepend(path,
           fragment,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocArrayInsert(_, path, fragment, createParents) => builder.arrayInsert(path,
           fragment,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocArrayAddUnique(_, path, fragment, createParents) => builder.arrayAddUnique(path,
           fragment,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocArrayAppendAll(_, path, fragments, createParents) => builder.arrayAppendAll(path,
           fragments,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocArrayPrependAll(_, path, fragments, createParents) => builder.arrayPrependAll(
           path, fragments,
-          SubdocOptionsBuilder.builder().createParents(createParents))
+          SubdocOptionsBuilder.builder().createPath(createParents))
         case SubdocRemove(_, path) => builder.remove(path)
       }
       builder

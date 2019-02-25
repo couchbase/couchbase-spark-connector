@@ -18,7 +18,7 @@ class SubdocMutationAccessorSpec extends FlatSpec with Matchers {
       SubdocUpsert("doc", "element", "value"),
       SubdocUpsert("doc2", "_", 5678),
       SubdocUpsert("doc2", "element2", 1234)
-    ))
+    ), null, None)
 
     accessor.compute().foreach(println)
   }

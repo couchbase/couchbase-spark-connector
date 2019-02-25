@@ -57,10 +57,14 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
 
     logInfo(s"Inferring schema from bucket $bucketName with query '$query'")
 
+
+    val rdd = QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query), timeout)
+      .map(_.value.toString)
+    val dataset = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
+
     val schema = sqlContext
       .read
-      .json(QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query), timeout)
-        .map(_.value.toString))
+      .json(dataset)
       .schema
 
     logInfo(s"Inferred schema is $schema")
@@ -88,11 +92,13 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
     val rdd = QueryRDD(sqlContext.sparkContext, bucketName, N1qlQuery.simple(query), timeout)
       .map(_.value.toString)
 
+    val dataset = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
+
     val cols = requiredColumns.map(c => new Column(c))
     sqlContext
       .read
       .schema(schema)
-      .json(rdd)
+      .json(dataset)
       .select(cols: _*)
       .rdd
   }

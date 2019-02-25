@@ -36,6 +36,8 @@ public class CouchbaseSparkContextTest {
         SparkConf conf = new SparkConf()
             .setAppName("javaTest")
             .setMaster("local[*]")
+            .set("com.couchbase.username", "Administrator")
+            .set("com.couchbase.password", "password")
             .set("com.couchbase.bucket.travel-sample", "");
 
         JavaSparkContext sc = new JavaSparkContext(conf);
