@@ -29,7 +29,7 @@ import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.sql.DefaultSource
 import com.couchbase.spark.streaming.{Deletion, Mutation, StreamMessage}
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Encoders, Row, SQLContext}
 import org.apache.spark.sql.execution.streaming.{Offset, Source}
 import org.apache.spark.sql.types.{BinaryType, StringType, StructField, StructType}
 import rx.lang.scala.Observable
@@ -219,7 +219,8 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
           new String(t._2, CharsetUtil.UTF_8)
         }
       }))
-      sqlContext.read.schema(usedSchema).json(rdd)
+      val dataset = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
+      sqlContext.read.schema(usedSchema).json(dataset)
     }
   }
 

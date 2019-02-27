@@ -18,6 +18,7 @@ package com.couchbase.spark.japi;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.sources.EqualTo;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -43,6 +44,11 @@ public class CouchbaseSQLContextTest {
           .config(conf)
           .getOrCreate();
         sql = spark.sqlContext();
+    }
+
+    @AfterClass
+    public static void teardown() {
+        sql.sparkContext().stop();
     }
 
     @Test

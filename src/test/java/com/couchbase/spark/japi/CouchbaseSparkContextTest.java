@@ -19,6 +19,7 @@ import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.spark.connection.SubdocLookupResult;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import static org.junit.Assert.assertEquals;
 
 public class CouchbaseSparkContextTest {
 
+    private static JavaSparkContext ctx;
     private static CouchbaseSparkContext csc;
 
     @BeforeClass
@@ -40,8 +42,13 @@ public class CouchbaseSparkContextTest {
             .set("com.couchbase.password", "password")
             .set("com.couchbase.bucket.travel-sample", "");
 
-        JavaSparkContext sc = new JavaSparkContext(conf);
-        csc = couchbaseContext(sc);
+        ctx = new JavaSparkContext(conf);
+        csc = couchbaseContext(ctx);
+    }
+
+    @AfterClass
+    public static void teardown() {
+        ctx.stop();
     }
 
     @Test
