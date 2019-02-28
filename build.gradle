@@ -46,10 +46,14 @@ dependencies {
 publishing {
 	publications {
 		mavenJava(MavenPublication) {
+			groupId = 'com.couchbase.client'
 			artifactId = 'spark-connector'
+			version = '2.3.0-SNAPSHOT'
 			pom {
 				description = 'Official Couchbase Spark Connector'
 			}
+
+			from components.java
 		}
 	}
 }
