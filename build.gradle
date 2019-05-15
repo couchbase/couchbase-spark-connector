@@ -37,7 +37,7 @@ dependencies {
 	compileOnly "org.apache.spark:spark-sql_%%:$sparkVersion"
 
 	testCompile "junit:junit:4.12"
-	testCompile "org.scalatest:scalatest_%%:2.2.5"
+	testCompile "org.scalatest:scalatest_%%:3.0.5"
 	testCompile "org.apache.spark:spark-core_%%:$sparkVersion"
 	testCompile "org.apache.spark:spark-streaming_%%:$sparkVersion"
 	testCompile "org.apache.spark:spark-sql_%%:$sparkVersion"

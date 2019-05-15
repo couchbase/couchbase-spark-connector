@@ -41,7 +41,18 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
   with Logging {
 
   private val cbConfig = CouchbaseConfig(sqlContext.sparkContext.getConf)
-  private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
+  private val bucketName: String = if (bucket == null) {
+    if (cbConfig.buckets.size != 1) {
+      throw new IllegalStateException("The bucket name can only be inferred if there is "
+        + "exactly 1 bucket set on the config")
+    } else {
+      cbConfig.buckets.head.name
+    }
+  } else {
+    bucketName
+  }
+
+  Option(bucket).getOrElse(cbConfig.buckets.head.name)
   private val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
   private val timeout = parameters.get("timeout").map(v => Duration(v.toLong, MILLISECONDS))
 
