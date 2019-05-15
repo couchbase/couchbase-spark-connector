@@ -196,11 +196,11 @@ object CouchbaseConfig {
     cfg.getOption(input).orElse(cfg.getOption(compat)).map(_.toLong)
   }
 
-  def apply() = new CouchbaseConfig(
+  def apply(creds: Credential) = new CouchbaseConfig(
     Seq(DEFAULT_NODE),
     Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)),
     RetryOptions(DEFAULT_MAX_RETRIES.toInt, DEFAULT_MAX_RETRY_DELAY.toInt,
-      DEFAULT_MIN_RETRY_DELAY.toInt), None, None,
+      DEFAULT_MIN_RETRY_DELAY.toInt), None, Some(creds),
     Timeouts(None, None, None, None, None, None, None, None)
   )
 

@@ -15,8 +15,11 @@
  */
 package com.couchbase.spark.connection
 
+import org.junit.runner.RunWith
 import org.scalatest._
+import org.scalatest.junit.JUnitRunner
 
+@RunWith(classOf[JUnitRunner])
 class CouchbaseConnectionSpec extends FlatSpec with Matchers {
 
   "A Connection" should "not be initialized more than once" in {
@@ -28,7 +31,7 @@ class CouchbaseConnectionSpec extends FlatSpec with Matchers {
 
   it should "maintain bucket references" in {
     val conn = CouchbaseConnection()
-    val cfg = CouchbaseConfig()
+    val cfg = CouchbaseConfig(Credential("Administrator", "password"))
 
     val bucket1 = conn.bucket(cfg, "default")
     val bucket2 = conn.bucket(cfg, "default")

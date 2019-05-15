@@ -20,13 +20,15 @@ import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
+import org.junit.runner.RunWith
 import org.scalatest._
+import org.scalatest.junit.JUnitRunner
 
+@RunWith(classOf[JUnitRunner])
 class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
   private val master = "local[2]"
   private val appName = "cb-int-specs1"
-  private val bucketName = "travel-sample"
 
   private var spark: SparkSession = null
 
@@ -35,6 +37,8 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     val conf = new SparkConf()
       .setMaster(master)
       .setAppName(appName)
+      .set("com.couchbase.username", "Administrator")
+      .set("com.couchbase.password", "password")
       .set("com.couchbase.bucket.default", "")
       .set("com.couchbase.bucket.travel-sample", "")
     spark = SparkSession.builder().config(conf).getOrCreate()

@@ -16,8 +16,11 @@
 package com.couchbase.spark.connection
 
 import org.apache.spark.SparkConf
-import org.scalatest.{Matchers, FlatSpec}
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{FlatSpec, Matchers}
 
+@RunWith(classOf[JUnitRunner])
 class CouchbaseConfigSpec extends FlatSpec with Matchers {
 
   "A compat config containing nodes" should " merge with a regular nodes" in {

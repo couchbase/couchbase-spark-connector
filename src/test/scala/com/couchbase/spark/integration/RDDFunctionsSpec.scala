@@ -26,6 +26,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import com.couchbase.spark._
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 
 /**
  * Integration test to verify RDD functionality in combination with Couchbase Serve
@@ -34,6 +36,7 @@ import com.couchbase.spark._
  * @author Michael Nitschinger
  * @since 1.0.0
  */
+@RunWith(classOf[JUnitRunner])
 class RDDFunctionsSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   private val master = "local[2]"
   private val appName = "cb-int-specs2"

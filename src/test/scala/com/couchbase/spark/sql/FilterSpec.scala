@@ -18,7 +18,10 @@ package com.couchbase.spark.sql
 import org.apache.spark.sql.sources._
 import org.scalatest.{FlatSpec, Matchers}
 import N1QLRelation.filterToExpression
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 
+@RunWith(classOf[JUnitRunner])
 class FilterSpec extends FlatSpec with Matchers {
 
   "The Filter" should "convert EqualTo" in {

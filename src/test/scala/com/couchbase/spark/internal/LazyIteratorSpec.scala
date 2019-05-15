@@ -15,8 +15,11 @@
  */
 package com.couchbase.spark.internal
 
+import org.junit.runner.RunWith
 import org.scalatest._
+import org.scalatest.junit.JUnitRunner
 
+@RunWith(classOf[JUnitRunner])
 class LazyIteratorSpec extends FlatSpec with Matchers {
 
   "A LazyIterator" should "not create the delegated Iterator in the constructor" in {
