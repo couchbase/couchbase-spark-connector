@@ -1,5 +1,5 @@
 name: spark-connector
 title: Spark Connector
-version: '2.2'
+version: '2.3'
 nav:
 - modules/ROOT/nav.adoc

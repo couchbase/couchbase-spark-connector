@@ -2,7 +2,18 @@
 :page-topic-type: concept
 
 [abstract]
-Release notes for the 2.2 version of the Spark Connector.
+Release notes for the Spark Connector.
+
+== Couchbase Spark Connector 2.3.0 GA (May 2019)
+
+Version 2.3.0 brings support for Spark 2.3.0 along with:
+
+*Features*
+
+* https://issues.couchbase.com/browse/SPARKC-93[SPARKC-93^]: Support for Apache Spark 2.3.0
+* https://issues.couchbase.com/browse/SPARKC-89[SPARKC-89^]: Support Analytics
+* https://issues.couchbase.com/browse/SPARKC-88[SPARKC-88^]: Allow N1QL queries to run on Spark node(s) co-located with query service
+
 
 == Couchbase Spark Connector 2.2.0 GA (September 2017)
 

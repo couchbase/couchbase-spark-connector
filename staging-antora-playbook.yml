@@ -1,0 +1,32 @@
+site:
+  title: Couchbase Docs (Staging)
+  url: https://docs-staging.couchbase.com
+content:
+  branches: release/*
+  sources:
+  - url: .
+    branches: HEAD
+    start_path: docs
+asciidoc:
+  attributes:
+    experimental: ''
+    idprefix: '@'
+    idseparator: '-@'
+    tabs: tabs
+    toc: ~
+    xrefstyle: short
+ui:
+  bundle:
+    # sourced from https://github.com/couchbase/docs-ui/pull/47
+    url: https://deploy-preview-47--cb-docs-ui.netlify.com/dist/ui-bundle.zip
+    snapshot: true
+  supplemental_files:
+  - path: robots.txt
+    contents: |
+      User-agent: *
+      Disallow: /
+  - path: ui.yml
+    contents: |
+      static_files: [robots.txt]
+output:
+  dir: ./docs/public

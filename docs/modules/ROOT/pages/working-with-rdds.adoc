@@ -98,7 +98,7 @@ Here you can see that `couchbaseGet` is not just available on the context, but a
 Neat, right?
 The exact same approach is also available for spatial views (just use the `couchbaseSpatialView()` method instead).
 
-Finally, if you are using Couchbase Server 4.0 or greater, you can utilize N1QL to perform efficient queries against your JSON data in a Couchbase Bucket.
+You can utilize N1QL to perform efficient queries against your JSON data in a Couchbase Bucket.
 The following query is very similar to the one performed before through Views, just to show how the different approaches work.
 
 NOTE: You need to at least have a primary index created on the `travel-sample` bucket to make the following examples work.
@@ -128,6 +128,13 @@ sc
 
 While this gives you the most flexibility with querying, we recommend using the higher level Spark SQL components through the DataFrame API.
 See the Spark SQL section for more information.
+
+Finally, if you're running Couchbase Analytics (available in Couchbase Server 6.0.0 and above), you can query it like this:
+
+[source,scala]
+----
+include::example$Examples.scala[tag=analytics,indent=0]
+----
 
 == Persisting RDDs
 

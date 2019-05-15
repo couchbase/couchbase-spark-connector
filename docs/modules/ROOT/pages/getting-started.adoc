@@ -12,7 +12,7 @@ Create a new sbt project and add the following content to the `build.sbt` file.
 This code includes all the Spark dependencies, as well as the Couchbase Spark connector.
 Just enough to get you started!
 
-Here is a reference to the http://docs.couchbase.com/sdk-api/couchbase-spark-connector-2.2.0/[Scala docs^].
+Here is a reference to the http://docs.couchbase.com/sdk-api/couchbase-spark-connector-2.3.0/[Scala docs^].
 
 [source,scala]
 ----
@@ -22,13 +22,13 @@ organization := "my.organization"
 
 version := "1.0.0-SNAPSHOT"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.12"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.2.0",
-  "org.apache.spark" %% "spark-streaming" % "2.2.0",
-  "org.apache.spark" %% "spark-sql" % "2.2.0",
-  "com.couchbase.client" %% "spark-connector" % "2.2.0"
+  "org.apache.spark" %% "spark-core" % "2.3.0",
+  "org.apache.spark" %% "spark-streaming" % "2.3.0",
+  "org.apache.spark" %% "spark-sql" % "2.3.0",
+  "com.couchbase.client" %% "spark-connector" % "2.3.0"
 )
 ----
 
@@ -68,9 +68,6 @@ val spark = SparkSession
 val sc = spark.sparkContext
 ----
 
-The above example assumes Couchbase Server 5.X+ is being used, and hence a username and password are required.
-If using an earlier version of Couchbase Server, the username and password lines should be omitted and a non-empty bucket password may be required.
-
 By default, the Spark Connector connects to the `default` bucket.
 However, this example uses actual data from the `travel-sample` bucket that ships with Couchbase Server, so the code connects to that bucket.
 The Couchbase Spark connector also supports opening more buckets in parallel.
@@ -89,13 +86,13 @@ organization := "my.organization"
 
 version := "1.0.0-SNAPSHOT"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.12"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.2.0" % "provided",
-  "org.apache.spark" %% "spark-streaming" % "2.2.0" % "provided",
-  "org.apache.spark" %% "spark-sql" % "2.2.0" % "provided",
-  "com.couchbase.client" %% "spark-connector" % "2.2.0"
+  "org.apache.spark" %% "spark-core" % "2.3.0" % "provided",
+  "org.apache.spark" %% "spark-streaming" % "2.3.0" % "provided",
+  "org.apache.spark" %% "spark-sql" % "2.3.0" % "provided",
+  "com.couchbase.client" %% "spark-connector" % "2.3.0"
 )
 ----
 

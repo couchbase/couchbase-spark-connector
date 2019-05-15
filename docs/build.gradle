@@ -1,0 +1,39 @@
+buildscript {
+	repositories {
+		jcenter()
+		mavenCentral()
+	}
+}
+
+plugins {
+	id 'scala'
+	id 'java'
+	id 'com.adtran.scala-multiversion-plugin' version '1.0.34'
+}
+
+repositories {
+	mavenCentral()
+	jcenter()
+}
+
+ext {
+	sparkVersion = "2.3.0"
+}
+
+dependencies {
+	compile files("$sourceSets.main.scala.outputDir")
+	compile "org.scala-lang:scala-library:2.11.12"
+	compile "com.couchbase.client:java-client:2.7.4"
+	compileOnly "org.apache.spark:spark-core_2.11:$sparkVersion"
+	compileOnly "org.apache.spark:spark-streaming_2.11:$sparkVersion"
+	compileOnly "org.apache.spark:spark-sql_2.11:$sparkVersion"
+	compile(project(":"))
+}
+
+sourceSets {
+	main {
+		scala {
+			srcDirs 'modules/ROOT/examples/'
+		}
+	}
+}
