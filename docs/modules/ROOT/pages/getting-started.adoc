@@ -178,6 +178,21 @@ Go find your modified document in the Couchbase Server UI! Look for `"my_airline
 Congratulations! You've successfully performed your first ETL job (extract-transform-load) using Couchbase and Spark.
 Next up is a whirlwind tour of N1QL and Spark DataFrames.
 
+== Accessing a Couchbase Bucket
+
+In the Couchbase Java client, operations are performed against the Couchbase cluster using a Bucket object.
+Generally developers will not need direct access to this Bucket, as the Spark connector provides its own methods to
+perform operations against the cluster.  But if required, a Bucket can be obtained like this:
+
+[source,scala]
+----
+val cbConfig = CouchbaseConfig(spark.sparkContext.getConf)
+val bucket: Bucket = CouchbaseConnection().bucket(cbConfig, BUCKET_NAME)
+----
+
+This must have been specified earlier while configuring the SparkContext, e.g. with a
+`.config("spark.couchbase.bucket." + BUCKET_NAME, "")`.
+
 == Working with DataFrames
 
 DataFrames were introduced in Spark 1.3 and have matured even further in Spark 1.4.
