@@ -18,15 +18,19 @@ import com.couchbase.spark._
 This import adds Couchbase-specific methods to the `SparkContext`.
 Each method starts with `couchbase`.
 
+The code examples here use these additional imports:
+
+[source,scala]
+----
+include::example$WorkingWithRdds.scala[tag=imports,indent=0]
+----
+
 If you want to create an RDD for specific documents stored in a bucket, you can specify the IDs directly.
 The connector fetches them from the server and turns them into an RDD:
 
 [source,scala]
 ----
-sc
-	.couchbaseGet[JsonDocument](Seq("airline_10123", "airline_10748"))
-	.collect()
-	.foreach(println)
+include::example$WorkingWithRdds.scala[tag=create-rdd,indent=0]
 ----
 
 Because Spark outputs lots of information, you'll find the output somewhere in the logs:
@@ -61,10 +65,7 @@ Creating an RDD for the first 10 results works like this:
 
 [source,scala]
 ----
-sc
-  .couchbaseView(ViewQuery.from("airlines", "by_name").limit(10))
-  .collect()
-  .foreach(println)
+include::example$WorkingWithRdds.scala[tag=view,indent=0]
 ----
 
 And prints the following:
@@ -86,12 +87,7 @@ If you want to load the full content for each document, you can mix both approac
 
 [source,scala]
 ----
-sc
-  .couchbaseView(ViewQuery.from("airlines", "by_name").limit(10))
-  .map(_.id)
-  .couchbaseGet[JsonDocument]()
-  .collect()
-  .foreach(println)
+include::example$WorkingWithRdds.scala[tag=view-get,indent=0]
 ----
 
 Here you can see that `couchbaseGet` is not just available on the context, but also on every `RDD[String]`.
@@ -106,24 +102,14 @@ If you haven't done that already, perform a `pass:c[CREATE PRIMARY INDEX ON `tra
 
 [source,scala]
 ----
-val query = "SELECT name FROM `travel-sample` WHERE type = 'airline' ORDER BY name ASC LIMIT 10"
-sc
-  .couchbaseQuery(Query.simple(query))
-  .collect()
-  .foreach(println)
+include::example$WorkingWithRdds.scala[tag=query,indent=0]
 ----
 
 And if you want to fetch the full document contents based on some criteria, here is a little more complex example:
 
 [source,scala]
 ----
-val query = "SELECT META(`travel-sample`).id as id FROM `travel-sample` WHERE type = 'airline' ORDER BY name ASC LIMIT 10"
-sc
-  .couchbaseQuery(Query.simple(query))
-  .map(_.value.getString("id"))
-  .couchbaseGet[JsonDocument]()
-  .collect()
-  .foreach(println)
+include::example$WorkingWithRdds.scala[tag=query-get,indent=0]
 ----
 
 While this gives you the most flexibility with querying, we recommend using the higher level Spark SQL components through the DataFrame API.
@@ -147,17 +133,7 @@ Since RDDs are source agnostic, the same approach can be used for example to loa
 
 [source,scala]
 ----
-val query = "SELECT name, country FROM `travel-sample` WHERE type = 'airline' ORDER BY name"
-sc
-  .couchbaseQuery(Query.simple(query))
-  .groupBy(_.value.getString("country"))
-  .map(pair => {
-    val airports = JsonArray.create()
-    val content = JsonObject.create().put("airports", airports)
-    pair._2.map(_.value.getString("name")).foreach(airports.add)
-    JsonDocument.create("airports::" + pair._1, content)
-  })
-  .saveToCouchbase()
+include::example$WorkingWithRdds.scala[tag=query3,indent=0]
 ----
 
 This will create a document in the bucket for each country containing a list of airports.
@@ -206,10 +182,7 @@ The following example fetches only two fields from an airline and checks if the 
 
 [source,scala]
 ----
-sc.parallelize(Seq("airline_10123"))
-  .couchbaseSubdocLookup(get = Seq("name", "iata"), exists = Seq("foobar"))
-  .collect()
-  .foreach(println)
+include::example$WorkingWithRdds.scala[tag=subdoc,indent=0]
 ----
 
 This prints:
