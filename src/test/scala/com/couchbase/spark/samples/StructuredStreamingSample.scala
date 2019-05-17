@@ -19,8 +19,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types._
 
 /**
-  * This is a simple example that shows how to use structed streaming to
-  * write into a couchbase bucket.
+  * This is a simple example that shows how to use structured streaming to
+  * write into a Couchbase bucket.
   *
   * Note that the idField needs to be set properly since that maps to the
   * document. Use with `nc -lk 5050`
@@ -31,7 +31,7 @@ import org.apache.spark.sql.types._
   */
 object StructuredStreamingSample {
 
-  // Feel Free to add more types here for beers or breweries!
+  // Feel free to add more types here for beers or breweries!
   val schema = StructType(
     StructField("META_ID", StringType) ::
     StructField("type", StringType) ::
@@ -46,14 +46,16 @@ object StructuredStreamingSample {
     val spark = SparkSession
       .builder
       .master("local[*]")
-      .appName("StructuredNetworkWordCount")
+      .appName("StructuredStreamingSample")
+      .config("com.couchbase.username", "Administrator")
+      .config("com.couchbase.password", "password")
       .config("com.couchbase.bucket.beer-sample", "")
       .getOrCreate()
 
     // Create DataFrame representing the stream of input lines from connection to host:port
     val lines = spark.readStream
       .format("com.couchbase.spark.sql")
-        .option("streamFrom", "beginning")
+      .option("streamFrom", "beginning")
       .schema(schema)
       .load()
 

@@ -30,7 +30,9 @@ object StreamingSample {
     val conf = new SparkConf()
       .setMaster("local[*]")
       .setAppName("StreamingSample")
-      .set("com.couchbase.bucket.travel-sample", "")
+      .set("com.couchbase.username", "Administrator")
+      .set("com.couchbase.password", "password")
+      .set("com.couchbase.bucket.beer-sample", "")
     val ssc = new StreamingContext(conf, Seconds(5))
 
     ssc

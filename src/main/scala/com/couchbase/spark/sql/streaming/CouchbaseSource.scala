@@ -29,7 +29,10 @@ import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.sql.DefaultSource
 import com.couchbase.spark.streaming.{Deletion, Mutation, StreamMessage}
-import org.apache.spark.sql.{DataFrame, Encoders, Row, SQLContext}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.execution.LogicalRDD
+import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.execution.streaming.{Offset, Source}
 import org.apache.spark.sql.types.{BinaryType, StringType, StructField, StructType}
 import rx.lang.scala.Observable
@@ -207,9 +210,11 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
 
     if (usedSchema == CouchbaseSource.DEFAULT_SCHEMA) {
       val rows = results.map(t => Row(new String(t._1, CharsetUtil.UTF_8), t._2))
-      sqlContext.createDataFrame(rows, usedSchema)
+      val rdd = sqlContext.sparkContext.parallelize(rows)
+      DataFrameCreation.createStreamingDataFrame(sqlContext, rdd, usedSchema)
     } else {
-      val rdd = sqlContext.sparkContext.parallelize(results.map(t => {
+
+      val rdd: RDD[String] = sqlContext.sparkContext.parallelize(results.map(t => {
         if (keyIdx >= 0) {
           JsonObject
             .fromJson(new String(t._2, CharsetUtil.UTF_8))
@@ -219,8 +224,11 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
           new String(t._2, CharsetUtil.UTF_8)
         }
       }))
-      val dataset = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
-      sqlContext.read.schema(usedSchema).json(dataset)
+
+      val dataset: Dataset[String] = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
+      val jsonDf: DataFrame = sqlContext.read.schema(usedSchema).json(dataset)
+
+      DataFrameCreation.createStreamingDataFrame(sqlContext, jsonDf, usedSchema)
     }
   }
 
