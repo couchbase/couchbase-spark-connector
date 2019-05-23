@@ -167,6 +167,17 @@ There are more options available, including inserting and replacing (ignoring or
 
 We are also working on better support for automatic conversions from different types so that you don't have to map to a specific document type manually.
 
+=== Parallelism
+`saveToCouchbase()` will, on each active executor, write the documents to Couchbase in batches.
+The default batch size is 128 - that is, 128 documents will be inserted concurrently, per executor - and this can be configured using the `maxConcurrent` parameter.
+
+If timeouts or other issues are seen during writing, the application can try a) reducing the batch size, and b) adjusting the error retry settings.  The retry settings can be adjusted like this:
+
+[source,scala]
+----
+include::example$WorkingWithRdds.scala[tag=batching,indent=0]
+----
+
 == Subdocument API
 
 If you are running Couchbase Server 4.5 or later, you can use the "`subdoc`" API to fetch only a subset of the fields from a Document.

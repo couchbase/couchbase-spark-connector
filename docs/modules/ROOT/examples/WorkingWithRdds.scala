@@ -104,5 +104,17 @@ object Examples {
         .foreach(println)
       // #end::subdoc[]
     }
+
+    def batching(): Unit = {
+      // #tag::batching[]
+      val conf = new SparkConf()
+        // ... skipping some settings
+        // Maximum number of times to retry on error.  Here we're optimising for resilience over speed.
+        .set("com.couchbase.maxRetries", "10")
+        // The delay will increase exponentially from the minimum to the maximum, in milliseconds.
+        .set("com.couchbase.maxRetryDelay", "5000")
+        .set("com.couchbase.minRetryDelay", "1000")
+      // #end::batching[]
+    }
   }
 }

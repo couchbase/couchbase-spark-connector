@@ -32,14 +32,30 @@ import rx.lang.scala.JavaConversions._
 
 import scala.concurrent.duration.Duration
 
+object DocumentRDDFunctions {
+  // This is the default for Observable parallelism
+  val MaxConcurrentDefault = 128
+}
+
 class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D])
   extends Serializable
   with Logging {
 
   private val cbConfig = CouchbaseConfig(rdd.context.getConf)
 
-  def saveToCouchbase(bucketName: String = null, storeMode: StoreMode = StoreMode.UPSERT,
-                      timeout: Option[Duration] = None): Unit = {
+  /** Writes the RDD to Couchbase, using the Key-Value API.
+    *
+    * @param bucketName optional, the name of the Couchbase bucket to write to
+    * @param storeMode optional, the storage mode to use - see [[StoreMode]] for details.  Defaults to Upsert.
+    * @param timeout optional, specifies an override on the timeout to use for each write
+    * @param maxConcurrent optional.  Writes are performed in batches of this size (the default is 128).  If you see
+    *                      timeouts or other issues writing, then the application may be overloaded - try reducing this
+    *                      setting.
+    */
+  def saveToCouchbase(bucketName: String = null,
+                      storeMode: StoreMode = StoreMode.UPSERT,
+                      timeout: Option[Duration] = None,
+                      maxConcurrent: Int = DocumentRDDFunctions.MaxConcurrentDefault): Unit = {
     val retryOpts = cbConfig.retryOpts
 
 
@@ -54,7 +70,7 @@ class DocumentRDDFunctions[D <: Document[_]](rdd: RDD[D])
 
         Observable
           .from(OnceIterable(iter))
-          .flatMap(doc =>  {
+          .flatMap(maxConcurrent, doc =>  {
             storeMode match {
               case StoreMode.UPSERT =>
                 maybeRetry(toScalaObservable(bucket.upsert[D](doc)

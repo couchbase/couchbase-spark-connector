@@ -41,6 +41,9 @@ dependencies {
 	testCompile "org.apache.spark:spark-core_%%:$sparkVersion"
 	testCompile "org.apache.spark:spark-streaming_%%:$sparkVersion"
 	testCompile "org.apache.spark:spark-sql_%%:$sparkVersion"
+
+	// For BulkInsertingSample
+	testCompile "com.nrinaudo:kantan.csv_%%:0.5.0"
 }
 
 publishing {
