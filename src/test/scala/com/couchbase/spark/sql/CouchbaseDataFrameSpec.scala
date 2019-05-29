@@ -54,6 +54,12 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
 
   }
 
+  "If two buckets are used and the bucket is specified the API" should
+    "not fail" in {
+    val ssc = spark.sqlContext
+    ssc.read.couchbase(EqualTo("type", "airline"), Map("bucket" -> "travel-sample"))
+  }
+
   "The DataFrame API" should "infer the schemas" in {
     val ssc = spark.sqlContext
     import com.couchbase.spark.sql._

@@ -49,10 +49,9 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       cbConfig.buckets.head.name
     }
   } else {
-    bucketName
+    bucket
   }
 
-  Option(bucket).getOrElse(cbConfig.buckets.head.name)
   private val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
   private val timeout = parameters.get("timeout").map(v => Duration(v.toLong, MILLISECONDS))
 
