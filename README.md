@@ -3,18 +3,18 @@
 A library to integrate Couchbase Server with Spark in order to use it as a data source and target in various ways.
 
 ## Linking
-You can link against this library (for Spark 2.2) in your program at the following coordinates:
+You can link against this library (for Spark 2.3) in your program at the following coordinates:
 
 ```
 groupId: com.couchbase.client
 artifactId: spark-connector_2.11
-version: 2.2.0
+version: 2.3.0
 ```
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "2.2.0"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "2.3.0"
 ```
 
 ## Documentation
@@ -29,6 +29,7 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 
 | Connector | Apache Spark | Couchbase Server |
 | --------- | ------------ | ---------------- |
+| 2.3.x     | 2.3          | 2.5.x - 6.x      |
 | 2.2.x     | 2.2          | 2.5.x - 5.x      |
 | 2.1.x     | 2.1          | 2.5.x - 4.x      |
 | 2.0.x     | 2.0          | 2.5.x - 4.x      |

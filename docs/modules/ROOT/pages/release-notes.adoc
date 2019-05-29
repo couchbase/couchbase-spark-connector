@@ -13,7 +13,17 @@ Version 2.3.0 brings support for Spark 2.3.0 along with:
 * https://issues.couchbase.com/browse/SPARKC-93[SPARKC-93^]: Support for Apache Spark 2.3.0
 * https://issues.couchbase.com/browse/SPARKC-89[SPARKC-89^]: Support Analytics
 * https://issues.couchbase.com/browse/SPARKC-88[SPARKC-88^]: Allow N1QL queries to run on Spark node(s) co-located with query service
+* https://issues.couchbase.com/browse/SPARKC-96[SPARKC-96^]:
+Provide more fault-tolerant batch mutations.
+`saveToCouchbase` now takes a `maxConcurrent` parameter, giving the application control over the size of batches that will be written, from each executor.
 
+*Bug fixes and stability*
+
+* https://issues.couchbase.com/browse/SPARKC-85[SPARCK-85^]: Raise N1QL errors as exceptions rather than logging them.
+* https://issues.couchbase.com/browse/SPARKC-82[SPARKC-82^]:
+When running a N1QLQuery, if multiple buckets have been specified, then the bucket to use must now be explicitly chosen.
+E.g. `sc.couchbaseQuery(query, bucketName = "default")`.  This is safer than choosing an arbitrary bucket.
+* https://issues.couchbase.com/browse/SPARKC-95[SPARKC-95^]: Fix to get streaming source working with Spark 2.3
 
 == Couchbase Spark Connector 2.2.0 GA (September 2017)
 
