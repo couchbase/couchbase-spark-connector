@@ -2,8 +2,10 @@ package com.couchbase.spark.connection
 
 import java.util.concurrent.TimeUnit
 
-import com.couchbase.client.core.BackpressureException
+import com.couchbase.client.core.{BackpressureException, CouchbaseException}
 import com.couchbase.client.core.time.Delay
+import com.couchbase.client.java.document.json.JsonObject
+import com.couchbase.client.java.error.QueryExecutionException
 import com.couchbase.client.java.query.N1qlQuery
 import com.couchbase.client.java.util.retry.RetryBuilder
 import com.couchbase.spark.Logging
@@ -46,12 +48,16 @@ class QueryAccessor(cbConfig: CouchbaseConfig, query: Seq[N1qlQuery], bucketName
             .max(maxRetries)
             .build()
         )))
-        .doOnNext(result => {
-          toScalaObservable(result.errors()).subscribe(err => {
-            logError(s"Couchbase N1QL Query $query failed with $err")
-          })
+        .flatMap(v => {
+          val errors = toScalaObservable(v.errors())
+            .map(e => {
+              val msgRaw = e.getString("msg")
+              val msg = if (msgRaw == null) "Query failure" else msgRaw
+              throw new QueryExecutionException(msg, e)
+            })
+
+          v.rows().mergeWith(errors)
         })
-        .flatMap(_.rows())
         .map(row => CouchbaseQueryRow(row.value()))
         .toBlocking
         .toIterable

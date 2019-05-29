@@ -15,7 +15,10 @@
  */
 package com.couchbase.spark.n1ql
 
-import org.apache.spark.{SparkConf, SparkContext}
+import com.couchbase.client.core.CouchbaseException
+import com.couchbase.client.java.error.QueryExecutionException
+import com.couchbase.client.java.query.N1qlQuery
+import org.apache.spark.{SparkConf, SparkContext, SparkException}
 import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.scalatest._
@@ -67,5 +70,24 @@ class N1qlSpec extends FunSuite with Matchers with BeforeAndAfterAll {
       .option("bucket", "travel-sample")
       .schema(StructType(StructField("name", StringType) :: Nil))
       .load()
+  }
+
+  test("N1QL failures should fail the Observable") {
+    try {
+      spark.sparkContext
+        .couchbaseQuery(N1qlQuery.simple("BAD QUERY"), bucketName = "default")
+        .collect()
+        .foreach(println)
+      fail()
+    }
+    catch {
+      case e: SparkException =>
+        assert (e.getCause.isInstanceOf[QueryExecutionException])
+        val err = e.getCause.asInstanceOf[QueryExecutionException]
+        assert (err.getMessage == "syntax error - at QUERY")
+      case e =>
+        println(e)
+        fail()
+    }
   }
 }
