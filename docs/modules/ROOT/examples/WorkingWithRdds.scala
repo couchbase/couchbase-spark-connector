@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import com.couchbase.spark._
 // #tag::imports[]
+import com.couchbase.spark._
+import org.apache.spark.SparkConf
 import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.{JsonArray, JsonObject}
 import com.couchbase.client.java.query.N1qlQuery
@@ -24,7 +25,7 @@ import org.apache.spark.sql.SparkSession
 // #end::imports[]
 
 
-object Examples {
+object WorkingWithRdds {
   def main(args: Array[String]) = {
     val spark = SparkSession
       .builder()

@@ -8,6 +8,7 @@ buildscript {
 plugins {
 	id 'scala'
 	id 'java'
+	id 'com.adtran.scala-multiversion-plugin'
 }
 
 repositories {

@@ -26,6 +26,8 @@ import com.couchbase.spark._
 import com.couchbase.spark.sql.N1QLRelation
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
+import scala.util.control.NonFatal
+
 class N1qlSpec extends FunSuite with Matchers with BeforeAndAfterAll {
 
   private val master = "local[2]"
@@ -85,7 +87,7 @@ class N1qlSpec extends FunSuite with Matchers with BeforeAndAfterAll {
         assert (e.getCause.isInstanceOf[QueryExecutionException])
         val err = e.getCause.asInstanceOf[QueryExecutionException]
         assert (err.getMessage == "syntax error - at QUERY")
-      case e =>
+      case NonFatal(e) =>
         println(e)
         fail()
     }
