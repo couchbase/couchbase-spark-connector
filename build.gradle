@@ -24,11 +24,8 @@ ext {
 dependencies {
 	compile files("$sourceSets.main.scala.outputDir")
 	compile "org.scala-lang:scala-library:%scala-version%"
-	compile "com.couchbase.client:java-client:2.7.4"
-	compile ("com.couchbase.client:encryption:1.0.0") {
-		exclude group: 'com.fasterxml.jackson.core'
-	}
-	compile "com.couchbase.client:dcp-client:0.22.0"
+	compile "com.couchbase.client:java-client:2.7.6"
+	compile "com.couchbase.client:dcp-client:0.23.0"
 	compile "io.reactivex:rxscala_%%:0.26.5"
 	compile "org.apache.logging.log4j:log4j-api:2.2"
 
@@ -51,7 +48,7 @@ publishing {
 		mavenJava(MavenPublication) {
 			groupId = 'com.couchbase.client'
 			artifactId = 'spark-connector'
-			version = '2.3.0-SNAPSHOT'
+			version = '2.3.0'
 			pom {
 				description = 'Official Couchbase Spark Connector'
 			}
