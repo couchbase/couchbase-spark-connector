@@ -80,7 +80,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 }
 
 task scaladocJar(type: Jar, dependsOn: scaladoc) {
-    classifier = 'scaladoc'
+    classifier = 'javadoc'
     from scaladoc.destinationDir
 }
 
