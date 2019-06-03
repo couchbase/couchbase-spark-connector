@@ -54,6 +54,8 @@ publishing {
 			}
 
 			from components.java
+			artifact tasks.sourcesJar
+			artifact tasks.scaladocJar
 		}
 	}
 }
@@ -71,3 +73,19 @@ sourceSets {
 		}
 	}
 }
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task scaladocJar(type: Jar, dependsOn: scaladoc) {
+    classifier = 'scaladoc'
+    from scaladoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar
+    archives scaladocJar
+}
+

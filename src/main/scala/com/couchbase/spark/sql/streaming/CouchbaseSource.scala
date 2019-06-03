@@ -164,7 +164,7 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
   override def getOffset: Option[Offset] = Option(currentOffset.get())
 
   /**
-    * Returns the data between the given start and end [[Offset]].
+    * Returns the data between the given start and end Offset.
     */
   override def getBatch(start: Option[Offset], end: Offset): DataFrame = {
     logInfo(s"GetBatch called with start = $start, end = $end")

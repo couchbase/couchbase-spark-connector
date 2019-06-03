@@ -18,7 +18,7 @@ package com.couchbase.spark.sql.streaming
 import org.apache.spark.sql.execution.streaming.{Offset, SerializedOffset}
 
 /**
-  * An [[Offset]] for the [[CouchbaseSource]].
+  * An Offset for the [[CouchbaseSource]].
   */
 case class CouchbaseSourceOffset(partitionToOffsets: Map[Short, Long]) extends Offset {
   override val json = JsonUtils.partitionOffsets(partitionToOffsets)
@@ -40,7 +40,7 @@ object CouchbaseSourceOffset {
   }
 
   /**
-    * Returns [[CouchbaseSourceOffset]] from a JSON [[SerializedOffset]].
+    * Returns [[CouchbaseSourceOffset]] from a JSON SerializedOffset.
     */
   def apply(offset: SerializedOffset): CouchbaseSourceOffset = {
     CouchbaseSourceOffset(JsonUtils.partitionOffsets(offset.json))
