@@ -21,6 +21,9 @@ ext {
 	sparkVersion = "2.3.0"
 }
 
+group = 'com.couchbase.client'
+version = '2.3.0'
+
 dependencies {
 	compile files("$sourceSets.main.scala.outputDir")
 	compile "org.scala-lang:scala-library:%scala-version%"
@@ -43,22 +46,6 @@ dependencies {
 	testCompile "com.nrinaudo:kantan.csv_%%:0.5.0"
 }
 
-publishing {
-	publications {
-		mavenJava(MavenPublication) {
-			groupId = 'com.couchbase.client'
-			artifactId = 'spark-connector'
-			version = '2.3.0'
-			pom {
-				description = 'Official Couchbase Spark Connector'
-			}
-
-			from components.java
-			artifact tasks.sourcesJar
-			artifact tasks.scaladocJar
-		}
-	}
-}
 
 tasks.compileJava.dependsOn compileScala
 tasks.compileScala.dependsOn.remove("compileJava")
@@ -75,17 +62,71 @@ sourceSets {
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
-    classifier = 'sources'
-    from sourceSets.main.allSource
+	classifier = 'sources'
+	from sourceSets.main.allSource
 }
 
 task scaladocJar(type: Jar, dependsOn: scaladoc) {
-    classifier = 'javadoc'
-    from scaladoc.destinationDir
+	classifier = 'javadoc'
+	from scaladoc.destinationDir
 }
 
 artifacts {
-    archives sourcesJar
-    archives scaladocJar
+	archives sourcesJar
+	archives scaladocJar
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			artifactId = 'spark-connector'
+			from components.java
+			artifact tasks.sourcesJar
+			artifact tasks.scaladocJar
+
+			pom {
+				name = 'couchbase-spark-connector'
+				description = 'Official Couchbase Spark Connector'
+				url = 'http://couchbase.com'
+				organization {
+					name = 'Couchbase, Inc.'
+					url = 'http://couchbase.com'
+				}
+				licenses {
+					license {
+						name = 'The Apache Software License, Version 2.0'
+						url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+						distribution = 'repo'
+					}
+				}
+				scm {
+					url = 'https://github.com/couchbase/couchbase-spark-connector'
+					connection = 'scm:git:git://github.com/couchbase/couchbase-spark-connector'
+					developerConnection = 'scm:git:git://github.com/couchbase/couchbase-spark-connector'
+				}
+				issueManagement {
+					system = "Couchbase JIRA"
+					url = "http://www.couchbase.com/issues/browse/SPARKC"
+				}
+				developers {
+					developer {
+						id = 'daschl'
+						name = 'Michael Nitschinger'
+						email = 'michael.nitschinger@couchbase.com'
+					}
+					developer {
+						id = 'programmatix'
+						name = 'Graham Pople'
+						email = 'graham.pople@couchbase.com'
+					}
+					developer {
+						id = 'dnault'
+						name = 'David Nault'
+						email = 'david.nault@couchbase.com'
+					}
+				}
+			}
+		}
+	}
 }
 
