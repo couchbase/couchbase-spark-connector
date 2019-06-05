@@ -1,4 +1,5 @@
 = Introduction
+:page-aliases: spark-intro
 :page-topic-type: concept
 
 [abstract]
