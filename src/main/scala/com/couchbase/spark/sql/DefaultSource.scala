@@ -82,6 +82,9 @@ class DefaultSource
     val idFieldName = parameters.getOrElse("idField", DefaultSource.DEFAULT_DOCUMENT_ID_FIELD)
     val removeIdField = parameters.getOrElse("removeIdField", "true").toBoolean
     val timeout = parameters.get("timeout").map(v => Duration(v.toLong, MILLISECONDS))
+    val maxConcurrent = parameters.get("maxConcurrent")
+      .map(value => value.toInt).getOrElse(DocumentRDDFunctions.MaxConcurrentDefault)
+
 
     val storeMode = mode match {
       case SaveMode.Append =>
@@ -105,7 +108,7 @@ class DefaultSource
         }
         JsonDocument.create(id.toString, encoded)
       })
-      .saveToCouchbase(bucketName, storeMode, timeout)
+      .saveToCouchbase(bucketName, storeMode, timeout, maxConcurrent)
 
     createRelation(sqlContext, parameters, data.schema)
   }
