@@ -46,13 +46,20 @@ class RDDFunctionsSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   private var bucket: Bucket = null
 
   override def beforeAll() {
-    val conf = new SparkConf().setMaster(master).setAppName(appName)
+    val conf = new SparkConf()
+      .setMaster(master)
+      .setAppName(appName)
+      .set("spark.couchbase.nodes", "127.0.0.1")
+      .set("spark.couchbase.username", "Administrator")
+      .set("spark.couchbase.password", "password")
+      .set("com.couchbase.bucket." + bucketName, "")
     val spark = SparkSession.builder().config(conf).getOrCreate()
     sparkContext = spark.sparkContext
     bucket = CouchbaseConnection().bucket(CouchbaseConfig(conf), bucketName)
   }
 
   override def afterAll(): Unit = {
+    CouchbaseConnection().stop()
     sparkContext.stop()
   }
 

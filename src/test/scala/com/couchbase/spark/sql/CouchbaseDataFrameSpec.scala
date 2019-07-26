@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark.sql
 
+import com.couchbase.spark.connection.CouchbaseConnection
 import org.apache.avro.generic.GenericData.StringType
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.EqualTo
@@ -37,6 +38,7 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
     val conf = new SparkConf()
       .setMaster(master)
       .setAppName(appName)
+      .set("spark.couchbase.nodes", "127.0.0.1")
       .set("com.couchbase.username", "Administrator")
       .set("com.couchbase.password", "password")
       .set("com.couchbase.bucket.default", "")
@@ -47,6 +49,7 @@ class CouchbaseDataFrameSpec extends FlatSpec with Matchers with BeforeAndAfterA
   }
 
   override def afterAll(): Unit = {
+    CouchbaseConnection().stop()
     spark.stop()
   }
 

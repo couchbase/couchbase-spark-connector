@@ -48,10 +48,19 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
   private var bucket: Bucket = null
 
   override def beforeAll(): Unit = {
-    val conf = new SparkConf().setMaster(master).setAppName(appName)
-     val spark = SparkSession.builder().config(conf).getOrCreate()
+    val conf = new SparkConf()
+      .setMaster(master)
+      .setAppName(appName)
+      .set("spark.couchbase.nodes", "127.0.0.1")
+      .set("spark.couchbase.username", "Administrator")
+      .set("spark.couchbase.password", "password")
+      .set("com.couchbase.bucket." + bucketName, "")
+     val spark = SparkSession.builder()
+       .config(conf)
+       .getOrCreate()
     sparkContext = spark.sparkContext
     bucket = CouchbaseConnection().bucket(CouchbaseConfig(conf), bucketName)
+    bucket.bucketManager().flush()
 
     val ddoc = DesignDocument.create("spark_design", List(DefaultView.create("view",
       "function (doc, meta) { if (doc.type == \"user\") { emit(doc.username, null); } }"))
@@ -62,6 +71,7 @@ class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAft
   }
 
   override def afterAll(): Unit = {
+    CouchbaseConnection().stop()
     sparkContext.stop()
   }
 

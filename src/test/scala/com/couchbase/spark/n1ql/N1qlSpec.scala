@@ -23,6 +23,7 @@ import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.scalatest._
 import com.couchbase.spark._
+import com.couchbase.spark.connection.CouchbaseConnection
 import com.couchbase.spark.sql.N1QLRelation
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
@@ -50,6 +51,7 @@ class N1qlSpec extends FunSuite with Matchers with BeforeAndAfterAll {
   }
 
   override def afterAll(): Unit = {
+    CouchbaseConnection().stop()
     spark.stop()
   }
 

@@ -173,6 +173,11 @@ class CouchbaseConnection extends Serializable with Logging {
   def stop(): Unit = {
     this.synchronized {
       logInfo("Performing Couchbase SDK Shutdown")
+
+      // None of these are valid if their underlying cluster has been shutdown
+      buckets.clear()
+      streamClients.clear()
+
       if (clusterRef.isDefined) {
         clusterRef.get.disconnect()
         clusterRef = None
