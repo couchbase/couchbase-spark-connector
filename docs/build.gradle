@@ -17,12 +17,12 @@ repositories {
 }
 
 ext {
-	sparkVersion = "2.3.0"
+	sparkVersion = "2.4.0"
 }
 
 dependencies {
 	compile files("$sourceSets.main.scala.outputDir")
-	compile "org.scala-lang:scala-library:2.11.12"
+	compile "org.scala-lang:scala-library:2.12.8"
 	compile "com.couchbase.client:java-client:2.7.4"
 	compileOnly "org.apache.spark:spark-core_2.11:$sparkVersion"
 	compileOnly "org.apache.spark:spark-streaming_2.11:$sparkVersion"

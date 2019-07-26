@@ -6,27 +6,28 @@ All production-ready Couchbase Spark connector artifacts are downloadable throug
 Prerelease versions are available through our Couchbase Maven repository for easy consumption.
 Downloads via alternative methods such as Spark Packages are also available.
 
-== Current Release 2.3.0
+== Current Release 2.4.0
 
-The connector is currently compiled against both the Scala 2.10 and 2.11 targets to comply with Spark.
-Either of those artifacts can be used in Java applications.
-Here are the coordinates for both artifacts:
+The connector is currently compiled against Scala 2.12 to comply with Spark 2.4.
+Here is the coordinate for the artifact:
 
 * *GroupId:* com.couchbase.client
-* *ArtifactId:* spark-connector_2.11 / spark-connector_2.10
-* *Version:* 2.3.0
+* *ArtifactId:* spark-connector_2.12
+* *Version:* 2.4.0
 
 If you are using Scala, here is the snippet you can use:
 
 [source,scala]
 ----
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "2.3.0"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "2.4.0"
 ----
 
-* 2.3.0 (either of those JAR files can be used in Java applications): http://packages.couchbase.com/clients/connectors/spark/2.3.0/Couchbase-Spark-Connector_2.10-2.3.0.zip[Download (Scala 2.10 / Java)^] | http://packages.couchbase.com/clients/connectors/spark/2.3.0/Couchbase-Spark-Connector_2.11-2.3.0.zip[Download (Scala 2.11 / Java)^] | http://docs.couchbase.com/sdk-api/couchbase-spark-connector-2.3.0/[API Reference^]
+This can also be used in a Java application.
 
-Note that those downloads contained assembled jars, which means they contain all the dependencies in one "fat jar".
-This means that you don't need to juggle all kinds of dependencies if you want to use the jar as part of Spark's command line access tools (like the shell) or add it to the classpath of workers.
+It can also be downloaded manually here: http://packages.couchbase.com/clients/connectors/spark/2.4.0/Couchbase-Spark-Connector_2.12-2.4.0.zip[Download (Scala 2.12 / Java)^] | http://docs.couchbase.com/sdk-api/couchbase-spark-connector-2.4.0/[API Reference^]
+
+Note that the download contains an assembled jar, which means they contain all the dependencies in one "fat jar".
+This means that you don't need to juggle multiple dependencies if you want to use the jar as part of Spark's command line access tools (like the shell) or add it to the classpath of workers.
 
 If you want to run a prerelease version, they are available from our Couchbase Repository instead of Maven Central:
 

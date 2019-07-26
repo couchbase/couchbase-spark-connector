@@ -28,13 +28,13 @@ organization := "com.acme"
 
 version := "1.0.0-SNAPSHOT"
 
-scalaVersion := "2.11.12"
+scalaVersion := "2.12.8"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.3.0",
-  "org.apache.spark" %% "spark-streaming" % "2.3.0",
-  "org.apache.spark" %% "spark-sql" % "2.3.0",
-  "com.couchbase.client" %% "spark-connector" % "2.3.0"
+  "org.apache.spark" %% "spark-core" % "2.4.0",
+  "org.apache.spark" %% "spark-streaming" % "2.4.0",
+  "org.apache.spark" %% "spark-sql" % "2.4.0",
+  "com.couchbase.client" %% "spark-connector" % "2.4.0"
 )
 ----
 
@@ -105,14 +105,14 @@ lazy val root = (project in file(".")).
   settings(
     name := "my-app",
     version := "1.0",
-    scalaVersion := "2.11.12",
+    scalaVersion := "2.12.8",
     mainClass in Compile := Some("Main")
   )
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.3.0" % "provided,test",
-  "org.apache.spark" %% "spark-sql" % "2.3.0" % "provided,test",
-  "com.couchbase.client" %% "spark-connector" % "2.3.0"
+  "org.apache.spark" %% "spark-core" % "2.4.0" % "provided,test",
+  "org.apache.spark" %% "spark-sql" % "2.4.0" % "provided,test",
+  "com.couchbase.client" %% "spark-connector" % "2.4.0"
 )
 ----
 

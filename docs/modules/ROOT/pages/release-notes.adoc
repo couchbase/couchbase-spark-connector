@@ -4,6 +4,10 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 2.4.0 GA (July 2019)
+
+Version 2.4.0 brings support for Spark 2.4.0, and is compiled exclusively with Scala 2.12.
+
 == Couchbase Spark Connector 2.3.0 GA (May 2019)
 
 Version 2.3.0 brings support for Spark 2.3.0 along with:
