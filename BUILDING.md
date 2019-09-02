@@ -14,3 +14,9 @@ The docs are created in `docs\public`.
 
 ```
 Files are in `build/libs`.  You should have a jar, plus source and scaladoc jars.
+
+```
+./gradlew shadowJar
+```
+
+Produces the 'fatjar' containing the Spark connector along with all its recursive dependencies, suitable for use with e.g. `spark-shell`.
