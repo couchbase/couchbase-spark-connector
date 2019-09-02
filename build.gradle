@@ -10,6 +10,7 @@ plugins {
 	id 'java'
 	id 'maven-publish'
 	id 'com.adtran.scala-multiversion-plugin' version '1.0.34'
+	id 'com.github.johnrengelman.shadow' version '5.1.0'
 }
 
 repositories {
