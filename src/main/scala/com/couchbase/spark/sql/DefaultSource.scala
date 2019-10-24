@@ -85,6 +85,9 @@ class DefaultSource
     val maxConcurrent = parameters.get("maxConcurrent")
       .map(value => value.toInt).getOrElse(DocumentRDDFunctions.MaxConcurrentDefault)
 
+    val createDocument = parameters.get("expiry").map(_.toInt)
+      .map(expiry => (id: String, content: JsonObject) => JsonDocument.create(id, expiry, content))
+      .getOrElse((id: String, content: JsonObject) => JsonDocument.create(id, content))
 
     val storeMode = mode match {
       case SaveMode.Append =>
@@ -106,7 +109,7 @@ class DefaultSource
         if (removeIdField) {
           encoded.removeKey(idFieldName)
         }
-        JsonDocument.create(id.toString, encoded)
+        createDocument(id.toString, encoded)
       })
       .saveToCouchbase(bucketName, storeMode, timeout, maxConcurrent)
 
