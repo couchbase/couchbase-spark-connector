@@ -8,13 +8,13 @@ You can link against this library (for Spark 2.4) in your program at the followi
 ```
 groupId: com.couchbase.client
 artifactId: spark-connector_2.12
-version: 2.4.0
+version: 2.4.1
 ```
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "2.4.0"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "2.4.1"
 ```
 
 ## Documentation
@@ -38,9 +38,17 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 | 1.1.x     | 1.5          | 2.5.x - 4.x      |
 | 1.0.x     | 1.4          | 2.5.x - 4.x      |
 
+## Testing
+Running the tests has the following requirements:
+
+1. A Couchbase server (5.0 or higher) must be running on localhost.
+2. The admin account must have username "Administrator" and password "password"
+3. travel-sample example bucket must be installed (available in Admin UI: Settings -> Sample Buckets)
+4. Query and data services must be running
+5. A primary index must exist on travel-sample ("CREATE PRIMARY INDEX on `travel-sample`;")
 
 ## License
-Copyright 2015-2019 Couchbase Inc.
+Copyright 2015-2020 Couchbase Inc.
 
 Licensed under the Apache License, Version 2.0.
 
