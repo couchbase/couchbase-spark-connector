@@ -77,7 +77,7 @@ class SubdocMutateRDD(@transient private val sc: SparkContext, specs: Seq[Subdoc
           val currentIdx = partitionIndex
           partitionIndex += 1
           new SubdocMutationPartition(currentIdx, grouped._2,
-            Some(InetAddress.getByName(hostname.get.address())))
+            Some(InetAddress.getByName(hostname.get)))
         }).toArray
       case _ =>
         logWarning("Memcached preferred locations currently not supported.")

@@ -33,7 +33,7 @@ object RDDSupport {
         bucketConfig.nodes.asScala
           .filter(node => node.services().asScala.contains(serviceType))
       })
-      .map(v => v.hostname().hostname())
+      .map(v => v.hostname())
       .toSeq
       .distinct
 
