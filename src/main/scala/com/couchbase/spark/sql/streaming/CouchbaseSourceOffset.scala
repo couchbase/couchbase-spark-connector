@@ -39,6 +39,16 @@ object CouchbaseSourceOffset {
     }
   }
 
+  def convertToCouchbaseSourceOffset(offset: Offset): CouchbaseSourceOffset = {
+    offset match {
+      case o: CouchbaseSourceOffset => o
+      case so: SerializedOffset => CouchbaseSourceOffset(so)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Invalid conversion from offset of ${offset.getClass} to CouchbaseSourceOffset")
+    }
+  }
+
   /**
     * Returns [[CouchbaseSourceOffset]] from a JSON SerializedOffset.
     */

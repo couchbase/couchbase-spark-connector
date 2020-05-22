@@ -169,8 +169,9 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
   override def getBatch(start: Option[Offset], end: Offset): DataFrame = {
     logInfo(s"GetBatch called with start = $start, end = $end")
 
-    val startOffset = start.map(_.asInstanceOf[CouchbaseSourceOffset])
-    val endOffset = end.asInstanceOf[CouchbaseSourceOffset]
+    val startOffset = start.map(CouchbaseSourceOffset.convertToCouchbaseSourceOffset(_))
+    val endOffset = CouchbaseSourceOffset.convertToCouchbaseSourceOffset(end)
+
     val results = mutable.ArrayBuffer[(Array[Byte], Array[Byte])]()
 
     endOffset.partitionToOffsets.foreach(o => {
