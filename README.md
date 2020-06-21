@@ -43,10 +43,11 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 Running the tests has the following requirements:
 
 1. A Couchbase server (5.0 or higher) must be running on localhost.
-2. The admin account must have username "Administrator" and password "password"
-3. travel-sample example bucket must be installed (available in Admin UI: Settings -> Sample Buckets)
-4. Query and data services must be running
-5. A primary index must exist on travel-sample ("CREATE PRIMARY INDEX on `travel-sample`;")
+2. The admin account must have username "Administrator" and password "password".
+3. travel-sample example bucket must be installed (available in Admin UI: Settings -> Sample Buckets).
+4. Query and data services must be running.
+5. A primary index must exist on travel-sample ("CREATE PRIMARY INDEX on `travel-sample`;").
+6. A bucket named "default" must exist with flushing enabled.
 
 ## License
 Copyright 2015-2020 Couchbase Inc.
