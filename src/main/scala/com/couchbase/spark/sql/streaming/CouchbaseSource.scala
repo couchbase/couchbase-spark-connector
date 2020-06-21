@@ -22,8 +22,8 @@ import com.couchbase.client.dcp.message.{DcpDeletionMessage, DcpMutationMessage,
 import com.couchbase.client.dcp._
 import com.couchbase.client.dcp.state.SessionState
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController
-import com.couchbase.client.deps.io.netty.buffer.ByteBuf
-import com.couchbase.client.deps.io.netty.util.CharsetUtil
+import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf
+import com.couchbase.client.dcp.deps.io.netty.util.CharsetUtil
 import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
@@ -212,7 +212,7 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
     if (usedSchema == CouchbaseSource.DEFAULT_SCHEMA) {
       val rows = results.map(t => Row(new String(t._1, CharsetUtil.UTF_8), t._2))
       val rdd = sqlContext.sparkContext.parallelize(rows)
-      DataFrameCreation.createStreamingDataFrame(sqlContext, rdd, usedSchema)
+      sqlContext.createDataFrame(rdd, usedSchema)
     } else {
 
       val rdd: RDD[String] = sqlContext.sparkContext.parallelize(results.map(t => {
@@ -227,9 +227,7 @@ class CouchbaseSource(sqlContext: SQLContext, userSchema: Option[StructType],
       }))
 
       val dataset: Dataset[String] = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
-      val jsonDf: DataFrame = sqlContext.read.schema(usedSchema).json(dataset)
-
-      DataFrameCreation.createStreamingDataFrame(sqlContext, jsonDf, usedSchema)
+      sqlContext.read.schema(usedSchema).json(dataset)
     }
   }
 

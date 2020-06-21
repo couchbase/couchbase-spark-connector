@@ -15,12 +15,13 @@
  */
 package com.couchbase.spark.connection
 
+import java.util.concurrent.ConcurrentHashMap
+
 import com.couchbase.client.dcp.Client
 import com.couchbase.client.dcp.config.DcpControl
 import com.couchbase.client.java.env.{CouchbaseEnvironment, DefaultCouchbaseEnvironment}
 import com.couchbase.client.java.{Bucket, Cluster, CouchbaseCluster}
 import com.couchbase.spark.Logging
-import org.jboss.netty.util.internal.ConcurrentHashMap
 
 class CouchbaseConnection extends Serializable with Logging {
 

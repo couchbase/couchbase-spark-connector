@@ -18,7 +18,7 @@ package com.couchbase.spark.streaming
 import com.couchbase.client.dcp._
 import com.couchbase.client.dcp.message._
 import com.couchbase.client.dcp.transport.netty.ChannelFlowController
-import com.couchbase.client.deps.io.netty.buffer.ByteBuf
+import com.couchbase.client.dcp.deps.io.netty.buffer.ByteBuf
 import com.couchbase.spark.Logging
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.storage.StorageLevel
@@ -91,7 +91,8 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
           DcpMutationMessage.content(event).readBytes(data)
           val key = new Array[Byte](DcpMutationMessage.key(event).readableBytes())
           DcpMutationMessage.key(event).readBytes(key)
-          Mutation(key,
+          Mutation(
+            key,
             data,
             DcpMutationMessage.expiry(event),
             DcpMutationMessage.cas(event),
@@ -124,7 +125,6 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
         event.release()
       }
     })
-
 
     // Connect to the nodes
     client.connect().await()
