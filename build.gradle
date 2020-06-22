@@ -3,6 +3,10 @@ buildscript {
 		jcenter()
 		mavenCentral()
 	}
+	dependencies {
+		// Do not upgrade, 4.9.6+ is buggy.
+		classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.9.6"
+	}
 }
 
 plugins {
@@ -10,7 +14,8 @@ plugins {
 	id 'java'
 	id 'maven-publish'
 	id 'com.adtran.scala-multiversion-plugin' version '1.0.34'
-	id 'com.github.johnrengelman.shadow' version '5.1.0'
+	id 'com.github.johnrengelman.shadow' version '6.0.0'
+	id 'com.jfrog.artifactory' version '4.9.6'
 }
 
 repositories {
@@ -23,7 +28,7 @@ ext {
 }
 
 group = 'com.couchbase.client'
-version = '3.0.0'
+version = '3.0.1'
 
 dependencies {
 	compile files("$sourceSets.main.scala.outputDir")
@@ -47,9 +52,16 @@ dependencies {
 	testCompile "com.nrinaudo:kantan.csv_%%:0.5.0"
 }
 
+shadowJar {
+	dependencies {
+		include dependency("com.couchbase.client:java-client:2.7.15")
+		include dependency("com.couchbase.client:core-io:1.7.15")
+	}
 
-tasks.compileJava.dependsOn compileScala
-tasks.compileScala.dependsOn.remove("compileJava")
+	relocate 'com.couchbase.client.core', 'com.couchbase.spark.deps.com.couchbase.client.core'
+	relocate 'com.couchbase.client.java', 'com.couchbase.spark.deps.com.couchbase.client.java'
+	relocate 'com.couchbase.client.encryption', 'com.couchbase.spark.deps.com.couchbase.client.encryption'
+}
 
 sourceSets {
 	main {
@@ -130,4 +142,3 @@ publishing {
 		}
 	}
 }
-
