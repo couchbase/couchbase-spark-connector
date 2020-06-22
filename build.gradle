@@ -5,7 +5,7 @@ buildscript {
 	}
 	dependencies {
 		// Do not upgrade, 4.9.6+ is buggy.
-		classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.9.6"
+		classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.15.2"
 	}
 }
 
@@ -13,9 +13,10 @@ plugins {
 	id 'scala'
 	id 'java'
 	id 'maven-publish'
+	id 'ivy-publish'
 	id 'com.adtran.scala-multiversion-plugin' version '1.0.34'
 	id 'com.github.johnrengelman.shadow' version '6.0.0'
-	id 'com.jfrog.artifactory' version '4.9.6'
+	id 'com.jfrog.artifactory' version '4.15.2'
 }
 
 repositories {
@@ -53,6 +54,8 @@ dependencies {
 }
 
 shadowJar {
+	classifier = ''
+
 	dependencies {
 		include dependency("com.couchbase.client:java-client:2.7.15")
 		include dependency("com.couchbase.client:core-io:1.7.15")
@@ -93,11 +96,15 @@ publishing {
 	publications {
 		mavenJava(MavenPublication) {
 			artifactId = 'spark-connector'
-			from components.java
+
 			artifact tasks.sourcesJar
 			artifact tasks.scaladocJar
 
 			pom {
+				groupId = 'com.couchbase.client'
+				artifactId = 'spark-connector'
+				version = '3.0.1'
+
 				name = 'couchbase-spark-connector'
 				description = 'Official Couchbase Spark Connector'
 				url = 'http://couchbase.com'
@@ -139,6 +146,8 @@ publishing {
 					}
 				}
 			}
+
+			from components.java
 		}
 	}
 }
