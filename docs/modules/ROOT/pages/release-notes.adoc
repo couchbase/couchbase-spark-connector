@@ -49,3 +49,8 @@ It brings support for Spark 2.2 and the following enhancements and bugfixes:
 *Spark Streaming*
 
 No changes for Spark Streaming have been made in this release.
+
+
+== Older Releases
+
+Although https://www.couchbase.com/support-policy/enterprise-software[no longer supported], documentation for older releases continues to be available in our https://docs-archive.couchbase.com/home/index.html[docs archive].
