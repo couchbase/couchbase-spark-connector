@@ -72,8 +72,16 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       .map(_.value.toString)
     val dataset = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
 
+    val timestampFormat = if (parameters.get("timestampFormat").isDefined) {
+      parameters("timestampFormat")
+    } else {
+      // use the default in Spark 2.3 FastDateParser
+      "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
+    }
+
     val schema = sqlContext
       .read
+      .option("timestampFormat", timestampFormat)
       .json(dataset)
       .schema
 
