@@ -72,23 +72,17 @@ class N1QLRelation(bucket: String, userSchema: Option[StructType], parameters: M
       .map(_.value.toString)
     val dataset = sqlContext.sparkSession.createDataset(rdd)(Encoders.STRING)
 
-    // datetime and timestamp defaults were taken from sparks Json Parser:
-    // https://github.com/apache/spark/blob/branch-2.3/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/json/JSONOptions.scala#L84
-    val timestampFormat = if (parameters.get("timestampFormat").isDefined) {
-      parameters("timestampFormat")
-    } else {
-      "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
+    val options = collection.mutable.Map[String, String]()
+    if (parameters.get("timestampFormat").isDefined) {
+      options("timestampFormat") = parameters("timestampFormat")
     }
-    val dateFormat = if (parameters.get("dateFormat").isDefined) {
-      parameters("dateFormat")
-    } else {
-      "yyyy-MM-dd"
+    if (parameters.get("dateFormat").isDefined) {
+      options("dateFormat") = parameters("dateFormat")
     }
 
     val schema = sqlContext
       .read
-      .option("timestampFormat", timestampFormat)
-      .option("dateFormat", dateFormat)
+      .options(options)
       .json(dataset)
       .schema
 
