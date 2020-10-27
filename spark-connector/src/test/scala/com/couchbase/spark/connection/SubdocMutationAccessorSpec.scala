@@ -1,17 +1,18 @@
 package com.couchbase.spark.connection
 
+import com.couchbase.client.java.document.JsonDocument
 import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.document.{Document, JsonDocument}
 import org.apache.spark.SparkConf
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 /**
   * Created by daschl on 04/07/17.
   */
 @RunWith(classOf[JUnitRunner])
-class SubdocMutationAccessorSpec extends FlatSpec with Matchers {
+class SubdocMutationAccessorSpec extends AnyFlatSpec with Matchers {
 
   "A SubdocMutationAccessor" should "upsert a path into a doc" in {
     val sparkCfg = new SparkConf()

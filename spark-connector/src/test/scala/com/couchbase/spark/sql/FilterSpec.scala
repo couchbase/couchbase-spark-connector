@@ -15,14 +15,15 @@
  */
 package com.couchbase.spark.sql
 
+import com.couchbase.spark.sql.N1QLRelation.filterToExpression
 import org.apache.spark.sql.sources._
-import org.scalatest.{FlatSpec, Matchers}
-import N1QLRelation.filterToExpression
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class FilterSpec extends FlatSpec with Matchers {
+class FilterSpec extends AnyFlatSpec with Matchers {
 
   "The Filter" should "convert EqualTo" in {
     filterToExpression(EqualTo("foo", "bar")) should equal(" `foo` = 'bar'")

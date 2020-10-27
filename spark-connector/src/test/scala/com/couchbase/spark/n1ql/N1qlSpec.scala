@@ -15,21 +15,22 @@
  */
 package com.couchbase.spark.n1ql
 
-import com.couchbase.client.core.CouchbaseException
 import com.couchbase.client.java.error.QueryExecutionException
 import com.couchbase.client.java.query.N1qlQuery
-import org.apache.spark.{SparkConf, SparkContext, SparkException}
-import org.apache.spark.sql.sources.EqualTo
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
-import org.scalatest._
 import com.couchbase.spark._
 import com.couchbase.spark.connection.CouchbaseConnection
 import com.couchbase.spark.sql.N1QLRelation
+import org.apache.spark.SparkException
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.scalatest._
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.control.NonFatal
 
-class N1qlSpec extends FunSuite with Matchers with BeforeAndAfterAll {
+class N1qlSpec extends AnyFunSuite with Matchers with BeforeAndAfterAll {
 
   private val master = "local[2]"
   private val appName = "cb-int-specs1"

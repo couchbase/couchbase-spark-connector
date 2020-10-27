@@ -24,12 +24,20 @@ import com.couchbase.client.java.view.{DefaultView, DesignDocument, Stale, ViewQ
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.collection.JavaConversions._
 import com.couchbase.spark._
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
+import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
+
+import scala.Console.in
 
 /**
  * Integration test to verify Spark Context functionality in combination with Couchbase Server
@@ -38,7 +46,7 @@ import org.scalatest.junit.JUnitRunner
  * @since 1.0.0
  */
 @RunWith(classOf[JUnitRunner])
-class SparkContextFunctionsSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
+class SparkContextFunctionsSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   private val master = "local[2]"
   private val appName = "cb-int-specs1"

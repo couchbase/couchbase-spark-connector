@@ -16,11 +16,12 @@
 package com.couchbase.spark.internal
 
 import org.junit.runner.RunWith
-import org.scalatest._
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class LazyIteratorSpec extends FlatSpec with Matchers {
+class LazyIteratorSpec extends AnyFlatSpec with Matchers {
 
   "A LazyIterator" should "not create the delegated Iterator in the constructor" in {
     var created = false

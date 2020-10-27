@@ -1,13 +1,14 @@
-import sbt.Keys.dependencyOverrides
+import sbt.Keys.publishArtifact
 import sbtassembly.AssemblyPlugin.autoImport.ShadeRule
+
 import scala.io.Source
 
 makePomConfiguration := makePomConfiguration.value.withConfigurations(
   Configurations.defaultMavenConfigurations)
 conflictManager := ConflictManager.default
 
-lazy val sparkVersion = "3.0.0"
-lazy val scalaLanguageVersion = "2.12.11"
+lazy val sparkVersion = "3.0.1"
+lazy val scalaLanguageVersion = "2.12.12"
 
 Project.inConfig(Test)(baseAssemblySettings)
 
@@ -60,6 +61,13 @@ lazy val commonSettings = Seq(
         !List("core-io-1.7.15.jar", "java-client-2.7.15.jar").contains(e.data.getName)
     }
   },
+  assemblyMergeStrategy in assembly := {
+    case PathList("com.couchbase.client.core.properties") => new ShadedMergeStrategy()
+    case PathList("com.couchbase.client.java.properties") => new ShadedMergeStrategy()
+    case x =>
+      val oldStrategy = (assemblyMergeStrategy in assembly).value
+      oldStrategy(x)
+  },
 
   publishArtifact in (Test, packageBin) := true,
   publishArtifact in (Test, packageSrc) := true,
@@ -81,11 +89,12 @@ lazy val commonSettings = Seq(
     "com.couchbase.client" % "dcp-client" % "0.28.0",
     "io.reactivex" %% "rxscala" % "0.27.0",
     "org.apache.logging.log4j" % "log4j-api" % "2.2",
+    "org.scalatestplus" %% "junit-4-13" % "3.2.2.0" % "test",
     "org.apache.spark" %% "spark-core" % sparkVersion,
     "org.apache.spark" %% "spark-streaming" % sparkVersion,
     "org.apache.spark" %% "spark-sql" % sparkVersion,
 
-    "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+    "org.scalatest" %% "scalatest" % "3.2.2" % "test",
     "junit" % "junit" % "4.12" % "test",
     "com.nrinaudo" %% "kantan.csv" % "0.5.0"
   )

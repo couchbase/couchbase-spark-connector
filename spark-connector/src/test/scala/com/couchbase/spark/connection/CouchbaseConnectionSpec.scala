@@ -16,11 +16,12 @@
 package com.couchbase.spark.connection
 
 import org.junit.runner.RunWith
-import org.scalatest._
-import org.scalatest.junit.JUnitRunner
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class CouchbaseConnectionSpec extends FlatSpec with Matchers {
+class CouchbaseConnectionSpec extends AnyFlatSpec with Matchers {
 
   "A Connection" should "not be initialized more than once" in {
     val conn1 = CouchbaseConnection()
