@@ -4,7 +4,8 @@ import sbtassembly.AssemblyPlugin.autoImport.ShadeRule
 import scala.io.Source
 
 makePomConfiguration := makePomConfiguration.value.withConfigurations(
-  Configurations.defaultMavenConfigurations)
+  Configurations.defaultMavenConfigurations
+)
 conflictManager := ConflictManager.default
 
 lazy val sparkVersion = "3.0.1"
@@ -23,25 +24,19 @@ lazy val commonSettings = Seq(
     v
   },
   scalaVersion := scalaLanguageVersion,
-
   logLevel in test := Level.Debug,
   logLevel in assembly := Level.Debug,
-
   publishConfiguration := publishConfiguration.value.withOverwrite(true),
   publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
-
   credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
-
-  sources in (Compile,doc) := Seq.empty,
+  sources in (Compile, doc) := Seq.empty,
   publishArtifact in (Compile, packageDoc) := false,
-
   publishTo := Some(
-    "Artifactory Realm" at s"https://artifactory.enliven.systems/artifactory/sbt-dev-local/"),
-
-  resolvers ++= Seq(
-    "Maven Central" at "https://repo1.maven.org/maven2/"
+    "Artifactory Realm".at(s"https://artifactory.enliven.systems/artifactory/sbt-dev-local/")
   ),
-
+  resolvers ++= Seq(
+    "Maven Central".at("https://repo1.maven.org/maven2/")
+  ),
   assemblyShadeRules in assembly := Seq(
     ShadeRule
       .rename("com.couchbase.client.java.**" -> "shaded.com.couchbase.client.java.@1")
@@ -56,9 +51,8 @@ lazy val commonSettings = Seq(
   ),
   assemblyExcludedJars in assembly := {
     val classPath = (fullClasspath in assembly).value
-    classPath filter {
-      e =>
-        !List("core-io-1.7.15.jar", "java-client-2.7.15.jar").contains(e.data.getName)
+    classPath.filter {
+      e => !List("core-io-1.7.16.jar", "java-client-2.7.16.jar").contains(e.data.getName)
     }
   },
   assemblyMergeStrategy in assembly := {
@@ -68,21 +62,16 @@ lazy val commonSettings = Seq(
       val oldStrategy = (assemblyMergeStrategy in assembly).value
       oldStrategy(x)
   },
-
   publishArtifact in (Test, packageBin) := true,
   publishArtifact in (Test, packageSrc) := true,
   publishArtifact in (Compile, packageDoc) := false,
   parallelExecution := false,
-
   test in assembly := {},
-
   artifact in (Compile, assembly) := {
     val art = (artifact in (Compile, assembly)).value
     art.withClassifier(Some("shaded"))
   },
-
   addArtifact(artifact in (Compile, assembly), assembly),
-
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-library" % scalaLanguageVersion,
     "com.couchbase.client" % "java-client" % "2.7.16",
@@ -93,21 +82,16 @@ lazy val commonSettings = Seq(
     "org.apache.spark" %% "spark-core" % sparkVersion,
     "org.apache.spark" %% "spark-streaming" % sparkVersion,
     "org.apache.spark" %% "spark-sql" % sparkVersion,
-
     "org.scalatest" %% "scalatest" % "3.2.2" % "test",
     "junit" % "junit" % "4.13.1" % "test",
     "com.nrinaudo" %% "kantan.csv" % "0.6.1"
   )
 )
 
-lazy val core = (project in file("spark-connector")).
-  settings(commonSettings: _*).
-  settings(
-    name := "spark-connector"
-  )
+lazy val core = (project in file("spark-connector")).settings(commonSettings: _*).settings(
+  name := "spark-connector"
+)
 
-lazy val root = (project in file(".")).
-  settings(commonSettings: _*).
-  aggregate(core).
-  dependsOn(
-    core % "test->test;compile->compile")
+lazy val root = (project in file(".")).settings(commonSettings: _*).aggregate(core).dependsOn(
+  core % "test->test;compile->compile"
+)

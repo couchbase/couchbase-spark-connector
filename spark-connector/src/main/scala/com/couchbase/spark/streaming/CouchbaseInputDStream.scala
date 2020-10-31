@@ -28,30 +28,53 @@ import org.apache.spark.streaming.receiver.Receiver
 import rx.{CompletableSubscriber, Subscription}
 
 abstract class StreamMessage
-case class Mutation(key: Array[Byte], content: Array[Byte], expiry: Integer, cas: Long,
-                    partition: Short, flags: Int, lockTime: Int, bySeqno: Long,
-                    revisionSeqno: Long, ackBytes: Int) extends StreamMessage
-case class Deletion(key: Array[Byte], cas: Long, partition: Short, bySeqno: Long,
-                    revisionSeqno: Long, ackBytes: Int) extends StreamMessage
 
-class CouchbaseInputDStream
-  (_ssc: StreamingContext, storageLevel: StorageLevel, bucket: String = null,
-   from: StreamFrom = FromNow, to: StreamTo = ToInfinity)
-  extends ReceiverInputDStream[StreamMessage](_ssc) {
+case class Mutation(
+  key: Array[Byte],
+  content: Array[Byte],
+  expiry: Integer,
+  cas: Long,
+  partition: Short,
+  flags: Int,
+  lockTime: Int,
+  bySeqno: Long,
+  revisionSeqno: Long,
+  ackBytes: Int)
+ extends StreamMessage
+
+case class Deletion(
+  key: Array[Byte],
+  cas: Long,
+  partition: Short,
+  bySeqno: Long,
+  revisionSeqno: Long,
+  ackBytes: Int)
+ extends StreamMessage
+
+class CouchbaseInputDStream(
+  _ssc: StreamingContext,
+  storageLevel: StorageLevel,
+  bucket: String = null,
+  from: StreamFrom = FromNow,
+  to: StreamTo = ToInfinity)
+ extends ReceiverInputDStream[StreamMessage](_ssc) {
 
   private val cbConfig = CouchbaseConfig(_ssc.sparkContext.getConf)
   private val bucketName = Option(bucket).getOrElse(cbConfig.buckets.head.name)
 
-  override def getReceiver(): Receiver[StreamMessage] = {
+  override def getReceiver(): Receiver[StreamMessage] =
     new CouchbaseReceiver(cbConfig, bucketName, storageLevel, from, to)
-  }
 
 }
 
-class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLevel: StorageLevel,
-  from: StreamFrom, to: StreamTo)
-  extends Receiver[StreamMessage](storageLevel)
-  with Logging {
+class CouchbaseReceiver(
+  config: CouchbaseConfig,
+  bucketName: String,
+  storageLevel: StorageLevel,
+  from: StreamFrom,
+  to: StreamTo)
+ extends Receiver[StreamMessage](storageLevel)
+   with Logging {
 
   override def onStart(): Unit = {
     val client = CouchbaseConnection().streamClient(config, bucketName)
@@ -86,39 +109,40 @@ class CouchbaseReceiver(config: CouchbaseConfig, bucketName: String, storageLeve
 
     client.dataEventHandler(new DataEventHandler {
       override def onEvent(flowController: ChannelFlowController, event: ByteBuf): Unit = {
-        val converted: StreamMessage = if (DcpMutationMessage.is(event)) {
-          val data = new Array[Byte](DcpMutationMessage.content(event).readableBytes())
-          DcpMutationMessage.content(event).readBytes(data)
-          val key = new Array[Byte](DcpMutationMessage.key(event).readableBytes())
-          DcpMutationMessage.key(event).readBytes(key)
-          Mutation(
-            key,
-            data,
-            DcpMutationMessage.expiry(event),
-            DcpMutationMessage.cas(event),
-            DcpMutationMessage.partition(event),
-            DcpMutationMessage.flags(event),
-            DcpMutationMessage.lockTime(event),
-            DcpDeletionMessage.bySeqno(event),
-            DcpDeletionMessage.revisionSeqno(event),
-            event.readableBytes()
-          )
-        } else if (DcpDeletionMessage.is(event)) {
-          val key = new Array[Byte](DcpDeletionMessage.key(event).readableBytes())
-          DcpDeletionMessage.key(event).readBytes(key)
-          Deletion(
-            key,
-            DcpDeletionMessage.cas(event),
-            DcpDeletionMessage.partition(event),
-            DcpDeletionMessage.bySeqno(event),
-            DcpDeletionMessage.revisionSeqno(event),
-            event.readableBytes()
-          )
-        } else {
-          event.release()
-          throw new IllegalStateException("Got unexpected DCP Data Event "
-            + MessageUtil.humanize(event))
-        }
+        val converted: StreamMessage =
+          if (DcpMutationMessage.is(event)) {
+            val data = new Array[Byte](DcpMutationMessage.content(event).readableBytes())
+            DcpMutationMessage.content(event).readBytes(data)
+            val key = new Array[Byte](DcpMutationMessage.key(event).readableBytes())
+            DcpMutationMessage.key(event).readBytes(key)
+            Mutation(
+              key,
+              data,
+              DcpMutationMessage.expiry(event),
+              DcpMutationMessage.cas(event),
+              DcpMutationMessage.partition(event).toShort,
+              DcpMutationMessage.flags(event),
+              DcpMutationMessage.lockTime(event),
+              DcpDeletionMessage.bySeqno(event),
+              DcpDeletionMessage.revisionSeqno(event),
+              event.readableBytes()
+            )
+          } else if (DcpDeletionMessage.is(event)) {
+            val key = new Array[Byte](DcpDeletionMessage.key(event).readableBytes())
+            DcpDeletionMessage.key(event).readBytes(key)
+            Deletion(
+              key,
+              DcpDeletionMessage.cas(event),
+              DcpDeletionMessage.partition(event).toShort,
+              DcpDeletionMessage.bySeqno(event),
+              DcpDeletionMessage.revisionSeqno(event),
+              event.readableBytes()
+            )
+          } else {
+            event.release()
+            throw new IllegalStateException("Got unexpected DCP Data Event "
+              + MessageUtil.humanize(event))
+          }
 
         store(converted)
         flowController.ack(event)
