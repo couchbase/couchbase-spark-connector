@@ -96,7 +96,7 @@ lazy val commonSettings = Seq(
 
     "org.scalatest" %% "scalatest" % "3.2.2" % "test",
     "junit" % "junit" % "4.13.1" % "test",
-    "com.nrinaudo" %% "kantan.csv" % "0.5.1"
+    "com.nrinaudo" %% "kantan.csv" % "0.6.1"
   )
 )
 
