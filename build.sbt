@@ -78,7 +78,7 @@ lazy val commonSettings = Seq(
     "com.couchbase.client" % "dcp-client" % "0.30.0",
     "io.reactivex" %% "rxscala" % "0.27.0",
     "org.apache.logging.log4j" % "log4j-api" % "2.13.3",
-    "org.scalatestplus" %% "junit-4-13" % "3.2.2.0" % "test",
+    "org.scalatestplus" %% "junit-4-13" % "3.2.3.0" % "test",
     "org.apache.spark" %% "spark-core" % sparkVersion,
     "org.apache.spark" %% "spark-streaming" % sparkVersion,
     "org.apache.spark" %% "spark-sql" % sparkVersion,
