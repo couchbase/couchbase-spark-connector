@@ -19,16 +19,16 @@ repositories {
 }
 
 ext {
-	sparkVersion = "2.4.5"
+	sparkVersion = "2.4.7"
 }
 
 group = 'com.couchbase.client'
-version = '2.4.1'
+version = '2.4.1-SNAPSHOT'
 
 dependencies {
 	compile files("$sourceSets.main.scala.outputDir")
 	compile "org.scala-lang:scala-library:%scala-version%"
-	compile "com.couchbase.client:java-client:2.7.15"
+	compile "com.couchbase.client:java-client:2.7.17"
 	compile "com.couchbase.client:dcp-client:0.26.0"
 	compile "io.reactivex:rxscala_%%:0.27.0"
 	compile "org.apache.logging.log4j:log4j-api:2.2"
@@ -46,10 +46,6 @@ dependencies {
 	// For BulkInsertingSample
 	testCompile "com.nrinaudo:kantan.csv_%%:0.5.0"
 }
-
-
-tasks.compileJava.dependsOn compileScala
-tasks.compileScala.dependsOn.remove("compileJava")
 
 sourceSets {
 	main {

@@ -1,0 +1,56 @@
+= Couchbase Cloud Support
+:page-topic-type: concept
+
+[abstract]
+Connecting to Couchbase Cloud is very similar to connecting to any Couchbase cluster over an encrypted connection. This section explains how.
+
+== Certificate Download
+
+Once you have created a Cluster in Couchbase Cloud, navigate to the `Connect` tab and download the security certificate.
+
+image::cloud-ui.png[Cloud UI]
+
+== Keystore Setup
+
+The downloaded certificate is in `pem` format, so we need to convert it into a `der` format first. The `openssl` tool can be utilized for this task:
+
+[source]
+----
+$ openssl x509 -outform der -in your-root-certificate.pem -out your-root-certificate.der
+----
+
+Next, the certificate needs to be imported into your java keystore with the `keytool` command. The exact arguments will vary, depending on your keystore location. In its simplest form, it looks like this:
+
+[source]
+----
+$ keytool -importcert -file your-root-certificate.der
+Enter keystore password:
+Re-enter new password:
+Owner: OU=Cloud, O=Couchbase
+Issuer: OU=Cloud, O=Couchbase
+... (details omitted) ...
+]
+
+Trust this certificate? [no]:  yes
+Certificate was added to keystore
+----
+
+You can verify that it has been stored with `keytool -list`:
+
+[source]
+----
+$ keytool -list
+Enter keystore password:
+Keystore type: PKCS12
+Keystore provider: SUN
+
+Your keystore contains 1 entry
+
+mykey, 12 Nov 2020, trustedCertEntry,
+Certificate fingerprint (SHA-256): **fingerprint**
+----
+
+== Spark Configuration
+
+Now that your keystore contains the cloud certificate, through the Spark configuration properties we can instruct the SDK to enable the encrypted connection and point it to the correct keystore file:
+

@@ -8,4 +8,5 @@
 * xref:structured-streaming.adoc[Structured Streaming]
 * xref:java-api.adoc[Java API]
 * xref:spark-shell.adoc[Using the Spark Shell]
+* xref:cloud.adoc[Couchbase Cloud Support]
 * xref:release-notes.adoc[Release Notes]
