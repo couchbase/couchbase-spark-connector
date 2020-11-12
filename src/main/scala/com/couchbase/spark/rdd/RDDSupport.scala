@@ -1,5 +1,6 @@
 package com.couchbase.spark.rdd
 
+import com.couchbase.client.core.config.NodeInfo
 import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
 import com.couchbase.client.core.service.ServiceType
 import com.couchbase.spark.connection.{CouchbaseConfig, CouchbaseConnection}
@@ -33,7 +34,7 @@ object RDDSupport {
         bucketConfig.nodes.asScala
           .filter(node => node.services().asScala.contains(serviceType))
       })
-      .map(v => v.hostname())
+      .map(v => RDDSupport.extractNodeHostname(v))
       .toSeq
       .distinct
 
@@ -55,5 +56,12 @@ object RDDSupport {
     }
     out
   }
+
+  def extractNodeHostname(nodeInfo: NodeInfo): String =
+    if (nodeInfo.useAlternateNetwork() != null) {
+      nodeInfo.alternateAddresses().get(nodeInfo.useAlternateNetwork()).hostname()
+    } else {
+      nodeInfo.hostname()
+    }
 
 }

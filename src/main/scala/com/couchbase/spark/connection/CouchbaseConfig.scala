@@ -26,7 +26,8 @@ case class Timeouts(query: Option[Long], view: Option[Long], search: Option[Long
                     disconnect: Option[Long], management: Option[Long])
 case class CouchbaseConfig(hosts: Seq[String], buckets: Seq[CouchbaseBucket],
                            retryOpts: RetryOptions, sslOptions: Option[SslOptions],
-                           credential: Option[Credential], timeouts: Timeouts)
+                           credential: Option[Credential], timeouts: Timeouts,
+                           dnsSrvEnabled: Boolean)
 
 object CouchbaseConfig {
 
@@ -55,6 +56,7 @@ object CouchbaseConfig {
   private val CONNECT_TIMEOUT = PREFIX + "connectTimeout"
   private val MANAGEMENT_TIMEOUT = PREFIX + "managementTimeout"
   private val DISCONNECT_TIMEOUT = PREFIX + "disconnectTimeout"
+  private val DNS_SRV_ENABLED = PREFIX + "dnsSrvEnabled"
 
   private val COMPAT_PREFIX = SPARK_PREFIX + "couchbase."
   private val COMPAT_BUCKET_PREFIX = COMPAT_PREFIX + "bucket."
@@ -75,6 +77,7 @@ object CouchbaseConfig {
   private val COMPAT_CONNECT_TIMEOUT = COMPAT_PREFIX + "connectTimeout"
   private val COMPAT_MANAGEMENT_TIMEOUT = COMPAT_PREFIX + "managementTimeout"
   private val COMPAT_DISCONNECT_TIMEOUT = COMPAT_PREFIX + "disconnectTimeout"
+  private val COMPAT_DNS_SRV_ENABLED = COMPAT_PREFIX + "dnsSrvEnabled"
 
   val DEFAULT_NODE = "127.0.0.1"
   val DEFAULT_BUCKET = "default"
@@ -133,6 +136,12 @@ object CouchbaseConfig {
       .getOrElse(DEFAULT_MAX_RETRY_DELAY)
       .toInt
 
+    val dnsSrvEnabled = cfg
+      .getOption(DNS_SRV_ENABLED)
+      .orElse(cfg.getOption(COMPAT_DNS_SRV_ENABLED))
+      .getOrElse("false")
+      .toBoolean
+
     val retryOptions = RetryOptions(maxRetries, maxRetryDelay, minRetryDelay)
 
 
@@ -173,9 +182,10 @@ object CouchbaseConfig {
 
     if (bucketConfigs.isEmpty) {
       new CouchbaseConfig(nodes, Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)),
-        retryOptions, sslOptions, credential, timeouts)
+        retryOptions, sslOptions, credential, timeouts, dnsSrvEnabled)
     } else {
-      new CouchbaseConfig(nodes, bucketConfigs, retryOptions, sslOptions, credential, timeouts)
+      new CouchbaseConfig(nodes, bucketConfigs, retryOptions, sslOptions, credential, timeouts,
+        dnsSrvEnabled)
     }
   }
 
@@ -201,7 +211,8 @@ object CouchbaseConfig {
     Seq(CouchbaseBucket(DEFAULT_BUCKET, DEFAULT_PASSWORD)),
     RetryOptions(DEFAULT_MAX_RETRIES.toInt, DEFAULT_MAX_RETRY_DELAY.toInt,
       DEFAULT_MIN_RETRY_DELAY.toInt), None, Some(creds),
-    Timeouts(None, None, None, None, None, None, None, None)
+    Timeouts(None, None, None, None, None, None, None, None),
+    false
   )
 
 }

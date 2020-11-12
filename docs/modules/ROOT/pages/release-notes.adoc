@@ -4,6 +4,21 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 2.4.1 GA (November 2020)
+
+Version 2.4.1 brings support for Couchbase Cloud as well as:
+
+*Features*
+
+* https://issues.couchbase.com/browse/SPARKC-110[SPARKC-110^]: Allow passthrough of timestampFormat and dateFormat for inferring schema
+* Updated the Java SDK to 2.7.18
+* Allows to enable DNS SRV via a configuration property
+
+*Bug fixes and stability*
+
+* https://issues.couchbase.com/browse/SPARKC-104[SPARKC-104^]: Stopping and restarting of Spark-Couchbase-Streaming-job throws ClassCastException
+* Properly propagate the expiry into the `DefaultSource`
+
 == Couchbase Spark Connector 2.4.0 GA (July 2019)
 
 Version 2.4.0 brings support for Spark 2.4.0, and is compiled exclusively with Scala 2.12.

@@ -83,6 +83,10 @@ class CouchbaseConnection extends Serializable with Logging {
           builder.managementTimeout(cfg.timeouts.management.get)
         }
 
+        if (cfg.dnsSrvEnabled) {
+          builder.dnsSrvEnabled(true)
+        }
+
         envRef = Option(builder.build())
       }
       if (clusterRef.isEmpty) {

@@ -53,11 +53,7 @@ class SubdocMutateRDD(@transient private val sc: SparkContext, specs: Seq[Subdoc
 
     val req = new GetClusterConfigRequest()
     val config = toScalaObservable(core.send[GetClusterConfigResponse](req))
-      .map(c => {
-        logWarning(c.config().bucketConfigs().toString)
-        logWarning(bucketName)
-        c.config().bucketConfig(bucketName)
-      })
+      .map(c => c.config().bucketConfig(bucketName))
       .toBlocking
       .single
 
@@ -71,13 +67,14 @@ class SubdocMutateRDD(@transient private val sc: SparkContext, specs: Seq[Subdoc
           val rv = (crc32.getValue >> 16) & 0x7fff
           rv.toInt & numPartitions - 1
         }).map(grouped => {
-          val hostname = Some(
-            bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1, false)).hostname()
+          val hostname = RDDSupport.extractNodeHostname(
+            bucketConfig.nodeAtIndex(bucketConfig.nodeIndexForMaster(grouped._1, false))
           )
+
           val currentIdx = partitionIndex
           partitionIndex += 1
           new SubdocMutationPartition(currentIdx, grouped._2,
-            Some(InetAddress.getByName(hostname.get)))
+            Some(InetAddress.getByName(hostname)))
         }).toArray
       case _ =>
         logWarning("Memcached preferred locations currently not supported.")

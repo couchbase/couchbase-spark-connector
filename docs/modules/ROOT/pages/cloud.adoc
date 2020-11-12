@@ -4,6 +4,11 @@
 [abstract]
 Connecting to Couchbase Cloud is very similar to connecting to any Couchbase cluster over an encrypted connection. This section explains how.
 
+[IMPORTANT]
+====
+You must use a Spark connector version of *2.4.1 or higher*, earlier versions will not work. Also, the experimental support for Spark Streaming and Structured Streaming are not supported against Couchbase Cloud and will be addressed in a later release.
+====
+
 == Certificate Download
 
 Once you have created a Cluster in Couchbase Cloud, navigate to the `Connect` tab and download the security certificate.
@@ -54,3 +59,23 @@ Certificate fingerprint (SHA-256): **fingerprint**
 
 Now that your keystore contains the cloud certificate, through the Spark configuration properties we can instruct the SDK to enable the encrypted connection and point it to the correct keystore file:
 
+[source,scala]
+----
+val spark = SparkSession
+  .builder()
+  .appName("CouchbaseCloudSamplpe") // your app name
+  .master("local[*]") // your local or remote master node
+  .config("spark.couchbase.dnsSrvEnabled", "true")
+  .config("spark.couchbase.nodes", "your-endpoint.cloud.couchbase.com")
+  .config("spark.couchbase.bucket.yourbucketname", "")
+  .config("com.couchbase.username", "username")
+  .config("com.couchbase.password", "password")
+  .config("spark.ssl.enabled", "true")
+  .config("spark.ssl.keyStore", "/path/to/keystore")
+  .config("spark.ssl.keyStorePassword", "password")
+  .getOrCreate()
+----
+
+Other than `spark.couchbase.dnsSrvEnabled` and `spark.couchbase.dnsSrvEnabled`, all other properties need to be filled with values that correspond to your environment.
+
+After everything is configured, you can use all the APIs like you would against a regular Couchbase Server installation.
