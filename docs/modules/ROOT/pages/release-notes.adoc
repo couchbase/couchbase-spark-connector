@@ -12,7 +12,7 @@ Version 2.4.1 brings support for Couchbase Cloud as well as:
 
 * https://issues.couchbase.com/browse/SPARKC-110[SPARKC-110^]: Allow passthrough of timestampFormat and dateFormat for inferring schema
 * Updated the Java SDK to 2.7.18
-* Allows to enable DNS SRV via a configuration property
+* Allows enabling DNS SRV via a configuration property
 
 *Bug fixes and stability*
 
