@@ -75,7 +75,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-library" % scalaLanguageVersion,
     "com.couchbase.client" % "java-client" % "2.7.16",
-    "com.couchbase.client" % "dcp-client" % "0.30.0",
+    "com.couchbase.client" % "dcp-client" % "0.31.0",
     "io.reactivex" %% "rxscala" % "0.27.0",
     "org.apache.logging.log4j" % "log4j-api" % "2.13.3",
     "org.scalatestplus" %% "junit-4-13" % "3.2.2.0" % "test",
