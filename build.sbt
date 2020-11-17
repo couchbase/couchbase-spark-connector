@@ -82,7 +82,7 @@ lazy val commonSettings = Seq(
     "org.apache.spark" %% "spark-core" % sparkVersion,
     "org.apache.spark" %% "spark-streaming" % sparkVersion,
     "org.apache.spark" %% "spark-sql" % sparkVersion,
-    "org.scalatest" %% "scalatest" % "3.2.2" % "test",
+    "org.scalatest" %% "scalatest" % "3.2.3" % "test",
     "junit" % "junit" % "4.13.1" % "test",
     "com.nrinaudo" %% "kantan.csv" % "0.6.1"
   )
