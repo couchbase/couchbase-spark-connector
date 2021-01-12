@@ -23,7 +23,7 @@ ext {
 }
 
 group = 'com.couchbase.client'
-version = '2.4.1'
+version = '2.4.2'
 
 dependencies {
 	compile files("$sourceSets.main.scala.outputDir")
@@ -56,6 +56,11 @@ sourceSets {
 			outputDir = file("$buildDir/classes/java/main")
 		}
 	}
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
