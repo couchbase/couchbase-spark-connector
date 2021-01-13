@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Couchbase, Inc.
+ * Copyright (c) 2019 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.couchbase.spark.test;
 
-package com.couchbase
-
-import org.apache.spark.SparkContext
-
-package object spark {
-
-  implicit def toSparkContextFunctions(sc: SparkContext): SparkContextFunctions =
-    new SparkContextFunctions(sc)
+public enum Services {
+  KV,
+  KV_TLS,
+  MANAGER,
+  MANAGER_TLS,
+  QUERY,
+  QUERY_TLS,
+  ANALYTICS,
+  ANALYTICS_TLS,
+  SEARCH,
+  SEARCH_TLS,
+  VIEW,
+  VIEW_TLS
 }

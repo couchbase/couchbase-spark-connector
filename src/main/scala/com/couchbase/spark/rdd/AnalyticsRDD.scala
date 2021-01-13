@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Couchbase, Inc.
+ * Copyright (c) 2021 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,45 +13,93 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.couchbase.spark.rdd
 
-import com.couchbase.client.core.message.cluster.{GetClusterConfigRequest, GetClusterConfigResponse}
-import com.couchbase.client.core.service.ServiceType
-import com.couchbase.client.java.analytics.AnalyticsQuery
-import com.couchbase.client.java.query.N1qlQuery
-import com.couchbase.spark.connection._
+import com.couchbase.client.core.retry.RetryStrategy
+import com.couchbase.client.scala.analytics.{AnalyticsMetaData, AnalyticsOptions, AnalyticsParameters, AnalyticsScanConsistency}
+import com.couchbase.client.scala.json.JsonObject
+import com.couchbase.spark.core.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
-import rx.lang.scala.JavaConversions.toScalaObservable
 
 import scala.concurrent.duration.Duration
 
-/**
-  * Wraps a Couchbase Analytics query in an RDD
-  */
-class AnalyticsRDD(@transient private val sc: SparkContext, query: AnalyticsQuery,
-                   bucketName: String = null,
-                   timeout: Option[Duration] = None)
-  extends RDD[CouchbaseAnalyticsRow](sc, Nil) {
+class AnalyticsRDD (
+ @transient private val sc: SparkContext,
+ private[spark] val statement: String,
+ private[spark] val options: CouchbaseAnalyticsOptions = CouchbaseAnalyticsOptions(),
+) extends RDD[CouchbaseAnalyticsResult](sc, Nil) {
 
-  private val cbConfig = CouchbaseConfig(sc.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[CouchbaseAnalyticsRow] =
-    new AnalyticsAccessor(cbConfig, Seq(query), bucketName, timeout).compute()
+  override def compute(split: Partition,
+                       context: TaskContext): Iterator[CouchbaseAnalyticsResult] = {
+    val connection = CouchbaseConnection()
+    val cluster = connection.cluster(globalConfig)
 
-  override protected def getPartitions: Array[Partition] = {
-    // Try to run the query on a Spark worker co-located on a Couchbase analytics node
-    val addressesWithAnalyticsService = RDDSupport.couchbaseNodesWithService(cbConfig,
-      bucketName,
-      ServiceType.ANALYTICS)
+    val result = cluster.analyticsQuery(statement, options.toAnalyticsOptions).get
+    val rows = result.rowsAs[JsonObject].get
 
-    // A single query can only run on one node, so return one partition
-    Array(new QueryPartition(0, addressesWithAnalyticsService))
+    Array(CouchbaseAnalyticsResult(rows, result.metaData)).iterator
   }
 
-  override protected def getPreferredLocations(split: Partition): Seq[String] = {
-    RDDSupport.getPreferredLocations(split)
+  override protected def getPartitions: Array[Partition] = {
+    Array(AnalyticsPartition(0))
+  }
+
+}
+
+case class AnalyticsPartition(index: Int) extends Partition()
+
+case class CouchbaseAnalyticsOptions(
+  parameters: Option[AnalyticsParameters] = None,
+  clientContextId: Option[String] = None,
+  retryStrategy: Option[RetryStrategy] = None,
+  timeout: Option[Duration] = None,
+  priority: Boolean = false,
+  readonly: Option[Boolean] = None,
+  scanConsistency: Option[AnalyticsScanConsistency] = None,
+  raw: Option[Map[String, Any]] = None
+) {
+
+  def toAnalyticsOptions: AnalyticsOptions = {
+    var opts = AnalyticsOptions()
+
+    if (parameters.isDefined) {
+      opts = opts.parameters(parameters.get)
+    }
+
+    if (clientContextId.isDefined) {
+      opts = opts.clientContextId(clientContextId.get)
+    }
+
+    if (retryStrategy.isDefined) {
+      opts = opts.retryStrategy(retryStrategy.get)
+    }
+
+    if (timeout.isDefined) {
+      opts = opts.timeout(timeout.get)
+    }
+
+    if (readonly.isDefined) {
+      opts = opts.readonly(readonly.get)
+    }
+
+    if (priority) {
+      opts = opts.priority(priority)
+    }
+
+    if (scanConsistency.isDefined) {
+      opts = opts.scanConsistency(scanConsistency.get)
+    }
+
+    if (raw.isDefined) {
+      opts = opts.raw(raw.get)
+    }
+
+    opts
   }
 }
 
-
+case class CouchbaseAnalyticsResult(rows: Seq[JsonObject], metaData: AnalyticsMetaData)

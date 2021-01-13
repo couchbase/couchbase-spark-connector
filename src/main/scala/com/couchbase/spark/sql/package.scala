@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Couchbase, Inc.
+ * Copyright (c) 2021 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.couchbase.spark
 
-import org.apache.spark.sql.{DataFrameReader, DataFrameWriter, Row}
+import org.apache.spark.sql.DataFrameReader
 
 package object sql {
 
   implicit def toDataFrameReaderFunctions(dfr: DataFrameReader): DataFrameReaderFunctions =
     new DataFrameReaderFunctions(dfr)
-
-  implicit def toDataFrameWriterFunctions(dfw: DataFrameWriter[Row]): DataFrameWriterFunctions =
-    new DataFrameWriterFunctions(dfw)
-
 }

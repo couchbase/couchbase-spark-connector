@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package com.couchbase
+package com.couchbase.spark.rdd
 
-import org.apache.spark.SparkContext
+import org.apache.spark.Partition
 
-package object spark {
-
-  implicit def toSparkContextFunctions(sc: SparkContext): SparkContextFunctions =
-    new SparkContextFunctions(sc)
+class KeyValuePartition(id: Int, val ids: Seq[String],
+                        val location: Option[String]) extends Partition {
+  override def index: Int = id
+  override def toString = s"KeyValuePartition($id, $ids, $location)"
 }
