@@ -4,9 +4,9 @@ site:
 content:
   branches: release/*
   sources:
-  - url: .
-    branches: HEAD
-    start_path: docs
+    - url: .
+      branches: HEAD
+      start_path: docs
 asciidoc:
   attributes:
     experimental: ''
@@ -21,12 +21,12 @@ ui:
     url: https://deploy-preview-47--cb-docs-ui.netlify.com/dist/ui-bundle.zip
     snapshot: true
   supplemental_files:
-  - path: robots.txt
-    contents: |
-      User-agent: *
-      Disallow: /
-  - path: ui.yml
-    contents: |
-      static_files: [robots.txt]
+    - path: robots.txt
+      contents: |
+        User-agent: *
+        Disallow: /
+    - path: ui.yml
+      contents: |
+        static_files: [robots.txt]
 output:
   dir: ./docs/public

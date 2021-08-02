@@ -1,0 +1,2 @@
+com.couchbase.spark.query.QueryTableProvider
+com.couchbase.spark.analytics.AnalyticsTableProvider

@@ -1,16 +1,24 @@
-import Dependencies._
+name := "spark-connector"
 
-ThisBuild / organization := "com.couchbase.client"
-ThisBuild / version      := "3.0.0-SNAPSHOT"
-ThisBuild / scalaVersion := scalaCoreVersion
+version := "2.0.0-SNAPSHOT"
 
-lazy val root = (project in file("."))
-  .settings(
-    name := "spark-connector",
-    libraryDependencies ++= coreDependencies,
-    libraryDependencies ++= testDependencies,
-  )
+organization := "com.couchbase.client"
+
+scalaVersion := "2.12.14"
+
+scalacOptions := Seq("-unchecked", "-deprecation")
+
+val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.1.2")
+val sdkVersion = "1.2.1-SNAPSHOT"
 
 resolvers += Resolver.mavenLocal
-resolvers += Resolver.jcenterRepo
-resolvers += "jitpack" at "https://jitpack.io"
+
+libraryDependencies ++= Seq(
+  "org.apache.spark" %% "spark-core" % sparkVersion % Provided,
+  "org.apache.spark" %% "spark-sql" % sparkVersion % Provided,
+  "org.scala-lang" % "scala-library" % scalaVersion.value % Provided,
+  "com.couchbase.client" %% "scala-client" % sdkVersion,
+
+  "net.aichler" % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
+  "org.testcontainers" % "couchbase" % "1.16.0" % Test
+)
