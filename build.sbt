@@ -18,7 +18,6 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % sparkVersion % Provided,
   "org.scala-lang" % "scala-library" % scalaVersion.value % Provided,
   "com.couchbase.client" %% "scala-client" % sdkVersion,
-
   "net.aichler" % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
   "org.testcontainers" % "couchbase" % "1.16.0" % Test
 )

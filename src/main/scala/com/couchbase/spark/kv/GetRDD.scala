@@ -16,29 +16,28 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.{GetOptions, GetResult}
-import com.couchbase.spark.DefaultConstants
+import com.couchbase.spark.{DefaultConstants, Keyspace}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
-class GetRDD(@transient private val sc: SparkContext, val ids: Seq[String], bucket: Option[String] = None,
-             scope: Option[String] = None, collection: Option[String] = None, getOptions: GetOptions = null)
+class GetRDD(@transient private val sc: SparkContext, val ids: Seq[String], val keyspace: Keyspace, getOptions: GetOptions = null)
   extends RDD[GetResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
-    val bucketName = globalConfig.implicitBucketNameOr(this.bucket.orNull)
     val scopeName = globalConfig
-      .implicitScopeNameOr(this.scope.orNull).
+      .implicitScopeNameOr(this.keyspace.scope.orNull).
       getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = globalConfig
-      .implicitCollectionName(this.collection.orNull)
+      .implicitCollectionName(this.keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
     val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
@@ -47,12 +46,26 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[String], buck
     } else {
       this.getOptions
     }
+
+    logDebug(s"Performing bulk get fetch against ids $ids with options $options")
+
     ids.map(id => collection.get(id, options).get).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
-    Array(KeyValuePartition(0))
+    val partitions = KeyValuePartition
+      .partitionsForIds(ids, CouchbaseConnection(), globalConfig, bucketName)
+      .asInstanceOf[Array[Partition]]
+
+    logDebug(s"Calculated KeyValuePartitions for Get operation ${partitions.mkString("Array(", ", ", ")")}")
+    partitions
   }
 
-  case class KeyValuePartition(index: Int) extends Partition()
+  override protected def getPreferredLocations(split: Partition): Seq[String] = {
+    split.asInstanceOf[KeyValuePartition].location match {
+      case Some(l) => Seq(l)
+      case _ => Nil
+    }
+  }
+
 }

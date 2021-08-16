@@ -34,12 +34,10 @@ import scala.reflect.ClassTag
 class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
 
   def couchbaseGet(ids: Seq[String],
-    bucket: Option[String] = None,
-    scope: Option[String] = None,
-    collection: Option[String] = None,
+    keyspace: Keyspace = Keyspace(),
     getOptions: GetOptions = null
   ): RDD[GetResult] =
-    new GetRDD(sc, ids, bucket, scope, collection, getOptions)
+    new GetRDD(sc, ids, keyspace, getOptions)
 
   def couchbaseQuery[T: ClassTag](statement: String, queryOptions: QueryOptions = null)
                                  (implicit deserializer: JsonDeserializer[T]): RDD[T] =

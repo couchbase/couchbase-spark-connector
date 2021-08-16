@@ -16,17 +16,22 @@
 
 package com.couchbase.spark.config
 
-
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.ClusterEnvironment
+
+import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
+
 
 class CouchbaseConnection extends Serializable {
 
   @transient var envRef: Option[ClusterEnvironment] = None
 
   @transient var clusterRef: Option[Cluster] = None
+
+  @transient var bucketsRef: mutable.Map[String, Bucket] = mutable.HashMap()
 
   Runtime.getRuntime.addShutdownHook(new Thread {
     override def run(): Unit = {
@@ -50,6 +55,8 @@ class CouchbaseConnection extends Serializable {
             .create(cfg.credentials.username, cfg.credentials.password)
             .environment(envRef.get)
         ).get)
+
+        clusterRef.get.waitUntilReady(1.minutes)
       }
 
       clusterRef.get
@@ -57,7 +64,16 @@ class CouchbaseConnection extends Serializable {
   }
 
   def bucket(cfg: CouchbaseConfig, bucketName: Option[String]): Bucket = {
-    cluster(cfg).bucket(this.bucketName(cfg, bucketName))
+    val bname = this.bucketName(cfg, bucketName)
+    this.synchronized {
+      if (bucketsRef.contains(bname)) {
+        return bucketsRef(bname)
+      }
+      val bucket = cluster(cfg).bucket(bname)
+      bucketsRef.put(bname, bucket)
+      bucket.waitUntilReady(1.minutes)
+      bucket
+    }
   }
 
   def scope(cfg: CouchbaseConfig, bucketName: Option[String], scopeName: Option[String]): Scope = {
