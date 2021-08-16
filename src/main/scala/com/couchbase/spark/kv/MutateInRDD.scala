@@ -15,23 +15,23 @@
  */
 package com.couchbase.spark.kv
 
-import com.couchbase.client.scala.kv.{GetOptions, GetResult}
-import com.couchbase.spark.{DefaultConstants, Keyspace}
+import com.couchbase.client.scala.kv.{MutateInOptions, MutateInResult, MutateInSpec}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import org.apache.spark.{Partition, SparkContext, TaskContext}
+import com.couchbase.spark.{DefaultConstants, Keyspace}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 
-case class Get(id: String)
+case class MutateIn(id: String, specs: Seq[MutateInSpec])
 
-class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null)
-  extends RDD[GetResult](sc, Nil)
+class MutateInRDD(@transient private val sc: SparkContext, val docs: Seq[MutateIn], val keyspace: Keyspace, mutateInOptions: MutateInOptions = null)
+  extends RDD[MutateInResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[MutateInResult] = {
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
@@ -43,23 +43,23 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
     val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
-    val options = if (this.getOptions == null) {
-      GetOptions()
+    val options = if (this.mutateInOptions == null) {
+      MutateInOptions()
     } else {
-      this.getOptions
+      this.mutateInOptions
     }
 
-    logDebug(s"Performing bulk get fetch against ids $ids with options $options")
+    logDebug(s"Performing bulk MutateIn against docs $docs with options $options")
 
-    ids.map(id => collection.get(id.id, options).get).iterator
+    docs.map(doc => collection.mutateIn(doc.id, doc.specs, options).get).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.ids.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(docs.map(d => d.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for Get operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(s"Calculated KeyValuePartitions for MutateIn operation ${partitions.mkString("Array(", ", ", ")")}")
     partitions
   }
 

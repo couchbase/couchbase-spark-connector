@@ -15,23 +15,25 @@
  */
 package com.couchbase.spark.kv
 
-import com.couchbase.client.scala.kv.{GetOptions, GetResult}
+import com.couchbase.client.scala.codec.JsonSerializer
+import com.couchbase.client.scala.kv.{MutationResult, ReplaceOptions}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
-case class Get(id: String)
+case class Replace[T](id: String, content: T, cas: Long = 0)
 
-class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null)
-  extends RDD[GetResult](sc, Nil)
+class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Replace[T]], val keyspace: Keyspace,
+                val replaceOptions: ReplaceOptions = null)(implicit serializer: JsonSerializer[T])
+  extends RDD[MutationResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
@@ -43,23 +45,25 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
     val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
-    val options = if (this.getOptions == null) {
-      GetOptions()
+    val options = if (this.replaceOptions == null) {
+      ReplaceOptions()
     } else {
-      this.getOptions
+      this.replaceOptions
     }
 
-    logDebug(s"Performing bulk get fetch against ids $ids with options $options")
+    logDebug(s"Performing bulk replace against docs $docs with options $options")
 
-    ids.map(id => collection.get(id.id, options).get).iterator
+    docs.map(doc => {
+      collection.replace(doc.id, doc.content, options.cas(doc.cas)).get
+    }).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.ids.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for Get operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(s"Calculated KeyValuePartitions for Replace operation ${partitions.mkString("Array(", ", ", ")")}")
     partitions
   }
 

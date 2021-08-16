@@ -15,23 +15,23 @@
  */
 package com.couchbase.spark.kv
 
-import com.couchbase.client.scala.kv.{GetOptions, GetResult}
-import com.couchbase.spark.{DefaultConstants, Keyspace}
+import com.couchbase.client.scala.kv.{LookupInOptions, LookupInResult, LookupInSpec}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import org.apache.spark.{Partition, SparkContext, TaskContext}
+import com.couchbase.spark.{DefaultConstants, Keyspace}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 
-case class Get(id: String)
+case class LookupIn(id: String, specs: Seq[LookupInSpec])
 
-class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null)
-  extends RDD[GetResult](sc, Nil)
+class LookupInRDD(@transient private val sc: SparkContext, val docs: Seq[LookupIn], val keyspace: Keyspace, lookupInOptions: LookupInOptions = null)
+  extends RDD[LookupInResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[LookupInResult] = {
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
@@ -43,23 +43,23 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
     val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
-    val options = if (this.getOptions == null) {
-      GetOptions()
+    val options = if (this.lookupInOptions == null) {
+      LookupInOptions()
     } else {
-      this.getOptions
+      this.lookupInOptions
     }
 
-    logDebug(s"Performing bulk get fetch against ids $ids with options $options")
+    logDebug(s"Performing bulk LookupIn fetch against docs $docs with options $options")
 
-    ids.map(id => collection.get(id.id, options).get).iterator
+    docs.map(doc => collection.lookupIn(doc.id, doc.specs, options).get).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.ids.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(docs.map(d => d.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for Get operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(s"Calculated KeyValuePartitions for LookupIn operation ${partitions.mkString("Array(", ", ", ")")}")
     partitions
   }
 

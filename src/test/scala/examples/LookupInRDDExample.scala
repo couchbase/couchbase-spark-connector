@@ -15,17 +15,16 @@
  */
 package examples
 
-import com.couchbase.client.scala.json.JsonObject
-import com.couchbase.client.scala.kv.GetOptions
-import com.couchbase.spark.kv.Get
+import com.couchbase.client.scala.kv.LookupInSpec
+import com.couchbase.spark.kv.LookupIn
 import org.apache.spark.sql.SparkSession
 
-object GetRDDExample {
+object LookupInRDDExample {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession
       .builder()
       .master("local[*]")
-      .appName("Get RDD Example")
+      .appName("LookupIn RDD Example")
       .config("spark.couchbase.connectionString", "127.0.0.1")
       .config("spark.couchbase.username", "Administrator")
       .config("spark.couchbase.password", "password")
@@ -36,6 +35,8 @@ object GetRDDExample {
 
     spark
       .sparkContext
-      .couchbaseGet(Seq(Get("airline_10")), getOptions = GetOptions().withExpiry(true)).collect().foreach(r => println(r))
+      .couchbaseLookupIn(Seq(LookupIn("airline_10", Seq(LookupInSpec.get("name")))))
+      .collect()
+      .foreach(println)
   }
 }
