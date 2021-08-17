@@ -24,7 +24,7 @@ import com.couchbase.client.scala.env.ClusterEnvironment
 
 import java.util
 import scala.collection.mutable
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.collection.JavaConverters._
 
 class CouchbaseConnection extends Serializable {
@@ -60,7 +60,8 @@ class CouchbaseConnection extends Serializable {
             .environment(envRef.get)
         ).get)
 
-        clusterRef.get.waitUntilReady(1.minutes)
+        val waitUntilReadyTimeout = cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
+        clusterRef.get.waitUntilReady(waitUntilReadyTimeout)
       }
 
       clusterRef.get
@@ -75,7 +76,9 @@ class CouchbaseConnection extends Serializable {
       }
       val bucket = cluster(cfg).bucket(bname)
       bucketsRef.put(bname, bucket)
-      bucket.waitUntilReady(1.minutes)
+
+      val waitUntilReadyTimeout = cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
+      bucket.waitUntilReady(waitUntilReadyTimeout)
       bucket
     }
   }

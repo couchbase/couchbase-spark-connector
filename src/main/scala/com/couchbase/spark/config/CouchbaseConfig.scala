@@ -26,6 +26,7 @@ case class CouchbaseConfig(
   bucketName: Option[String],
   scopeName: Option[String],
   collectionName: Option[String],
+  waitUntilReadyTimeout: Option[String],
   properties: Seq[(String, String)]
 ) {
 
@@ -67,6 +68,7 @@ object CouchbaseConfig {
   private val BUCKET_NAME = PREFIX + "implicitBucket"
   private val SCOPE_NAME = PREFIX + "implicitScope"
   private val COLLECTION_NAME = PREFIX + "implicitCollection"
+  private val WAIT_UNTIL_READY_TIMEOUT = PREFIX + "waitUntilReadyTimeout"
 
   def apply(cfg: SparkConf): CouchbaseConfig = {
 
@@ -79,6 +81,7 @@ object CouchbaseConfig {
     val bucketName = cfg.getOption(BUCKET_NAME)
     val scopeName = cfg.getOption(SCOPE_NAME)
     val collectionName = cfg.getOption(COLLECTION_NAME)
+    val waitUntilReadyTimeout = cfg.getOption(WAIT_UNTIL_READY_TIMEOUT)
 
     val properties = cfg.getAllWithPrefix(PREFIX).toMap
     val filteredProperties = properties.filterKeys(key => {
@@ -88,8 +91,18 @@ object CouchbaseConfig {
         prefixedKey != CONNECTION_STRING &&
         prefixedKey != BUCKET_NAME &&
         prefixedKey != SCOPE_NAME &&
-        prefixedKey != COLLECTION_NAME
+        prefixedKey != COLLECTION_NAME &&
+        prefixedKey != WAIT_UNTIL_READY_TIMEOUT
     }).toSeq
-    CouchbaseConfig(connectionString, credentials, bucketName, scopeName, collectionName, filteredProperties)
+
+    CouchbaseConfig(
+      connectionString,
+      credentials,
+      bucketName,
+      scopeName,
+      collectionName,
+      waitUntilReadyTimeout,
+      filteredProperties
+    )
   }
 }
