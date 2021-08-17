@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark.search
 
+import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.scala.search.SearchOptions
 import com.couchbase.client.scala.search.queries.SearchQuery
 import com.couchbase.client.scala.search.result.SearchResult
@@ -22,7 +23,13 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import collection.JavaConverters._
 
+class SearchPartition(id: Int, loc: Seq[String]) extends Partition {
+  override def index: Int = id
+  def location: Seq[String] = loc
+  override def toString = s"SearchPartition($id, $loc)"
+}
 
 class SearchRDD(@transient private val sc: SparkContext, val indexName: String, val query: SearchQuery,
                 val searchOptions: SearchOptions = null)
@@ -45,8 +52,34 @@ class SearchRDD(@transient private val sc: SparkContext, val indexName: String, 
   }
 
   override protected def getPartitions: Array[Partition] = {
-    Array(SearchPartition(0))
+    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val config = core.clusterConfig()
+
+    val partitions = if (config.globalConfig() != null) {
+      Array(new SearchPartition(0, config
+        .globalConfig()
+        .portInfos()
+        .asScala
+        .filter(p => p.ports().containsKey(ServiceType.SEARCH))
+        .map(p => {
+          val aa = core.context().alternateAddress()
+          if (aa != null && aa.isPresent) {
+            p.alternateAddresses().get(aa.get()).hostname()
+          } else {
+            p.hostname()
+          }
+        })))
+    } else {
+      Array(new SearchPartition(0, Seq())
+      )
+    }
+
+    logDebug(s"Calculated SearchPartitions operation ${partitions.mkString("Array(", ", ", ")")}")
+
+    partitions.asInstanceOf[Array[Partition]]
   }
 
-  case class SearchPartition(index: Int) extends Partition()
+  override protected def getPreferredLocations(split: Partition): Seq[String] = {
+    split.asInstanceOf[SearchPartition].location
+  }
 }

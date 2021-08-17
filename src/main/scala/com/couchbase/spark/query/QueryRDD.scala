@@ -15,14 +15,22 @@
  */
 package com.couchbase.spark.query
 
+import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.scala.codec.JsonDeserializer
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import com.couchbase.client.scala.query.{QueryOptions => CouchbaseQueryOptions}
+import collection.JavaConverters._
 
 import scala.reflect.ClassTag
+
+class QueryPartition(id: Int, loc: Seq[String]) extends Partition {
+  override def index: Int = id
+  def location: Seq[String] = loc
+  override def toString = s"QueryPartition($id, $loc)"
+}
 
 class QueryRDD[T: ClassTag](
   @transient private val sc: SparkContext,
@@ -51,8 +59,35 @@ class QueryRDD[T: ClassTag](
   }
 
   override protected def getPartitions: Array[Partition] = {
-    Array(QueryPartition(0))
+    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val config = core.clusterConfig()
+
+    val partitions = if (config.globalConfig() != null) {
+      Array(new QueryPartition(0, config
+        .globalConfig()
+        .portInfos()
+        .asScala
+        .filter(p => p.ports().containsKey(ServiceType.QUERY))
+        .map(p => {
+          val aa = core.context().alternateAddress()
+          if (aa != null && aa.isPresent) {
+            p.alternateAddresses().get(aa.get()).hostname()
+          } else {
+            p.hostname()
+          }
+        })))
+    } else {
+      Array(new QueryPartition(0, Seq())
+      )
+    }
+
+    logDebug(s"Calculated QueryPartitions  operation ${partitions.mkString("Array(", ", ", ")")}")
+
+    partitions.asInstanceOf[Array[Partition]]
   }
 
-  case class QueryPartition(index: Int) extends Partition()
+  override protected def getPreferredLocations(split: Partition): Seq[String] = {
+    split.asInstanceOf[QueryPartition].location
+  }
+
 }

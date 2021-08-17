@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark.analytics
 
+import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.scala.codec.JsonDeserializer
 import com.couchbase.client.scala.analytics.{AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
@@ -23,6 +24,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 
 import scala.reflect.ClassTag
+import collection.JavaConverters._
+
+class AnalyticsPartition(id: Int, loc: Seq[String]) extends Partition {
+  override def index: Int = id
+  def location: Seq[String] = loc
+  override def toString = s"AnalyticsPartition($id, $loc)"
+}
 
 class AnalyticsRDD[T: ClassTag](
   @transient private val sc: SparkContext,
@@ -47,8 +55,35 @@ class AnalyticsRDD[T: ClassTag](
   }
 
   override protected def getPartitions: Array[Partition] = {
-    Array(AnalyticsPartition(0))
+    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val config = core.clusterConfig()
+
+    val partitions = if (config.globalConfig() != null) {
+      Array(new AnalyticsPartition(0, config
+        .globalConfig()
+        .portInfos()
+        .asScala
+        .filter(p => p.ports().containsKey(ServiceType.ANALYTICS))
+        .map(p => {
+          val aa = core.context().alternateAddress()
+          if (aa != null && aa.isPresent) {
+            p.alternateAddresses().get(aa.get()).hostname()
+          } else {
+            p.hostname()
+          }
+        })))
+    } else {
+      Array(new AnalyticsPartition(0, Seq())
+      )
+    }
+
+    logDebug(s"Calculated AnalyticsPartitions operation ${partitions.mkString("Array(", ", ", ")")}")
+
+    partitions.asInstanceOf[Array[Partition]]
   }
 
-  case class AnalyticsPartition(index: Int) extends Partition()
+  override protected def getPreferredLocations(split: Partition): Seq[String] = {
+    split.asInstanceOf[AnalyticsPartition].location
+  }
+
 }
