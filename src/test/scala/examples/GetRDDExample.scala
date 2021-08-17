@@ -15,7 +15,6 @@
  */
 package examples
 
-import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.kv.GetOptions
 import com.couchbase.spark.kv.Get
 import org.apache.spark.sql.SparkSession

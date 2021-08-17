@@ -25,7 +25,8 @@ case class CouchbaseConfig(
   credentials: Credentials,
   bucketName: Option[String],
   scopeName: Option[String],
-  collectionName: Option[String]
+  collectionName: Option[String],
+  properties: Seq[(String, String)]
 ) {
 
   def implicitBucketNameOr(explicitName: String): String = {
@@ -68,6 +69,7 @@ object CouchbaseConfig {
   private val COLLECTION_NAME = PREFIX + "implicitCollection"
 
   def apply(cfg: SparkConf): CouchbaseConfig = {
+
     val connectionString = cfg.get(CONNECTION_STRING)
 
     val username = cfg.get(USERNAME)
@@ -78,6 +80,16 @@ object CouchbaseConfig {
     val scopeName = cfg.getOption(SCOPE_NAME)
     val collectionName = cfg.getOption(COLLECTION_NAME)
 
-    CouchbaseConfig(connectionString, credentials, bucketName, scopeName, collectionName)
+    val properties = cfg.getAllWithPrefix(PREFIX).toMap
+    val filteredProperties = properties.filterKeys(key => {
+      val prefixedKey = PREFIX + key
+      prefixedKey != USERNAME &&
+        prefixedKey != PASSWORD &&
+        prefixedKey != CONNECTION_STRING &&
+        prefixedKey != BUCKET_NAME &&
+        prefixedKey != SCOPE_NAME &&
+        prefixedKey != COLLECTION_NAME
+    }).toSeq
+    CouchbaseConfig(connectionString, credentials, bucketName, scopeName, collectionName, filteredProperties)
   }
 }

@@ -16,14 +16,16 @@
 
 package com.couchbase.spark.config
 
+import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment, PropertyLoader}
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.ClusterEnvironment
 
+import java.util
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
-
+import scala.collection.JavaConverters._
 
 class CouchbaseConnection extends Serializable {
 
@@ -44,7 +46,9 @@ class CouchbaseConnection extends Serializable {
   def cluster(cfg: CouchbaseConfig): Cluster = {
     this.synchronized {
       if (envRef.isEmpty) {
-        val builder = ClusterEnvironment.builder
+        val builder = ClusterEnvironment
+          .builder
+          .loaders(Seq(new SparkPropertyLoader(cfg.properties)))
         envRef = Option(builder.build.get)
       }
 
@@ -142,4 +146,10 @@ object CouchbaseConnection {
 
   def apply() = connection
 
+}
+
+class SparkPropertyLoader(properties: Seq[(String, String)]) extends AbstractMapPropertyLoader[CoreEnvironment.Builder[_]]{
+  override def propertyMap(): util.Map[String, String] = {
+    properties.toMap.asJava
+  }
 }
