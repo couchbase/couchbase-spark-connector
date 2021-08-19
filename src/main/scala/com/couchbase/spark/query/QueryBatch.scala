@@ -16,15 +16,39 @@
 
 package com.couchbase.spark.query
 
-import com.couchbase.spark.config.CouchbaseConfig
+import com.couchbase.client.core.service.ServiceType
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import collection.JavaConverters._
 
 class QueryBatch(schema: StructType, conf: CouchbaseConfig, readConfig: QueryReadConfig, filters: Array[Filter]) extends Batch {
 
-  override def planInputPartitions(): Array[InputPartition] = Array(new QueryInputPartition(schema, filters))
+  override def planInputPartitions(): Array[InputPartition] = {
+    val core = CouchbaseConnection().cluster(conf).async.core
+    val config = core.clusterConfig()
+
+    val locations = if (config.globalConfig() != null) {
+      config
+        .globalConfig()
+        .portInfos()
+        .asScala
+        .filter(p => p.ports().containsKey(ServiceType.QUERY))
+        .map(p => {
+          val aa = core.context().alternateAddress()
+          if (aa != null && aa.isPresent) {
+            p.alternateAddresses().get(aa.get()).hostname()
+          } else {
+            p.hostname()
+          }
+        }).toArray
+    } else {
+      Array[String]()
+    }
+
+    Array(new QueryInputPartition(schema, filters, locations))
+  }
 
   override def createReaderFactory(): PartitionReaderFactory = new QueryPartitionReaderFactory(conf, readConfig)
 }

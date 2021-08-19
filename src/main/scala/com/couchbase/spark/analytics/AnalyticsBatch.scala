@@ -16,14 +16,39 @@
 
 package com.couchbase.spark.analytics
 
-import com.couchbase.spark.config.CouchbaseConfig
+import com.couchbase.client.core.service.ServiceType
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
+import collection.JavaConverters._
 
 class AnalyticsBatch(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig, filters: Array[Filter]) extends Batch {
 
-  override def planInputPartitions(): Array[InputPartition] = Array(new AnalyticsInputPartition(schema, filters))
+  override def planInputPartitions(): Array[InputPartition] = {
+    val core = CouchbaseConnection().cluster(conf).async.core
+    val config = core.clusterConfig()
+
+    val locations = if (config.globalConfig() != null) {
+      config
+        .globalConfig()
+        .portInfos()
+        .asScala
+        .filter(p => p.ports().containsKey(ServiceType.ANALYTICS))
+        .map(p => {
+          val aa = core.context().alternateAddress()
+          if (aa != null && aa.isPresent) {
+            p.alternateAddresses().get(aa.get()).hostname()
+          } else {
+            p.hostname()
+          }
+        }).toArray
+    } else {
+      Array[String]()
+    }
+
+    Array(new AnalyticsInputPartition(schema, filters, locations))
+  }
 
   override def createReaderFactory(): PartitionReaderFactory = new AnalyticsPartitionReaderFactory(conf, readConfig)
 }

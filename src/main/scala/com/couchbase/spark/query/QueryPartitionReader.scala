@@ -28,8 +28,6 @@ import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.query.{QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
 
-import scala.util.matching.Regex
-
 class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: QueryReadConfig, filters: Array[Filter])
   extends PartitionReader[InternalRow]
   with Logging {

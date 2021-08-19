@@ -19,4 +19,6 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 
-class QueryInputPartition(val schema: StructType, val filters: Array[Filter]) extends InputPartition {}
+class QueryInputPartition(val schema: StructType, val filters: Array[Filter], val locations: Array[String]) extends InputPartition {
+  override def preferredLocations(): Array[String] = locations
+}
