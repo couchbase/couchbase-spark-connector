@@ -17,9 +17,10 @@
 package com.couchbase.spark.query
 
 import com.couchbase.spark.DefaultConstants
-import org.apache.spark.sql.connector.catalog.{SupportsRead, TableCapability}
+import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, TableCapability}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.ScanBuilder
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -42,7 +43,11 @@ class QueryTable(schema: StructType, partitioning: Array[Transform], properties:
   override def partitioning(): Array[Transform] = partitioning
   override def properties(): util.Map[String, String] = properties
   override def capabilities(): util.Set[TableCapability] =
-    util.Set.of[TableCapability](TableCapability.BATCH_READ)
+    util.Set.of[TableCapability](
+      TableCapability.BATCH_READ,
+      TableCapability.V1_BATCH_WRITE,
+      TableCapability.ACCEPT_ANY_SCHEMA
+    )
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
     new QueryScanBuilder(schema, readConfig)
 
