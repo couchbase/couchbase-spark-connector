@@ -17,10 +17,12 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.core.error.DocumentExistsException
 import com.couchbase.client.scala.codec.RawJsonTranscoder
+import com.couchbase.client.scala.durability.Durability
 import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.kv.{InsertOptions, UpsertOptions}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.query.QueryOptions
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
@@ -58,6 +60,7 @@ class KeyValueTableProvider extends Logging with DataSourceRegister with Creatab
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
       conf.implicitCollectionName(properties.get(KeyValueOptions.Collection)),
       Option(properties.get(KeyValueOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
+      Option(properties.get(KeyValueOptions.Durability))
     )
   }
 
@@ -83,16 +86,24 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
       .scope(scopeName)
       .collection(collectionName)
 
+    val durability = writeConfig.durability match {
+      case Some(v) if v == KeyValueOptions.MajorityDurability => Durability.Majority
+      case Some(v) if v == KeyValueOptions.MajorityAndPersistToActiveDurability => Durability.MajorityAndPersistToActive
+      case Some(v) if v == KeyValueOptions.PersistToMajorityDurability => Durability.PersistToMajority
+      case None => Durability.Disabled
+      case d => throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
+    }
+
     SFlux
       .fromIterable(keyValues)
       .flatMap(v => {
         mode match {
           case SaveMode.Overwrite =>
-            coll.reactive.upsert(v._1, v._2, UpsertOptions().transcoder(RawJsonTranscoder.Instance))
+            coll.reactive.upsert(v._1, v._2, UpsertOptions().durability(durability).transcoder(RawJsonTranscoder.Instance))
           case SaveMode.ErrorIfExists =>
-            coll.reactive.insert(v._1, v._2, InsertOptions().transcoder(RawJsonTranscoder.Instance))
+            coll.reactive.insert(v._1, v._2, InsertOptions().durability(durability).transcoder(RawJsonTranscoder.Instance))
           case SaveMode.Ignore =>
-            coll.reactive.insert(v._1, v._2, InsertOptions().transcoder(RawJsonTranscoder.Instance)).onErrorResume(t => {
+            coll.reactive.insert(v._1, v._2, InsertOptions().durability(durability).transcoder(RawJsonTranscoder.Instance)).onErrorResume(t => {
               if (t.isInstanceOf[DocumentExistsException]) {
                 SMono.empty
               } else {

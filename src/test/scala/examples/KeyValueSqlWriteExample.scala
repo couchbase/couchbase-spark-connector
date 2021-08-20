@@ -15,6 +15,7 @@
  */
 package examples
 
+import com.couchbase.spark.kv.KeyValueOptions
 import com.couchbase.spark.query.QueryOptions
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
@@ -37,7 +38,8 @@ object KeyValueSqlWriteExample {
       .limit(5)
 
     airlines.write.format("couchbase.kv")
-      .option(QueryOptions.Bucket, "test")
+      .option(KeyValueOptions.Bucket, "test")
+      .option(KeyValueOptions.Durability, KeyValueOptions.MajorityDurability)
       .mode(SaveMode.Ignore)
       .save()
   }

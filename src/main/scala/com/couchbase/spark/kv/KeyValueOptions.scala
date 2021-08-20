@@ -48,4 +48,26 @@ object KeyValueOptions {
    */
   val IdFieldName = "idFieldName"
 
+  /**
+   * Option key: The durability level of write operations, used to override the default.
+   *
+   * The default is "none", so no durability applied on write operations.
+   */
+  val Durability = "durability"
+
+  /**
+   * Option value: Majority Durability - to be used with [[Durability]] as the key.
+   */
+  val MajorityDurability = "majority"
+
+  /**
+   * Option value: Majority And Persist To Active Durability - to be used with [[Durability]] as the key.
+   */
+  val MajorityAndPersistToActiveDurability = "majorityAndPersistToActive"
+
+  /**
+   * Option value: Persist To Majority Durability - to be used with [[Durability]] as the key.
+   */
+  val PersistToMajorityDurability = "PersistToMajority"
+
 }
