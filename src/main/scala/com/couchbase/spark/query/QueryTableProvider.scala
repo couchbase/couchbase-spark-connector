@@ -194,7 +194,7 @@ class RelationPartitionWriter(writeConfig: QueryWriteConfig, couchbaseConfig: Co
     } catch {
       case e: DmlFailureException =>
         if (mode == SaveMode.Ignore) {
-          logWarning("Failed to run query, but ignoring because of SaveMode.Ignore: ", e)
+          logDebug("Failed to run query, but ignoring because of SaveMode.Ignore: ", e)
         } else {
           throw e
         }

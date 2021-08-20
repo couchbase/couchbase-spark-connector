@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.couchbase
+package com.couchbase.spark.kv
 
-import org.apache.spark.SparkContext
-
-package object spark {
-  implicit def toSparkContextFunctions(sc: SparkContext): SparkContextFunctions =
-    new SparkContextFunctions(sc)
-}
+case class KeyValueWriteConfig(
+ bucket: String,
+ scope: Option[String],
+ collection: Option[String],
+ idFieldName: String,
+)
