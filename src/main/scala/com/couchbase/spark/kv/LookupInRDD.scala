@@ -21,6 +21,7 @@ import com.couchbase.spark.{DefaultConstants, Keyspace}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
+import reactor.core.scala.publisher.SFlux
 
 case class LookupIn(id: String, specs: Seq[LookupInSpec])
 
@@ -32,6 +33,7 @@ class LookupInRDD(@transient private val sc: SparkContext, val docs: Seq[LookupI
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[LookupInResult] = {
+    val partition = split.asInstanceOf[KeyValuePartition]
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
@@ -42,16 +44,22 @@ class LookupInRDD(@transient private val sc: SparkContext, val docs: Seq[LookupI
       .implicitCollectionName(this.keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
-    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
+    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName).reactive
     val options = if (this.lookupInOptions == null) {
       LookupInOptions()
     } else {
       this.lookupInOptions
     }
 
-    logDebug(s"Performing bulk LookupIn fetch against docs $docs with options $options")
+    logDebug(s"Performing bulk LookupIn fetch against ids ${partition.ids} with options $options")
 
-    docs.map(doc => collection.lookupIn(doc.id, doc.specs, options).get).iterator
+    SFlux
+      .fromIterable(docs)
+      .filter(doc => partition.ids.contains(doc.id))
+      .flatMap(doc => collection.lookupIn(doc.id, doc.specs, options))
+      .collectSeq()
+      .block()
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {

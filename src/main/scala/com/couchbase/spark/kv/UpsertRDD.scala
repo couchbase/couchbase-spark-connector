@@ -22,6 +22,7 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import reactor.core.scala.publisher.SFlux
 
 case class Upsert[T](id: String, content: T)
 
@@ -34,6 +35,7 @@ class UpsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Upsert
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
+    val partition = split.asInstanceOf[KeyValuePartition]
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
@@ -44,16 +46,22 @@ class UpsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Upsert
       .implicitCollectionName(this.keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
-    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
+    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName).reactive
     val options = if (this.upsertOptions == null) {
       UpsertOptions()
     } else {
       this.upsertOptions
     }
 
-    logDebug(s"Performing bulk upsert against docs $docs with options $options")
+    logDebug(s"Performing bulk upsert against ids ${partition.ids} with options $options")
 
-    docs.map(doc => collection.upsert(doc.id, doc.content, options).get).iterator
+    SFlux
+      .fromIterable(docs)
+      .filter(doc => partition.ids.contains(doc.id))
+      .flatMap(doc => collection.upsert(doc.id, doc.content, options))
+      .collectSeq()
+      .block()
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {

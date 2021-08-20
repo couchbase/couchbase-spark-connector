@@ -35,6 +35,8 @@ object GetRDDExample {
 
     spark
       .sparkContext
-      .couchbaseGet(Seq(Get("airline_10")), getOptions = GetOptions().withExpiry(true)).collect().foreach(r => println(r))
+      .couchbaseGet(Seq(Get("airline_10"), Get("airline_10642"), Get("airline_10748")))
+      .collect()
+      .foreach(println)
   }
 }

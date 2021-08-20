@@ -21,6 +21,7 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import reactor.core.scala.publisher.SFlux
 
 case class Get(id: String)
 
@@ -32,6 +33,8 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
+    val partition = split.asInstanceOf[KeyValuePartition]
+
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
@@ -42,16 +45,21 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
       .implicitCollectionName(this.keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
-    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
+    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName).reactive
     val options = if (this.getOptions == null) {
       GetOptions()
     } else {
       this.getOptions
     }
 
-    logDebug(s"Performing bulk get fetch against ids $ids with options $options")
+    logDebug(s"Performing bulk get fetch against ids ${partition.ids} with options $options")
 
-    ids.map(id => collection.get(id.id, options).get).iterator
+    SFlux
+      .fromIterable(partition.ids)
+      .flatMap(id => collection.get(id, options))
+      .collectSeq()
+      .block()
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {

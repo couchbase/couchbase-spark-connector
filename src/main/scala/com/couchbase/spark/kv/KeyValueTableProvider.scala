@@ -26,7 +26,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, DataSourceRegister}
 import org.apache.spark.sql.types.StructType
-import reactor.core.publisher.Flux
 import reactor.core.scala.publisher.{SFlux, SMono}
 
 import scala.collection.JavaConverters._
@@ -78,7 +77,11 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
       (id, decoded.toString)
     }).toList
 
-    val coll = CouchbaseConnection().cluster(couchbaseConfig).bucket(writeConfig.bucket).scope(scopeName).collection(collectionName)
+    val coll = CouchbaseConnection()
+      .cluster(couchbaseConfig)
+      .bucket(writeConfig.bucket)
+      .scope(scopeName)
+      .collection(collectionName)
 
     SFlux
       .fromIterable(keyValues)

@@ -22,6 +22,7 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import reactor.core.scala.publisher.SFlux
 
 case class Replace[T](id: String, content: T, cas: Long = 0)
 
@@ -34,6 +35,7 @@ class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Repla
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
+    val partition = split.asInstanceOf[KeyValuePartition]
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(globalConfig)
 
@@ -44,18 +46,22 @@ class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Repla
       .implicitCollectionName(this.keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
-    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName)
+    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName).reactive
     val options = if (this.replaceOptions == null) {
       ReplaceOptions()
     } else {
       this.replaceOptions
     }
 
-    logDebug(s"Performing bulk replace against docs $docs with options $options")
+    logDebug(s"Performing bulk replace against ids ${partition.ids} with options $options")
 
-    docs.map(doc => {
-      collection.replace(doc.id, doc.content, options.cas(doc.cas)).get
-    }).iterator
+    SFlux
+      .fromIterable(docs)
+      .filter(doc => partition.ids.contains(doc.id))
+      .flatMap(doc => collection.replace(doc.id, doc.content, options.cas(doc.cas)))
+      .collectSeq()
+      .block()
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
