@@ -7,13 +7,13 @@ To get started with the Couchbase Spark connector quickly, learn how to add the 
 
 == Quickstart
 
-Because most people using Spark are in the Scala ecosystem, the following examples use Scala and its sbt dependency manager.
+The following examples use Scala and its sbt dependency manager, but it is possible to use it through Maven/Gradle as well and from Java.
 
 Create a new sbt project and add the following content to the `build.sbt` file.
 This code includes all the Spark dependencies, as well as the Couchbase Spark connector.
 Just enough to get you started!
 
-Here is a reference to the http://docs.couchbase.com/sdk-api/couchbase-spark-connector-2.4.1/[Scala docs^].
+Here is a reference to the http://docs.couchbase.com/sdk-api/couchbase-spark-connector-3.0.0/[Scala docs^].
 
 [source,scala]
 ----
@@ -23,13 +23,12 @@ organization := "my.organization"
 
 version := "1.0.0-SNAPSHOT"
 
-scalaVersion := "2.12.10"
+scalaVersion := "2.12.14"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.4.5",
-  "org.apache.spark" %% "spark-streaming" % "2.4.5",
-  "org.apache.spark" %% "spark-sql" % "2.4.5",
-  "com.couchbase.client" %% "spark-connector" % "2.4.1"
+  "org.apache.spark" %% "spark-core" % "3.0.3",
+  "org.apache.spark" %% "spark-sql" % "3.0.3",
+  "com.couchbase.client" %% "spark-connector" % "3.0.0"
 )
 ----
 
@@ -46,188 +45,115 @@ object Quickstart {
 }
 ----
 
-If you are not familiar with Scala, this is more or less the equivalent to Java's `public static void main(String[] args)` method.
-Because empty methods make the compiler sad, fill it with proper code now.
+If you are not familiar with Scala, this is the equivalent to Java's `public static void main(String[] args)` method. The following code goes inside the `main` body.
 
-When it comes to Spark, you always need to set up a configuration and initialize the `SparkSession` (or as in pre-2.0 versions the `SparkContext` directly) object.
-The following snippet does that and also instructs the Couchbase Spark connector to open a bucket in the background.
+When it comes to Spark, you always need to set up a configuration and initialize the `SparkSession`.
+The following snippet does that and also provides the necessary properties to connect to the Couchbase cluster. Please adjust the values to fit your environment.
 
 [source,scala]
 ----
-// Configure Spark
+// Configure the Spark Session
 val spark = SparkSession
-      .builder()
-      .appName("KeyValueExample")
-      .master("local[*]") // use the JVM as the master, great for testing
-      .config("spark.couchbase.nodes", "127.0.0.1") // connect to Couchbase Server on localhost
-      .config("spark.couchbase.username", "Administrator") // with given credentials
-      .config("spark.couchbase.password", "password")
-      .config("spark.couchbase.bucket.travel-sample", "") // open the travel-sample bucket
-      .getOrCreate()
-
-// The SparkContext for easy access
-val sc = spark.sparkContext
+  .builder()
+  .appName("Couchbase Quickstart")
+  .master("local") // use the JVM as the master, great for testing
+  .config("spark.couchbase.connectionString", "127.0.0.1")
+  .config("spark.couchbase.username", "username")
+  .config("spark.couchbase.password", "password")
+  .getOrCreate()
 ----
 
-By default, the Spark Connector connects to the `default` bucket.
-However, this example uses actual data from the `travel-sample` bucket that ships with Couchbase Server, so the code connects to that bucket.
-The Couchbase Spark connector also supports opening more buckets in parallel.
+In this configuration, we are using the JVM-local spark master to run our jobs. The Couchbase cluster is located on our local machine (`127.0.0.1`) and we use the user `username` with a password of `password`.
 
-== Creating a JAR for use with spark-submit
-
-By compiling the application into a JAR file, it can be run with the standard Spark tool `spark-submit`.
-
-In this case, the Spark dependencies can be declared as `provided`, as they will be supplied by `spark-submit`:
-
-[source,scala]
-----
-name := "my-first-couchbase-spark-project"
-
-organization := "my.organization"
-
-version := "1.0.0-SNAPSHOT"
-
-scalaVersion := "2.12.8"
-
-libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.4.0" % "provided",
-  "org.apache.spark" %% "spark-streaming" % "2.4.0" % "provided",
-  "org.apache.spark" %% "spark-sql" % "2.4.0" % "provided",
-  "com.couchbase.client" %% "spark-connector" % "2.4.0"
-)
-----
-
-`spark-submit` allows the Spark session's configuration to be supplied on the command line, so the Quickstart example above can be simplified to:
-
-[source,scala]
-----
-// Configure Spark
-val spark = SparkSession
-      .builder()
-      .appName("KeyValueExample")
-      .getOrCreate()
-----
-
-The next step is to build a "`fat JAR`" containing all the application's dependencies so it can easily be run with `spark-submit`.
-One good option is to use the https://github.com/sbt/sbt-assembly[sbt-assembly plugin^].
-
-Finally, the created JAR can be run, supplying the required Couchbase configuration options:
-
-[source,bash]
-----
-spark-submit --master local[*]
-                     --conf spark.couchbase.username=Administrator
-                     --conf spark.couchbase.password=password
-                     --conf spark.couchbase.bucket.travel-sample=""
-                     --class Quickstart target/scala-2.11/quickstart-assembly-0.1.jar
-----
+NOTE: to showcase different APIs, the following examples us the `Keyspace` explicitly. It is also possible to configure an implicit bucket, scope etc. through the configuration properties. See the configuration documentation for more information.
 
 == Creating and saving RDDs
 
-Now that the `SparkContext` is created, you can perform operations against Couchbase.
-A common scenario is to create resilient distributed datasets (RDDs) out of documents stored in Couchbase.
-The easiest one is probably by passing in Document IDs as strings.
+The fundamental data type in spark is the RDD (Resilient Distributed Dataset). The Couchbase Spark connector allows you to read and write RDDs against the cluster.
 
-Before getting further into the actual code, make sure to have the following items imported, because otherwise the implicit methods won't be available.
+Add the following line to your code so that all couchbase-specific methods are available on the `SparkContext`:
 
 [source,scala]
 ----
 import com.couchbase.spark._
 ----
 
-Use the `couchbaseGet` method on the `SparkContext` to fetch documents from Couchbase and create an RDD.
+There are different APIs for each service (KeyValue, Query, etc) available, and one of the most used ones is fetching documents. This can be achieved by using `couchbaseGet`:
 
 [source,scala]
 ----
-sc
-	.couchbaseGet[JsonDocument](Seq("airline_10123", "airline_10748"))
-	.collect()
-	.foreach(println)
+// Imports needed, but let your IDE handle that!
+import com.couchbase.client.scala.json.JsonObject
+import com.couchbase.spark.kv.Get
+
+// IDs of all documents we want to fetch
+val ids = Seq(Get("airline_10"), Get("airline_10642"), Get("airline_10748"))
+
+// The bucket from which we want to fetch the keys
+val keyspace = Keyspace(bucket = Some("travel-sample"))
+
+spark
+  // access the spark context
+  .sparkContext
+  // perform the get with ids and keyspace
+  .couchbaseGet(ids, keyspace)
+  // collect all spark results back to the master
+  .collect()
+  // print the content from each GetResult
+  .foreach(getResult => println(getResult.contentAs[JsonObject].get))
 ----
 
-Make sure to specify which document type you want (in this case, a `JsonDocument`).
-If you forget to specify the document type, an exception is thrown because the connector does not know what format to use for the results.
-Then call [.api]`collect()` to aggregate the results and print them out to the command line.
+First, the IDs we want to fetch are specified (and wrapped in `Get` case classes). Then, the `Keyspace` tells the command where to look for the data. In this case, we tell it to use the `travel-sample` bucket. Note that if you do not provide a scope or collection, the default ones are assumed. This way, the code is compatible with Couchbase Server versions before 7.0, but also with newer ones.
 
-Spark outputs lots of information, so you'll find the output somewhere in the logs:
+For each ID that has been found, a `GetResult` is returned, which is the same one as that would get returned from the Scala SDK directly. In the example above, the content is printed and turned into a generic `JsonObject`.
+
+Spark by default is very verbose in its logging, but looking towards the end of the execution you should see logs similar to this:
 
 [source,json]
 ----
-JsonDocument{id='airline_10748', cas=314538279043072, expiry=0, content={"country":"United States","iata":"ZQ","name":"Locair","callsign":"LOCAIR","icao":"LOC","id":10748,"type":"airline"}}
-JsonDocument{id='airline_10123', cas=314538278125568, expiry=0, content={"country":"United States","iata":"TQ","name":"Texas Wings","callsign":"TXW","icao":"TXW","id":10123,"type":"airline"}}
+{"country":"United States","iata":"Q5","name":"40-Mile Air","callsign":"MILE-AIR","icao":"MLA","id":10,"type":"airline"}
+{"country":"United Kingdom","iata":null,"name":"Jc royal.britannica","callsign":null,"icao":"JRB","id":10642,"type":"airline"}
+{"country":"United States","iata":"ZQ","name":"Locair","callsign":"LOCAIR","icao":"LOC","id":10748,"type":"airline"}
 ----
 
-But since just loading data is half the fun, the connector also provides a convenient way to save documents.
-The following code loads documents like before, but then modifies its contents and ID before saving it back.
-You can imagine taking any kind of data source, mapping them to documents and just storing them back in Couchbase.
+The connector also allows to save RDDs as documents.
+
+The following code loads documents from the `travel-sample` bucket and then writes them into a different bucket. The same approach works for all kinds of RDDs, they could also come from different datasources.
 
 [source,scala]
 ----
-sc
-  .couchbaseGet[JsonDocument](Seq("airline_10123", "airline_10748"))
-  .map(oldDoc => {
-    val id = "my_" + oldDoc.id()
-    val content = JsonObject.create().put("name", oldDoc.content().getString("name"))
-    JsonDocument.create(id, content)
-  })
-  .saveToCouchbase()
+// IDs of all documents we want to fetch
+val ids = Seq(Get("airline_10"), Get("airline_10642"), Get("airline_10748"))
+
+// The bucket from where and into where we want to read/write
+val fromKeyspace = Keyspace(bucket = Some("travel-sample"))
+val toKeyspace = Keyspace(bucket = Some("foo"))
+
+spark
+  .sparkContext
+  // Retrieve the documents by ID
+  .couchbaseGet(ids, fromKeyspace)
+  // Turn the results into an "Upsert" case class...
+  .map(getResult => Upsert(getResult.id, getResult.contentAs[JsonObject].get))
+  // Which is accepted by the couchbaseUpsert method to store the documents
+  .couchbaseUpsert(toKeyspace)
+  .collect()
+  .foreach(println)
 ----
 
-We utilize the `saveToCouchbase()` method available on our RDD to store a modified version of our original `JsonDocument`.
-Go find your modified document in the Couchbase Server UI! Look for `"my_airline_10123"` which will just have the name of the airline as its content.
+The `println` this time will show the results of the mutations, returning the Scala SDK's `MutationResult` for each successful mutation.
 
-Congratulations! You've successfully performed your first ETL job (extract-transform-load) using Couchbase and Spark.
-Next up is a whirlwind tour of N1QL and Spark DataFrames.
+Next up is an introduction into Query/Analytics and DataFrames.
 
-== Accessing a Couchbase Bucket
+== Working with SparkSQL and DataFrames
 
-In the Couchbase Java client, operations are performed against the Couchbase cluster using a Bucket object.
-Generally developers will not need direct access to this Bucket, as the Spark connector provides its own methods to
-perform operations against the cluster.  But if required, a Bucket can be obtained like this:
-
-[source,scala]
-----
-val cbConfig = CouchbaseConfig(spark.sparkContext.getConf)
-val bucket: Bucket = CouchbaseConnection().bucket(cbConfig, BUCKET_NAME)
-----
-
-This must have been specified earlier while configuring the SparkContext, e.g. with a
-`.config("spark.couchbase.bucket." + BUCKET_NAME, "")`.
-
-== Working with DataFrames
-
-DataFrames were introduced in Spark 1.3 and have matured even further in Spark 1.4.
-The nature of the queries fits very well with what Couchbase N1QL provides.
-
-NOTE: To try this, you need Couchbase Server version 4.0 or later.
+DataFrames, in its essence, are RDDs with a Schema. They are represented in the SparkSQL `Row` type.
 
 NOTE: You need to at least have a primary index created on the `travel-sample` bucket to make the following examples work.
 If you haven't done already, perform a `pass:c[CREATE PRIMARY INDEX ON `travel-sample`]` query.
 
-In older Spark versions you had to create a `SQLContext` like this:
-
-[source,scala]
-----
-val sql = new SQLContext(sc)
-----
-
-But if you are using the `SparkSession` you can access most of the methods directly from it.
-Note that you can also always get the `SQLContext` out of the session via:
-
-[source,scala]
-----
-val sql = spark.sqlContext
-----
-
-Also, don't forget the Couchbase imports again for all the automatic method goodness:
-
-[source,scala]
-----
-import com.couchbase.spark.sql._
-----
-
 Because a `DataFrame` is like an `RDD` but with a schema and Couchbase is a schemaless database at its heart, you need a way to either define or infer a schema.
-The connector has built-in schema inference, but if you have a large or diverse data set, you need to give it some clues on filtering.
+The connector has built-in schema inference, but if you have a large or diverse data set, you need to give it some clues on filtering (or use scopes and collections with Server 7.0 and later).
 
 Suppose you want a `DataFrame` for all airlines, and you know that the JSON content has a `type` field with the value `airline`.
 You can pass this information to the connector for automatic schema inference:
@@ -235,7 +161,10 @@ You can pass this information to the connector for automatic schema inference:
 [source,scala]
 ----
 // Create a DataFrame with Schema Inference
-val airlines = sql.read.couchbase(schemaFilter = EqualTo("type", "airline"))
+val airlines = spark.read.format("couchbase.query")
+    .option(QueryOptions.Filter, "type = 'airline'")
+    .option(QueryOptions.Bucket, "travel-sample")
+    .load()
 
 // Print The Schema
 airlines.printSchema()
@@ -243,9 +172,10 @@ airlines.printSchema()
 
 The code automatically infers the schema and prints it in this format:
 
-....
+[source]
+----
 root
- |-- META_ID: string (nullable = true)
+ |-- __META_ID: string (nullable = true)
  |-- callsign: string (nullable = true)
  |-- country: string (nullable = true)
  |-- iata: string (nullable = true)
@@ -253,57 +183,116 @@ root
  |-- id: long (nullable = true)
  |-- name: string (nullable = true)
  |-- type: string (nullable = true)
-....
+----
+
+If you are using collections, something similar can be achieved without having to add the filter (since the `airline` collection only contains airlines in the first place):
+
+[source,scala]
+----
+val airlines = spark.read.format("couchbase.query")
+  .option(QueryOptions.Bucket, "travel-sample")
+  .option(QueryOptions.Scope, "inventory")
+  .option(QueryOptions.Collection, "airline")
+  .load()
+----
 
 Next you can perform an actual query where you are interested only in the `name` and `callsign`.
 This example sorts it by the `callsign` and loads only the first 10 rows.
 
 [source,scala]
 ----
+// Used for the $-sign to name a column
+import spark.sqlContext.implicits._
+
 airlines
   .select("name", "callsign")
-  .sort(df("callsign").desc)
+  .sort($"name".asc)
   .show(10)
 ----
 
 The code prints the results on the console like this:
 
-....
-+-------+--------------------+
-|   name|            callsign|
-+-------+--------------------+
-|   EASY|             easyJet|
-|   BABY|             bmibaby|
-|MIDLAND|                 bmi|
-|   null|          Yellowtail|
-|   null|               XOJET|
-|STARWAY|   XL Airways France|
-|   XAIR|            XAIR USA|
-|  WORLD|       World Airways|
-|WESTERN|    Western Airlines|
-|   RUBY|Vision Airlines (V2)|
-+-------+--------------------+
-....
+[source]
+----
++--------------------+-----------+
+|                name|   callsign|
++--------------------+-----------+
+|         40-Mile Air|   MILE-AIR|
+|         AD Aviation|  FLIGHTVUE|
+|        ATA Airlines|     AMTRAN|
+|          Access Air|    CYCLONE|
+|          Aigle Azur| AIGLE AZUR|
+|         Air Austral|    REUNION|
+|Air Caledonie Int...|   AIRCALIN|
+|       Air CaraÃ¯bes|FRENCH WEST|
+|  Air Cargo Carriers|NIGHT CARGO|
+|          Air Cudlua|     Cudlua|
++--------------------+-----------+
+only showing top 10 rows
+----
 
 == Working with Datasets
 
-Spark 1.6 introduces Datasets, a typesafe way to work on top of Spark SQL.
-Since they are built on top of DataFrames, using them with Couchbase is easy.
+A Dataset is a distributed collection of data. `Dataset` is a new interface added in Spark 1.6 that provides the benefits of RDDs (strong typing, ability to use powerful lambda functions) with the benefits of Spark SQL’s optimized execution engine.
 
 The following example creates a Dataset out of a Dataframe and maps it to a case class.
 It then uses the case class to extract fields out of the result set in a typesafe way:
 
 [source,scala]
 ----
-// Spark SQL Setup
-val spark: SparkSession = .... /*setup your spark session as usual*/
+// Create a DataFrame with Schema Inference
+val airlines = spark.read.format("couchbase.query")
+  //.option(QueryOptions.Filter, "type = 'airline'")
+  .option(QueryOptions.Bucket, "travel-sample")
+  .option(QueryOptions.Scope, "inventory")
+  .option(QueryOptions.Collection, "airline")
+  .load()
+
+// Contains the Encoder
 import spark.implicits._
 
-val airlines = sql.read.couchbase(schemaFilter = EqualTo("type", "airline")).as[Airline]
+// Create a Dataset from the DataFrame
+val airlinesDS = airlines.as[Airline]
+airlinesDS
+  .limit(10)
+  .collect()
+  .foreach(println)
+----
 
-// Print schema
-airlines.printSchema()
+The `Airline` case class itself is defined outside of the main object:
 
-// Print airlines that start with A
-println(airlines.map(_.name).filter(_.toLowerCase.startsWith("a")).foreach(println(_)))
+[source,scala]
+----
+case class Airline(name: String, country: String)
+----
+
+When run, this should print:
+
+[source]
+----
+Airline(40-Mile Air,United States)
+Airline(Texas Wings,United States)
+Airline(Atifly,United States)
+Airline(Jc royal.britannica,United Kingdom)
+Airline(Locair,United States)
+Airline(SeaPort Airlines,United States)
+Airline(Alaska Central Express,United States)
+Airline(Astraeus,United Kingdom)
+Airline(Air Austral,France)
+Airline(Airlinair,France)
+----
+
+== Accessing the SDK directly
+
+Most of the time accessing the SDK directly is not needed, but if lower level operations need to be performed which are not exposed through the connector it can be done.
+
+To do this, a `CouchbaseConnection` needs to be obtained and fed a `CouchbaseConfig`. From there, the `Cluster`, `Bucket` etc. are available.
+
+[source,scala]
+----
+val config = CouchbaseConfig(spark.sparkContext.getConf)
+val sdk = CouchbaseConnection()
+val cluster = sdk.cluster(config)
+
+val result = cluster.query("select 1=1")
 ----

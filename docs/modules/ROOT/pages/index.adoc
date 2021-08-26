@@ -13,29 +13,12 @@ The following table lists the compatible versions:
 |===
 | Couchbase Spark connector version | Apache Spark target version
 
+| 3.0.x
+| 3.0x
+
 | 2.4.x
 | 2.4.x
 
-| 2.3.x
-| 2.3.x
-
-| 2.2.x
-| 2.2.x
-
-| 2.1.x
-| 2.1.x
-
-| 2.0.x
-| 2.0.x
-
-| 1.2.x
-| 1.6.x
-
-| 1.1.x
-| 1.5.x
-
-| 1.0.x
-| 1.4.x
 |===
 
 Note that if the internal Spark APIs do not break between minor versions, it is possible to use different version combinations.
