@@ -23,7 +23,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import reactor.core.scala.publisher.SFlux
 
-case class Get(id: String)
 
 class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null)
   extends RDD[GetResult](sc, Nil)

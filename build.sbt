@@ -1,6 +1,6 @@
 name := "spark-connector"
 
-version := "2.0.0-SNAPSHOT"
+version := "3.0.0-SNAPSHOT"
 
 organization := "com.couchbase.client"
 
@@ -10,6 +10,8 @@ scalacOptions := Seq("-unchecked", "-deprecation")
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.0.3")
 val sdkVersion = "1.2.1-SNAPSHOT"
+
+scalacOptions += "-feature"
 
 resolvers += Resolver.mavenLocal
 

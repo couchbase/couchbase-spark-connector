@@ -22,7 +22,7 @@ import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-
+import scala.collection.JavaConverters._
 import java.util
 
 class AnalyticsTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String],
@@ -42,7 +42,7 @@ class AnalyticsTable(schema: StructType, partitioning: Array[Transform], propert
   override def partitioning(): Array[Transform] = partitioning
   override def properties(): util.Map[String, String] = properties
   override def capabilities(): util.Set[TableCapability] =
-    util.Set.of[TableCapability](TableCapability.BATCH_READ)
+    Set[TableCapability](TableCapability.BATCH_READ).asJava
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
     new AnalyticsScanBuilder(schema, readConfig)
 

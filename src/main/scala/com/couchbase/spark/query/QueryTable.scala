@@ -25,6 +25,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.util
+import scala.collection.JavaConverters._
 
 class QueryTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String],
                  readConfig: QueryReadConfig)
@@ -43,11 +44,11 @@ class QueryTable(schema: StructType, partitioning: Array[Transform], properties:
   override def partitioning(): Array[Transform] = partitioning
   override def properties(): util.Map[String, String] = properties
   override def capabilities(): util.Set[TableCapability] =
-    util.Set.of[TableCapability](
+    Set[TableCapability](
       TableCapability.BATCH_READ,
       TableCapability.V1_BATCH_WRITE,
       TableCapability.ACCEPT_ANY_SCHEMA
-    )
+    ).asJava
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
     new QueryScanBuilder(schema, readConfig)
 

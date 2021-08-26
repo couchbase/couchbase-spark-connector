@@ -17,7 +17,7 @@ package examples
 
 import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.kv.MutateInSpec
-import com.couchbase.spark.kv.{MutateIn, Upsert}
+import com.couchbase.spark.kv.{Get, MutateIn, Upsert}
 import org.apache.spark.sql.SparkSession
 
 object UpsertRDDExample {
@@ -36,7 +36,15 @@ object UpsertRDDExample {
 
     spark
       .sparkContext
-      .couchbaseUpsert(Seq(Upsert("foo", JsonObject.create.put("foo", "bar"))))
+      .couchbaseUpsert(Seq(Upsert("foo", JsonObject.create.put("foo", "bar"))), keyspace = Keyspace(bucket = Some("foo")))
+      .collect()
+      .foreach(println)
+
+    spark
+      .sparkContext
+      .couchbaseGet(Seq(Get("airline_10"), Get("airline_10642"), Get("airline_10748")))
+      .map(getResult => Upsert(getResult.id, getResult.contentAs[JsonObject].get))
+      .couchbaseUpsert(keyspace = Keyspace(bucket = Some("foo")))
       .collect()
       .foreach(println)
   }

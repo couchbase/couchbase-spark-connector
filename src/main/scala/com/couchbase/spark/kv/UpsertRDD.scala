@@ -17,14 +17,11 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.codec.JsonSerializer
 import com.couchbase.client.scala.kv.{MutationResult, UpsertOptions}
-import com.couchbase.spark.{DefaultConstants, Keyspace}
+import com.couchbase.spark.Keyspace
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import reactor.core.scala.publisher.SFlux
-
-case class Upsert[T](id: String, content: T)
 
 class UpsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Upsert[T]], val keyspace: Keyspace,
                 val upsertOptions: UpsertOptions = null)(implicit serializer: JsonSerializer[T])
@@ -35,33 +32,9 @@ class UpsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Upsert
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
-    val partition = split.asInstanceOf[KeyValuePartition]
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
-
-    val scopeName = globalConfig
-      .implicitScopeNameOr(this.keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
-    val collectionName = globalConfig
-      .implicitCollectionName(this.keyspace.collection.orNull)
-      .getOrElse(DefaultConstants.DefaultCollectionName)
-
-    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName).reactive
-    val options = if (this.upsertOptions == null) {
-      UpsertOptions()
-    } else {
-      this.upsertOptions
-    }
-
-    logDebug(s"Performing bulk upsert against ids ${partition.ids} with options $options")
-
-    SFlux
-      .fromIterable(docs)
-      .filter(doc => partition.ids.contains(doc.id))
-      .flatMap(doc => collection.upsert(doc.id, doc.content, options))
-      .collectSeq()
-      .block()
-      .iterator
+    val splitIds = split.asInstanceOf[KeyValuePartition].ids
+    val docsToWrite = docs.filter(u => splitIds.contains(u.id))
+    KeyValueOperationRunner.upsert(globalConfig, keyspace, docsToWrite, upsertOptions).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {

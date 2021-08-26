@@ -110,6 +110,8 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
                 SMono.raiseError(t)
               }
             })
+          case m =>
+            throw new IllegalStateException("Unsupported SaveMode: " + m)
         }
       })
       .blockLast()

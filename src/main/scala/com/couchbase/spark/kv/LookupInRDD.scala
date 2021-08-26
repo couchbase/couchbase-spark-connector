@@ -23,8 +23,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import reactor.core.scala.publisher.SFlux
 
-case class LookupIn(id: String, specs: Seq[LookupInSpec])
-
 class LookupInRDD(@transient private val sc: SparkContext, val docs: Seq[LookupIn], val keyspace: Keyspace, lookupInOptions: LookupInOptions = null)
   extends RDD[LookupInResult](sc, Nil)
     with Logging {

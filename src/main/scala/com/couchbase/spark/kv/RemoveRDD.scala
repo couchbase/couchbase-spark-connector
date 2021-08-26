@@ -23,8 +23,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import reactor.core.scala.publisher.SFlux
 
-case class Remove(id: String, cas: Long = 0)
-
 class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], val keyspace: Keyspace, removeOptions: RemoveOptions = null)
   extends RDD[MutationResult](sc, Nil)
     with Logging {
@@ -33,33 +31,9 @@ class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], 
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
-    val partition = split.asInstanceOf[KeyValuePartition]
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
-
-    val scopeName = globalConfig
-      .implicitScopeNameOr(this.keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
-    val collectionName = globalConfig
-      .implicitCollectionName(this.keyspace.collection.orNull)
-      .getOrElse(DefaultConstants.DefaultCollectionName)
-
-    val collection = cluster.bucket(bucketName).scope(scopeName).collection(collectionName).reactive
-    val options = if (this.removeOptions == null) {
-      RemoveOptions()
-    } else {
-      this.removeOptions
-    }
-
-    logDebug(s"Performing bulk remove against ids ${partition.ids} with options $options")
-
-    SFlux
-      .fromIterable(docs)
-      .filter(doc => partition.ids.contains(doc.id))
-      .flatMap(doc => collection.remove(doc.id, options.cas(doc.cas)))
-      .collectSeq()
-      .block()
-      .iterator
+    val splitIds = split.asInstanceOf[KeyValuePartition].ids
+    val docsToWrite = docs.filter(u => splitIds.contains(u.id))
+    KeyValueOperationRunner.remove(globalConfig, keyspace, docsToWrite, removeOptions).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
