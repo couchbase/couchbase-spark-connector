@@ -1,6 +1,5 @@
 buildscript {
 	repositories {
-		jcenter()
 		mavenCentral()
 	}
 }
@@ -13,20 +12,19 @@ plugins {
 
 repositories {
 	mavenCentral()
-	jcenter()
+	mavenLocal()
 }
 
 ext {
-	sparkVersion = "2.4.0"
+	sparkVersion = "3.0.3"
 }
 
 dependencies {
 	compile files("$sourceSets.main.scala.outputDir")
-	compile "org.scala-lang:scala-library:2.12.8"
-	compile "com.couchbase.client:java-client:2.7.4"
-	compileOnly "org.apache.spark:spark-core_2.11:$sparkVersion"
-	compileOnly "org.apache.spark:spark-streaming_2.11:$sparkVersion"
-	compileOnly "org.apache.spark:spark-sql_2.11:$sparkVersion"
+	compile "org.scala-lang:scala-library:2.12.14"
+	compile "com.couchbase.client:spark-connector_2.12:3.0.0-SNAPSHOT"
+	compileOnly "org.apache.spark:spark-core_2.12:$sparkVersion"
+	compileOnly "org.apache.spark:spark-sql_2.12:$sparkVersion"
 	compile(project(":"))
 }
 

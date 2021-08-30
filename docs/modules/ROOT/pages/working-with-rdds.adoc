@@ -2,9 +2,9 @@
 :page-topic-type: concept
 
 [abstract]
-Spark operates on resilient distributed datasets (RDDs).
-When you need to extract data out of Couchbase, the Couchbase Spark connector creates RDDs for you.
-You can create and persist RDDs by using key-value pairs, views, or N1QL.
+Spark operates on resilient distributed datasets (RDDs). Higher level concepts like DataFrames and Datasets are more and more the primary means of access, but RDDs are still very useful to understand.
+
+When you need to extract data out of Couchbase, the Couchbase Spark connector creates RDDs for you. In addition, you can also persist data to Couchbase using RDDs.
 
 == Creating RDDs
 
@@ -17,13 +17,6 @@ import com.couchbase.spark._
 
 This import adds Couchbase-specific methods to the `SparkContext`.
 Each method starts with `couchbase`.
-
-The code examples here use these additional imports:
-
-[source,scala]
-----
-include::example$WorkingWithRdds.scala[tag=imports,indent=0]
-----
 
 If you want to create an RDD for specific documents stored in a bucket, you can specify the IDs directly.
 The connector fetches them from the server and turns them into an RDD:

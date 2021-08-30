@@ -1,0 +1,13 @@
+= Migration Guide
+:page-topic-type: concept
+
+[abstract]
+Helpful information when migrating from the Spark 2.x connector to the Spark 3.x connector.
+
+== Configuration and Connection Management
+
+== Removed APIs
+
+== RDD Operations
+
+== Spark SQL

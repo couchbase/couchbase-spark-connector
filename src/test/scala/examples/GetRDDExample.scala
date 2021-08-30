@@ -15,7 +15,6 @@
  */
 package examples
 
-import com.couchbase.client.scala.kv.GetOptions
 import com.couchbase.spark.kv.Get
 import org.apache.spark.sql.SparkSession
 
@@ -29,6 +28,8 @@ object GetRDDExample {
       .config("spark.couchbase.username", "Administrator")
       .config("spark.couchbase.password", "password")
       .config("spark.couchbase.implicitBucket", "travel-sample")
+      .config("spark.couchbase.security.enableTls", "true")
+      .config("spark.couchbase.security.trustCertificate", "/tmp/local.cert")
       .getOrCreate()
 
     import com.couchbase.spark._

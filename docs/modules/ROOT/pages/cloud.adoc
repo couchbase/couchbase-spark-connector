@@ -4,78 +4,36 @@
 [abstract]
 Connecting to Couchbase Cloud is very similar to connecting to any Couchbase cluster over an encrypted connection. This section explains how.
 
-[IMPORTANT]
-====
-You must use a Spark connector version of *2.4.1 or higher*, earlier versions will not work. Also, the experimental support for Spark Streaming and Structured Streaming are not supported against Couchbase Cloud and will be addressed in a later release.
-====
-
 == Certificate Download
 
 Once you have created a Cluster in Couchbase Cloud, navigate to the `Connect` tab and download the security certificate.
 
 image::cloud-ui.png[Cloud UI]
 
-== Keystore Setup
-
-The downloaded certificate is in `pem` format, so we need to convert it into a `der` format first. The `openssl` tool can be utilized for this task:
-
-[source]
-----
-$ openssl x509 -outform der -in your-root-certificate.pem -out your-root-certificate.der
-----
-
-Next, the certificate needs to be imported into your java keystore with the `keytool` command. The exact arguments will vary, depending on your keystore location. In its simplest form, it looks like this:
-
-[source]
-----
-$ keytool -importcert -file your-root-certificate.der
-Enter keystore password:
-Re-enter new password:
-Owner: OU=Cloud, O=Couchbase
-Issuer: OU=Cloud, O=Couchbase
-... (details omitted) ...
-]
-
-Trust this certificate? [no]:  yes
-Certificate was added to keystore
-----
-
-You can verify that it has been stored with `keytool -list`:
-
-[source]
-----
-$ keytool -list
-Enter keystore password:
-Keystore type: PKCS12
-Keystore provider: SUN
-
-Your keystore contains 1 entry
-
-mykey, 12 Nov 2020, trustedCertEntry,
-Certificate fingerprint (SHA-256): **fingerprint**
-----
-
 == Spark Configuration
 
-Now that your keystore contains the cloud certificate, through the Spark configuration properties we can instruct the SDK to enable the encrypted connection and point it to the correct keystore file:
+Now that you downloaded the certificate to a file, through the Spark configuration properties we can instruct the SDK to enable the encrypted connection and point it to the correct file:
 
 [source,scala]
 ----
 val spark = SparkSession
   .builder()
-  .appName("CouchbaseCloudSamplpe") // your app name
+  .appName("CouchbaseCloudSample") // your app name
   .master("local[*]") // your local or remote master node
-  .config("spark.couchbase.dnsSrvEnabled", "true")
-  .config("spark.couchbase.nodes", "your-endpoint.cloud.couchbase.com")
-  .config("spark.couchbase.bucket.yourbucketname", "")
-  .config("com.couchbase.username", "username")
-  .config("com.couchbase.password", "password")
-  .config("spark.ssl.enabled", "true")
-  .config("spark.ssl.keyStore", "/path/to/keystore")
-  .config("spark.ssl.keyStorePassword", "password")
+  .config("spark.couchbase.connectionString", "your-endpoint.cloud.couchbase.com")
+  .config("spark.couchbase.username", "Administrator")
+  .config("spark.couchbase.password", "password")
+  .config("spark.couchbase.implicitBucket", "yourbucketname")
+
+  // Security config goes down here
+  .config("spark.couchbase.security.enableTls", "true")
+  .config("spark.couchbase.security.trustCertificate", "/path/to/cert.pem")
+
   .getOrCreate()
 ----
 
-Other than `spark.couchbase.dnsSrvEnabled` and `spark.couchbase.dnsSrvEnabled`, all other properties need to be filled with values that correspond to your environment.
+In a clustered spark environment, it is vital that the certificate is present on all of the spark worker nodes.
+
+See the configuration page on how to use the `spark.ssl` keystore instead of a certificate path.
 
 After everything is configured, you can use all the APIs like you would against a regular Couchbase Server installation.

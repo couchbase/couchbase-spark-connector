@@ -1,0 +1,11 @@
+= Configuration
+:page-topic-type: concept
+
+[abstract]
+Information about the different configuration properties the Spark connector either expects or allows to set.
+
+== Basic Properties
+
+== Dynamic Configuration Properties
+
+== TLS Connections
