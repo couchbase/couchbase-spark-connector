@@ -20,6 +20,8 @@ import org.apache.spark.SparkConf
 
 case class Credentials(username: String, password: String)
 
+case class SparkSslOptions(enabled: Boolean, keystorePath: String, keystorePassword: String)
+
 case class CouchbaseConfig(
   connectionString: String,
   credentials: Credentials,
@@ -27,6 +29,7 @@ case class CouchbaseConfig(
   scopeName: Option[String],
   collectionName: Option[String],
   waitUntilReadyTimeout: Option[String],
+  sparkSslOptions: SparkSslOptions,
   properties: Seq[(String, String)]
 ) {
 
@@ -61,7 +64,9 @@ case class CouchbaseConfig(
 
 object CouchbaseConfig {
 
-  private val PREFIX = "spark.couchbase."
+  private val SPARK_PREFIX = "spark."
+
+  private val PREFIX = SPARK_PREFIX + "couchbase."
   private val USERNAME = PREFIX + "username"
   private val PASSWORD = PREFIX + "password"
   private val CONNECTION_STRING = PREFIX + "connectionString"
@@ -69,6 +74,11 @@ object CouchbaseConfig {
   private val SCOPE_NAME = PREFIX + "implicitScope"
   private val COLLECTION_NAME = PREFIX + "implicitCollection"
   private val WAIT_UNTIL_READY_TIMEOUT = PREFIX + "waitUntilReadyTimeout"
+
+  private val SPARK_SSL_PREFIX = SPARK_PREFIX + "ssl."
+  private val SPARK_SSL_ENABLED = SPARK_SSL_PREFIX + "enabled"
+  private val SPARK_SSL_KEYSTORE = SPARK_SSL_PREFIX + "keyStore"
+  private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
 
   def apply(cfg: SparkConf): CouchbaseConfig = {
 
@@ -83,6 +93,17 @@ object CouchbaseConfig {
     val collectionName = cfg.getOption(COLLECTION_NAME)
     val waitUntilReadyTimeout = cfg.getOption(WAIT_UNTIL_READY_TIMEOUT)
 
+    var useSsl = false
+    var keyStorePath = ""
+    var keyStorePassword = ""
+
+    // check for spark-related SSL settings
+    if (cfg.get(SPARK_SSL_ENABLED, "false").toBoolean) {
+      useSsl = true
+      keyStorePath = cfg.get(SPARK_SSL_KEYSTORE)
+      keyStorePassword = cfg.get(SPARK_SSL_KEYSTORE_PASSWORD)
+    }
+
     val properties = cfg.getAllWithPrefix(PREFIX).toMap
     val filteredProperties = properties.filterKeys(key => {
       val prefixedKey = PREFIX + key
@@ -92,7 +113,10 @@ object CouchbaseConfig {
         prefixedKey != BUCKET_NAME &&
         prefixedKey != SCOPE_NAME &&
         prefixedKey != COLLECTION_NAME &&
-        prefixedKey != WAIT_UNTIL_READY_TIMEOUT
+        prefixedKey != WAIT_UNTIL_READY_TIMEOUT &&
+        prefixedKey != SPARK_SSL_ENABLED &&
+        prefixedKey != SPARK_SSL_KEYSTORE &&
+        prefixedKey != SPARK_SSL_KEYSTORE_PASSWORD
     }).toSeq
 
     CouchbaseConfig(
@@ -102,6 +126,7 @@ object CouchbaseConfig {
       scopeName,
       collectionName,
       waitUntilReadyTimeout,
+      SparkSslOptions(useSsl, keyStorePath, keyStorePassword),
       filteredProperties
     )
   }

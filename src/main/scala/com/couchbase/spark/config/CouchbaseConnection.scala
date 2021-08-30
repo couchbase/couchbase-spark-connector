@@ -20,8 +20,9 @@ import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
-import com.couchbase.client.scala.env.ClusterEnvironment
+import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
 
+import java.nio.file.Paths
 import java.util
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, DurationInt}
@@ -46,9 +47,17 @@ class CouchbaseConnection extends Serializable {
   def cluster(cfg: CouchbaseConfig): Cluster = {
     this.synchronized {
       if (envRef.isEmpty) {
-        val builder = ClusterEnvironment
-          .builder
-          .loaders(Seq(new SparkPropertyLoader(cfg.properties)))
+        var builder = ClusterEnvironment.builder
+
+
+        if (cfg.sparkSslOptions.enabled) {
+         builder = builder.securityConfig(SecurityConfig()
+           .enableTls(true)
+           .trustStore(Paths.get(cfg.sparkSslOptions.keystorePath), cfg.sparkSslOptions.keystorePassword)
+         )
+        }
+        builder = builder.loaders(Seq(new SparkPropertyLoader(cfg.properties)))
+
         envRef = Option(builder.build.get)
       }
 
