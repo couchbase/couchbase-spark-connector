@@ -6,194 +6,153 @@ Spark operates on resilient distributed datasets (RDDs). Higher level concepts l
 
 When you need to extract data out of Couchbase, the Couchbase Spark connector creates RDDs for you. In addition, you can also persist data to Couchbase using RDDs.
 
+The following spark context is configured to work on the `travel-sample` bucket and can be used to follow the examples. Please configure your connectionString, username and password accordingly.
+
+[source,scala]
+----
+include::example$WorkingWithRDDs.scala[tag=context,indent=0]
+----
+
+All RDD operations operate on the `SparkContext`, so the following import needs to be present before the APIs can be used:
+
+[source,scala]
+----
+include::example$WorkingWithRDDs.scala[tag=import,indent=0]
+----
+
+Many arguments and return types are provided directly from the Couchbase Scala SDK (i.e. `GetResult` and `GetOptions`). This is by intention since it allows the most flexibility when interacting with the SDK. These types are not discussed in detail here, please refer to the official SDK documentation for more information.
+
 == Creating RDDs
 
-To get access to the RDDs through the implicit methods that the Couchbase Spark connector provides, you need to add the following import to your code:
+The following read operations are available:
+
+[cols="1,1"]
+|===
+| API |Description
+
+|`couchbaseGet`
+| Fetches full documents.
+
+|`couchbaseLookupIn`
+| Fetches parts of documents ("subdocument API").
+
+|`couchbaseQuery`
+| Performs a N1QL query.
+
+|`couchbaseAnalyticsQuery`
+| Performs an analytics query.
+
+|`couchbaseSearchQuery`
+| Performs a search query.
+|===
+
+Writing APIs are also available on the context:
+
+[cols="1,1"]
+|===
+| API |Description
+
+|`couchbaseUpsert`
+| Stores documents with upsert semantics.
+
+|`couchbaseReplace`
+| Stores documents with replace semantics.
+
+|`couchbaseInsert`
+| Stores documents with insert semantics.
+
+|`couchbaseRemove`
+| Removes documents.
+
+|`couchbaseMutateIn`
+| Mutates parts of documents ("subdocument" API)
+
+|`couchbaseQuery`
+| Performs a N1QL query.
+
+|===
+
+Note that `couchbaseQuery` is present twice, since you can execute DML statements through it as well as regular SELECTs.
+
+The following example shows how to fetch two documents and prints their content:
 
 [source,scala]
 ----
-import com.couchbase.spark._
+include::example$WorkingWithRDDs.scala[tag=get,indent=0]
 ----
 
-This import adds Couchbase-specific methods to the `SparkContext`.
-Each method starts with `couchbase`.
+Each API takes a required `Seq[T]`, where `T` depends on the operation being used. The cases classes are named the same as the operation type and allow specifying more parameters than just the document ID where needed.
 
-If you want to create an RDD for specific documents stored in a bucket, you can specify the IDs directly.
-The connector fetches them from the server and turns them into an RDD:
+As an example, for a `couchbaseReplace` the case class signature looks like this:
 
 [source,scala]
 ----
-include::example$WorkingWithRdds.scala[tag=create-rdd,indent=0]
+case class Replace[T](id: String, content: T, cas: Long = 0)
 ----
 
-Because Spark outputs lots of information, you'll find the output somewhere in the logs:
+So for each entry in the `Seq`, not only you can specify the id and content of the document, but also (optionally) the CAS value to perform an optimistic locking operation.
 
-[source,json]
-----
-JsonDocument{id='airline_10748', cas=314538279043072, expiry=0, content={"country":"United States","iata":"ZQ","name":"Locair","callsign":"LOCAIR","icao":"LOC","id":10748,"type":"airline"}}
-JsonDocument{id='airline_10123', cas=314538278125568, expiry=0, content={"country":"United States","iata":"TQ","name":"Texas Wings","callsign":"TXW","icao":"TXW","id":10123,"type":"airline"}}
-----
-
-It is critical that you specify the target document type.
-Otherwise, the client does not know how to convert it.
-The main reason is that Couchbase has first-class JSON support, but is also able to store any data.
-You can even store serialized objects or protobuf-encoded documents, but then you'll loose the secondary indexing capabilities.
-
-If you are unsure what to pick, stick with the `JsonDocument`.
-If you need raw access to the JSON data, you can also use the `RawJsonDocument`.
-
-You can perform a (spatial) view query to extract rows and turn them into an RDD.
-Given the following view against the `travel-sample` bucket:
-
-[source,javascript]
-----
-function(doc, meta) {
-	if (doc.type == "airline") {
-		emit(doc.name, null);
-	}
-}
-----
-
-Creating an RDD for the first 10 results works like this:
+A N1QL query can be performed like this:
 
 [source,scala]
 ----
-include::example$WorkingWithRdds.scala[tag=view,indent=0]
+include::example$WorkingWithRDDs.scala[tag=query,indent=0]
 ----
 
-And prints the following:
+In addition to the required parameter(s), optional information can also be passed along. Each operation allows to specify its equivalent option block (so for a `couchbaseGet` the `GetOptions` can be supplied). Also, a generic `Keyspace` can be provided which allows to override the implicit defaults from the configuration.
 
-----
-CouchbaseViewRow(airline_10,40-Mile Air,null)
-CouchbaseViewRow(airline_792,Access Air,null)
-CouchbaseViewRow(airline_665,AD Aviation,null)
-CouchbaseViewRow(airline_21,Aigle Azur,null)
-CouchbaseViewRow(airline_1191,Air Austral,null)
-CouchbaseViewRow(airline_139,Air Caledonie International,null)
-CouchbaseViewRow(airline_567,Air Carabes,null)
-CouchbaseViewRow(airline_149,Air Cargo Carriers,null)
-CouchbaseViewRow(airline_16881,Air Cudlua,null)
-CouchbaseViewRow(airline_882,Air Florida,null)
-----
-
-If you want to load the full content for each document, you can mix both approaches:
+A Keyspace looks like this:
 
 [source,scala]
 ----
-include::example$WorkingWithRdds.scala[tag=view-get,indent=0]
+case class Keyspace(
+  bucket: Option[String] = None,
+  scope: Option[String] = None,
+  collection: Option[String] = None
+)
 ----
 
-Here you can see that `couchbaseGet` is not just available on the context, but also on every `RDD[String]`.
-Neat, right?
-The exact same approach is also available for spatial views (just use the `couchbaseSpatialView()` method instead).
-
-You can utilize N1QL to perform efficient queries against your JSON data in a Couchbase Bucket.
-The following query is very similar to the one performed before through Views, just to show how the different approaches work.
-
-NOTE: You need to at least have a primary index created on the `travel-sample` bucket to make the following examples work.
-If you haven't done that already, perform a `pass:c[CREATE PRIMARY INDEX ON `travel-sample`]` query.
-
-[source,scala]
-----
-include::example$WorkingWithRdds.scala[tag=query,indent=0]
-----
-
-And if you want to fetch the full document contents based on some criteria, here is a little more complex example:
-
-[source,scala]
-----
-include::example$WorkingWithRdds.scala[tag=query-get,indent=0]
-----
-
-While this gives you the most flexibility with querying, we recommend using the higher level Spark SQL components through the DataFrame API.
-See the Spark SQL section for more information.
-
-Finally, if you're running Couchbase Analytics (available in Couchbase Server 6.0.0 and above), you can query it like this:
-
-[source,scala]
-----
-include::example$Examples.scala[tag=analytics,indent=0]
-----
+And you can use it to provide a custom bucket, scope or collection on a per-operation basis.
 
 == Persisting RDDs
 
-Creating an RDD is only half the story.
-After you've done your aggregation, filtering, and machine learning, you normally want to persist the results somewhere.
-Couchbase provides the `saveToCouchbase()` method on every `RDD[Document]`.
+While reading operations on the `SparkContext` are common, writing documents to Couchbase at the RDD level usually operates on already existing RDDs.
 
-The following example extracts all airline names through N1QL, aggregates them by country, and stores each list as a separate document.
-Since RDDs are source agnostic, the same approach can be used for example to load data out of HDFS and then store the results back in Couchbase.
+The following functions are available on an RDD:
 
-[source,scala]
-----
-include::example$WorkingWithRdds.scala[tag=query3,indent=0]
-----
+[cols="1,1,1"]
+|===
+| API | Type | Description
 
-This will create a document in the bucket for each country containing a list of airports.
-For example the document with the ID `airports::United States` contains this:
+|`couchbaseUpsert`
+|`RDD[Upsert[_]]`
+| Stores documents with upsert semantics.
 
-[source,json]
-----
-{
-  "airports": [
-    "40-Mile Air",
-    "ATA Airlines",
-    "Access Air",
-    "Air Cargo Carriers",
-    "Air Florida",
-    ...
-    "United States Air Force",
-    "Usa Sky Cargo",
-    "Virgin America",
-    "Vision Airlines (V2)",
-    "Western Airlines",
-    "World Airways",
-    "XAIR USA",
-    "XOJET",
-    "Yellowtail"
-  ]
-}
-----
+|`couchbaseReplace`
+|`RDD[Replace[_]]`
+| Stores documents with replace semantics.
 
-By default, the `saveToCouchbase()` method will use the `StoreMode.UPSERT`.
-There are more options available, including inserting and replacing (ignoring or failing on error).
+|`couchbaseInsert`
+|`RDD[Insert[_]]`
+| Stores documents with insert semantics.
 
-We are also working on better support for automatic conversions from different types so that you don't have to map to a specific document type manually.
+|`couchbaseRemove`
+|`RDD[Remove]`
+| Removes documents.
 
-=== Parallelism
-`saveToCouchbase()` will, on each active executor, write the documents to Couchbase in batches.
-The default batch size is 128 - that is, 128 documents will be inserted concurrently, per executor - and this can be configured using the `maxConcurrent` parameter.
+|`couchbaseMutateIn`
+|`RDD[MutateIn]`
+| Mutates parts of documents ("subdocument" API)
 
-If timeouts or other issues are seen during writing, the application can try a) reducing the batch size, and b) adjusting the error retry settings.  The retry settings can be adjusted like this:
+|===
+
+It is important to understand that those APIs are only available if the RDD has the correct type. The following example illustrates this.
 
 [source,scala]
 ----
-include::example$WorkingWithRdds.scala[tag=batching,indent=0]
+include::example$WorkingWithRDDs.scala[tag=upsert,indent=0]
 ----
 
-== Subdocument API
+It first loads two documents from the travel-sample bucket and returns a `RDD[GetResult]`. The objective is to store those two documents in the `targetBucket`.
 
-If you are running Couchbase Server 4.5 or later, you can use the "`subdoc`" API to fetch only a subset of the fields from a Document.
-This allows you to reduce network overhead, and you need to move less data between operations.
-
-The `couchbaseSubdocLookup` method is available on both the SparkContext and the RDD and accepts two/three arguments, depending on the context:
-
-* *ids:* The list of IDs to fetch the fragments from.
-* *get:* The paths of the JSON document that should be returned.
-* *exists:* The paths of the JSON document that should be checked for existence.
-
-The following example fetches only two fields from an airline and checks if the `foobar` field exists in the document:
-
-[source,scala]
-----
-include::example$WorkingWithRdds.scala[tag=subdoc,indent=0]
-----
-
-This prints:
-
-----
-SubdocLookupResult(airline_10123,0,Map(name -> Texas Wings, iata -> TQ),Map(foobar -> false))
-----
-
-You can then extract the information from the `SubdocLookupResult` and use them in your RDD flow.
-Note that the Couchbase SDK also supports subdocument mutations which will be added to the Spark Connector in a future release.
+As a next step, inside the map function, a `Upsert` case class is constructed which takes the document ID and content. This type is then passed to the `couchbaseUpsert` function which executes the operation. Note that also a custom `keyspace` is passed which overrides the default implicit one and therefore allows to write the data to a different bucket.

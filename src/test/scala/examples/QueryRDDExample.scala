@@ -32,6 +32,10 @@ object QueryRDDExample {
 
     import com.couchbase.spark._
 
-    spark.sparkContext.couchbaseQuery[JsonObject]("select 1=1", queryOptions = QueryOptions().readonly(true)).collect().foreach(println)
+    spark
+      .sparkContext
+      .couchbaseQuery[JsonObject]("select count(*) as count from `travel-sample`")
+      .collect()
+      .foreach(println)
   }
 }

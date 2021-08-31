@@ -12,26 +12,39 @@ You need to https://spark.apache.org/downloads.html[download^] Apache Spark from
 
 [source,scala]
 ----
-michael@daschlbook ~/spark/spark-2.2.0-bin-hadoop2.7/bin $ ./spark-shell -h
+Downloads/spark-3.0.3-bin-hadoop2.7/bin
+❯ ./spark-shell -h
 Usage: ./bin/spark-shell [options]
 
+Scala REPL options:
+  -I <file>                   preload <file>, enforcing line-by-line interpretation
+
 Options:
-  --master MASTER_URL         spark://host:port, mesos://host:port, yarn, or local.
+  --master MASTER_URL         spark://host:port, mesos://host:port, yarn,
+                              k8s://https://host:port, or local (Default: local[*]).
   --deploy-mode DEPLOY_MODE   Whether to launch the driver program locally ("client") or
                               on one of the worker machines inside the cluster ("cluster")
                               (Default: client).
   --class CLASS_NAME          Your application's main class (for Java / Scala apps).
   --name NAME                 A name of your application.
-  --jars JARS                 Comma-separated list of local jars
-  ....
+  --jars JARS                 Comma-separated list of jars to include on the driver
+                              and executor classpaths.
+...
 ----
 
 If you run the Spark shell as it is, you will only have the built-in Spark commands available.
 If you want to use it with the Couchbase Connector, the easiest way is to provide a specific argument that locates the dependency and pulls it in:
 
-[source,scala]
+[source]
 ----
-./spark-shell --packages com.couchbase.client:spark-connector_2.11:2.2.0
+./spark-shell --packages com.couchbase.client:spark-connector_2.12:3.0.0
+----
+
+The final step that needs to be undertaken is to specify all required properties (connectionString, username and password) so that the connector can bootstrap:
+
+[source]
+----
+./spark-shell --packages com.couchbase.client:spark-connector_2.12:3.0.0 -c spark.couchbase.connectionString=127.0.0.1 -c spark.couchbase.username=user -c spark.couchbase.password=pass
 ----
 
 Now you're all set!
@@ -40,71 +53,57 @@ Now you're all set!
 
 Once you've loaded the shell, both the `SparkContext (sc)` and the surrounding `SparkSession` are ready to go:
 
-[source,scala]
+[source]
 ----
 scala> sc
-res0: org.apache.spark.SparkContext = org.apache.spark.SparkContext@708dfe10
+res0: org.apache.spark.SparkContext = org.apache.spark.SparkContext@2703fabd
 
 scala> spark
-res1: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@1716c037
+res1: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@4e7fbd6c
 ----
 
-To load the Couchbase-specific implicit imports, run the following commands:
+To load the Couchbase-specific implicit imports, run the following command:
 
-[source,scala]
+[source]
 ----
 scala> import com.couchbase.spark._
 import com.couchbase.spark._
-
-scala> import com.couchbase.spark.sql._
-import com.couchbase.spark.sql._
 ----
 
 Now you can run all commands like in a regular program, just in an interactive fashion.
-The following example stores a document and then retrieves it through KeyValue:
+The following example retrieves a document through the KeyValue API:
 
-[source,scala]
+[source]
 ----
-scala> import com.couchbase.client.java.document.JsonDocument
-import com.couchbase.client.java.document.JsonDocument
+scala> import com.couchbase.spark.kv.Get
+import com.couchbase.spark.kv.Get
 
-scala> import com.couchbase.client.java.document.json.JsonObject
-import com.couchbase.client.java.document.json.JsonObject
+scala> import com.couchbase.client.scala.json.JsonObject
+import com.couchbase.client.scala.json.JsonObject
 
-scala> sc.parallelize(Seq(JsonDocument.create("mydoc", JsonObject.create().put("hello", "spark")))).saveToCouchbase()
-...
-
-scala> sc.parallelize(Seq("mydoc")).couchbaseGet[JsonDocument]().foreach(println)
-...
-JsonDocument{id='mydoc', cas=39773408329728, expiry=0, content={"hello":"spark"}, mutationToken=null}
-...
+scala> sc.couchbaseGet(Seq(Get("airline_10")), Keyspace(bucket = Some("travel-sample"))).collect().foreach(result => println(result.contentAs[JsonObject]))
+Success({"country":"United States","iata":"Q5","name":"40-Mile Air","callsign":"MILE-AIR","icao":"MLA","id":10,"type":"airline"})
 ----
 
-If you need to pass custom properties (like connect to a different bucket or hostnames) you can do it like this:
-
-----
-./spark-shell --packages com.couchbase.client:spark-connector_2.11:2.2.0 --conf "spark.couchbase.bucket.travel-sample="
-----
-
-You can also make use of the first-class N1QL integration.
+You can also make use of the first-class query integration.
 The following example creates a data frame for airlines `travel-sample` bucket.
 
-[source,scala]
+[source]
 ----
-scala> val airlines = spark.read.couchbase(schemaFilter = org.apache.spark.sql.sources.EqualTo("type", "airline"))
-15/10/20 15:02:51 INFO N1QLRelation: Inferring schema from bucket travel-sample with query 'SELECT META(`travel-sample`).id as `META_ID`, `travel-sample`.* FROM `travel-sample` WHERE  `type` = 'airline' LIMIT 1000'
-...
-15/10/20 15:02:52 INFO N1QLRelation: Inferred schema is StructType(StructField(META_ID,StringType,true), StructField(callsign,StringType,true), StructField(country,StringType,true), StructField(iata,StringType,true), StructField(icao,StringType,true), StructField(id,LongType,true), StructField(name,StringType,true), StructField(type,StringType,true))
-airlines: org.apache.spark.sql.DataFrame = [META_ID: string, callsign: string, country: string, iata: string, icao: string, id: bigint, name: string, type: string]
+scala> import com.couchbase.spark.query._
+import com.couchbase.spark.query._
+
+scala>     val airlines = spark.read.format("couchbase.query").option(QueryOptions.Filter, "type = 'airline'").option(QueryOptions.Bucket, "travel-sample").load()
+airlines: org.apache.spark.sql.DataFrame = [__META_ID: string, callsign: string ... 6 more fields]
 ----
 
 Now you can print the schema and run ad-hoc data exploration:
 
-[source,scala]
+[source]
 ----
 scala> airlines.printSchema
 root
- |-- META_ID: string (nullable = true)
+ |-- __META_ID: string (nullable = true)
  |-- callsign: string (nullable = true)
  |-- country: string (nullable = true)
  |-- iata: string (nullable = true)
@@ -114,17 +113,17 @@ root
  |-- type: string (nullable = true)
 ----
 
-[source,scala]
+[source]
 ----
-scala> airlines.select("name", "callsign").sort(airlines("callsign").desc).show(5)
-...
-+----------------+--------+
-|            name|callsign|
-+----------------+--------+
-|     Aws express|     aws|
-|          Atifly|  atifly|
-|        XAIR USA|    XAIR|
-|   World Airways|   WORLD|
-|Western Airlines| WESTERN|
-+----------------+--------+
+scala> airlines.show(5)
++-------------+--------+--------------+----+----+-----+-------------------+-------+
+|    __META_ID|callsign|       country|iata|icao|   id|               name|   type|
++-------------+--------+--------------+----+----+-----+-------------------+-------+
+|   airline_10|MILE-AIR| United States|  Q5| MLA|   10|        40-Mile Air|airline|
+|airline_10123|     TXW| United States|  TQ| TXW|10123|        Texas Wings|airline|
+|airline_10226|  atifly| United States|  A1| A1F|10226|             Atifly|airline|
+|airline_10642|    null|United Kingdom|null| JRB|10642|Jc royal.britannica|airline|
+|airline_10748|  LOCAIR| United States|  ZQ| LOC|10748|             Locair|airline|
++-------------+--------+--------------+----+----+-----+-------------------+-------+
+only showing top 5 rows
 ----
