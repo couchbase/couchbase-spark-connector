@@ -80,7 +80,20 @@ object CouchbaseConfig {
   private val SPARK_SSL_KEYSTORE = SPARK_SSL_PREFIX + "keyStore"
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
 
+  def checkRequiredProperties(cfg: SparkConf): Unit = {
+    if (!cfg.contains(CONNECTION_STRING)) {
+      throw new IllegalArgumentException("Required config property " + CONNECTION_STRING + " is not present")
+    }
+    if (!cfg.contains(USERNAME)) {
+      throw new IllegalArgumentException("Required config property " + USERNAME + " is not present")
+    }
+    if (!cfg.contains(PASSWORD)) {
+      throw new IllegalArgumentException("Required config property " + PASSWORD + " is not present")
+    }
+  }
+
   def apply(cfg: SparkConf): CouchbaseConfig = {
+    checkRequiredProperties(cfg)
 
     val connectionString = cfg.get(CONNECTION_STRING)
 
