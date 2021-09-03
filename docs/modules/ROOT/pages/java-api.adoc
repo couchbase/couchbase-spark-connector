@@ -2,160 +2,70 @@
 :page-topic-type: concept
 
 [abstract]
-In addition to the primary Scala API, the connector provides convenience APIs when accessed from Java.
+In addition to the Scala API, some APIs can also be accessed from Java.
 
-== Couchbase from the SparkContext
+== Creating a Spark Session
 
-To use the Java API in spark, you need to initialize a `JavaSparkContext`:
-
-[source,java]
-----
-SparkConf conf = new SparkConf()
-    .setAppName("javaSample")
-    .setMaster("local[*]")
-    .set("com.couchbase.bucket.travel-sample", "");
-
-JavaSparkContext sc = new JavaSparkContext(conf);
-----
-
-Since Spark 2.0 you can also use the `SparkSession`:
+When accessing Spark from java, a `SparkSession` needs to be created, similar to this:
 
 [source,java]
 ----
-SparkSession spark = SparkSession
-		.builder()
-		.appName("JavaExample")
-		.master("local[*]") // use the JVM as the master, great for testing
-		.config("spark.couchbase.nodes", "127.0.0.1") // connect to couchbase on localhost
-		.config("spark.couchbase.bucket.travel-sample", "") // open the travel-sample bucket with empty password
-		.getOrCreate();
-
-// The Java wrapper around the SparkContext
-JavaSparkContext sc = new JavaSparkContext(spark.sparkContext());
+include::example$JavaApi.java[tag=context,indent=0]
 ----
 
-Since Java doesn't have the implicit imports like Scala, the connector provides a helper class to achieve similar functionality:
+Properties and configuration are set in the same way.
+
+== Using SparkSQL DataFrames
+
+The `DataFrame` APIs can be accessed very similarly from Java compared to Scala.
 
 [source,java]
 ----
-// The Couchbase-Enabled spark context
-CouchbaseSparkContext csc = couchbaseContext(sc);
+include::example$JavaApi.java[tag=dfread,indent=0]
 ----
 
-The context is a static import.
-In general you want to statically import the following:
+Note that since later version of Spark 2, a `DataFrame` is just an alias for a `Dataset<Row>` and can be interacted with in the same way.
 
-[source,java]
+If executed against the `travel-sample` bucket, this will print:
+
+[source]
 ----
-import static com.couchbase.spark.japi.CouchbaseDocumentRDD.couchbaseDocumentRDD;
-import static com.couchbase.spark.japi.CouchbaseSparkContext.couchbaseContext;
-----
-
-Now you can create RDDs through Key/Value, Views or N1QL:
-
-[source,java]
-----
-// Load docs through K/V
-List<JsonDocument> docs = csc
-    .couchbaseGet(Arrays.asList("airline_10226", "airline_10748"))
-    .collect();
-
-System.out.println(docs);
++-------------+--------+-------------+----+----+-----+-----------+-------+
+|    __META_ID|callsign|      country|iata|icao|   id|       name|   type|
++-------------+--------+-------------+----+----+-----+-----------+-------+
+|   airline_10|MILE-AIR|United States|  Q5| MLA|   10|40-Mile Air|airline|
+|airline_10123|     TXW|United States|  TQ| TXW|10123|Texas Wings|airline|
+|airline_10226|  atifly|United States|  A1| A1F|10226|     Atifly|airline|
++-------------+--------+-------------+----+----+-----+-----------+-------+
 ----
 
-[source,java]
-----
-// Perform a N1QL query
-List<CouchbaseQueryRow> results = csc
-    .couchbaseQuery(N1qlQuery.simple("SELECT * FROM `travel-sample` LIMIT 10"))
-    .collect();
+Please see the corresponding scala sections for `DataFrame` on how to configure the data source and which properties can be applied.
 
-System.out.println(results);
-----
-
-== Mapping RDDs to Couchbase APIs
-
-An RDD can be wrapped with the `couchbaseRDD` static method to expose all the functions available.
-So instead of fetching the documents right from the `SparkContext` it can also be done like this:
-
-[source,java]
-----
-import static com.couchbase.spark.japi.CouchbaseRDD.couchbaseRDD;
-//...
-JavaRDD<String> ids = sc.parallelize(Arrays.asList("airline_10226", "airline_10748"));
-docs = couchbaseRDD(ids).couchbaseGet().collect();
-System.out.println(docs);
-----
-
-The `CouchbaseRDD` exposes the following methods:
-
-* `couchbaseGet`: Fetch documents via their unique Document ID.
-* `couchbaseSubdocLookup`: Fetch fragments of a document.
-* `couchbaseView`: Query a Couchbase View.
-* `couchbaseSpatialView`: Query a Couchbase Spatial View.
-* `couchbaseQuery`: Perform a N1QL Query.
-
-== Using SparkSQL with Couchbase from Java
-
-Using SparkSQL from Java is possible because the Java API provides wrappers for both the `DataFrameReader` and `DataFrameWriter` APIs.
-All you need to do is wrap the ones that are returned by Spark and wrap them like in the following example to get access to all couchbase specific methods:
-
-[source,java]
-----
-import static com.couchbase.spark.japi.CouchbaseDataFrameReader.couchbaseReader;
-//...
-
-// Use SparkSQL from Java
-SQLContext sql = new SQLContext(sc);
-
-// Wrap the Reader and create the DataFrame from Couchbase
-Dataset<Row> airlines = couchbaseReader(sql.read()).couchbase(new EqualTo("type", "airline"));
-
-// Print the number of airline
-System.out.println("Number of Airlines: " + airlines.count());
-----
-
-== Using Datasets with Couchbase
+== Using SparkSQL Datasets
 
 Since Datasets work with actual Java objects, first create one:
 
 [source,java]
 ----
-import java.io.Serializable;
-
-public class Airport implements Serializable {
-    private String name;
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-}
+include::example$JavaApi.java[tag=airportclass,indent=0]
 ----
 
-Next, you can convert a `DataFrame` to a `Dataset` through the `.as()` API in Spark 1.6:
+Next, you can convert a `DataFrame` to a `Dataset` through the `.as()` API:
 
 [source,java]
 ----
-Dataset<Airport> airports = couchbaseReader(sql.read())
-	.couchbase(new EqualTo("type", "airport"))
-	.select(new Column("airportname").as("name"))
-	.as(Encoders.bean(Airport.class));
-
-	List<Airport> allAirports = airports.collectAsList();
-	System.out.println(allAirports.size());
+include::example$JavaApi.java[tag=dsread,indent=0]
 ----
 
-== Writing to Couchbase
+This will print:
 
-If you want to store Documents in Couchbase, use the `couchbaseDocumentRDD` method:
+[source]
+----
+Airline:Airline{name='40-Mile Air', callsign='MILE-AIR', country='United States'}
+Airline:Airline{name='Texas Wings', callsign='TXW', country='United States'}
+Airline:Airline{name='Atifly', callsign='atifly', country='United States'}
+----
 
-[source,java]
-----
-couchbaseDocumentRDD(
-    sc.parallelize(Arrays.asList(JsonDocument.create("doc1", JsonObject.empty())))
-).saveToCouchbase();
-----
+== RDD Access
+
+Raw RDD access from the Java API is currently not available, please use the higher level DataFrame and Dataset APIs.
