@@ -12,7 +12,7 @@ You need to https://spark.apache.org/downloads.html[download^] Apache Spark from
 
 [source,scala]
 ----
-Downloads/spark-3.0.3-bin-hadoop2.7/bin
+Downloads/spark-3.1.2-bin-hadoop2.7/bin
 ❯ ./spark-shell -h
 Usage: ./bin/spark-shell [options]
 
@@ -37,14 +37,14 @@ If you want to use it with the Couchbase Connector, the easiest way is to provid
 
 [source]
 ----
-./spark-shell --packages com.couchbase.client:spark-connector_2.12:3.0.0
+./spark-shell --packages com.couchbase.client:spark-connector_2.12:3.1.0
 ----
 
 The final step that needs to be undertaken is to specify all required properties (connectionString, username and password) so that the connector can bootstrap:
 
 [source]
 ----
-./spark-shell --packages com.couchbase.client:spark-connector_2.12:3.0.0 -c spark.couchbase.connectionString=127.0.0.1 -c spark.couchbase.username=user -c spark.couchbase.password=pass
+./spark-shell --packages com.couchbase.client:spark-connector_2.12:3.1.0 -c spark.couchbase.connectionString=127.0.0.1 -c spark.couchbase.username=user -c spark.couchbase.password=pass
 ----
 
 Now you're all set!

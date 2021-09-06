@@ -31,9 +31,9 @@ version := "1.0.0-SNAPSHOT"
 scalaVersion := "2.12.14"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "3.0.3",
-  "org.apache.spark" %% "spark-sql" % "3.0.3",
-  "com.couchbase.client" %% "spark-connector" % "3.0.0"
+  "org.apache.spark" %% "spark-core" % "3.1.2",
+  "org.apache.spark" %% "spark-sql" % "3.1.2",
+  "com.couchbase.client" %% "spark-connector" % "3.1.0"
 )
 ----
 
@@ -81,7 +81,7 @@ You can then build your application via `sbt package` on the command line and su
 Because Couchbase distributes the connector via maven, you can include it with the `--packages` flag:
 
 ----
-/spark/bin/spark-submit --master spark://your-spark-master:7077 --packages com.couchbase.client:spark-connector_2.12:3.0.0 /path/to/app/target/scala-2.12/your-awesome-app_2.12-1.0.0-SNAPSHOT.jar
+/spark/bin/spark-submit --master spark://your-spark-master:7077 --packages com.couchbase.client:spark-connector_2.12:3.1.0 /path/to/app/target/scala-2.12/your-awesome-app_2.12-1.0.0-SNAPSHOT.jar
 ----
 
 If your environment does not have access to the internet you can use the `--jars` argument instead and grab the assembly with all the dependencies from here: xref:download-links.adoc[Download and API Reference].
@@ -107,9 +107,9 @@ lazy val root = (project in file(".")).
   )
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "3.0.3" % "provided,test",
-  "org.apache.spark" %% "spark-sql" % "3.0.3" % "provided,test",
-  "com.couchbase.client" %% "spark-connector" % "3.0.0"
+  "org.apache.spark" %% "spark-core" % "3.1.2" % "provided,test",
+  "org.apache.spark" %% "spark-sql" % "3.1.2" % "provided,test",
+  "com.couchbase.client" %% "spark-connector" % "3.1.0"
 )
 ----
 

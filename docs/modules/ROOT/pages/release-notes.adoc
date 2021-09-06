@@ -4,6 +4,16 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 3.1.0 GA (September 2021)
+
+Version 3.1.0 is the first version to support Spark 3.1.x and is built on top of the Couchbase Scala SDK 1.1.x.
+
+This release contains identical features to the Spark 3.0.0 connector, the only difference being compiled against Spark 3.1.x. Please refer to the 3.0 migration guide for changes and new features over 2.4.x.
+
+*Highlights*
+
+* Support for Apache Spark 3.1.x
+
 == Couchbase Spark Connector 3.0.0 GA (September 2021)
 
 Version 3.0.0 is the first version to support Spark 3.0.x and is built on top of the Couchbase Scala SDK 1.1.x.

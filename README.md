@@ -8,16 +8,16 @@ The connector is available through the following coordinates:
 
  - **Group:** `com.couchbase.client`
  - **Artifact:** `spark-connector_2.12`
- - **Version:** `3.0.0`(in development)
+ - **Version:** `3.1.0` 
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.0.0"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.1.0"
 ```
 
 ## Documentation
-The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/3.0/index.html).
+The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/3.1/index.html).
 
 ## Version Compatibility
 
@@ -28,6 +28,7 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 
 | Connector | Apache Spark | Couchbase Server |
 | --------- | ------------ | ---------------- |
+| 3.1.x     | 3.1          | 6.x - 7.x        |
 | 3.0.x     | 3.0          | 6.x - 7.x        |
 | 2.4.x     | 2.4          | 5.x - 6.x        |
 | 2.3.x     | 2.3          | 2.5.x - 6.x      |
