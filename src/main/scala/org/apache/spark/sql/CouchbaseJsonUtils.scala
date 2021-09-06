@@ -23,6 +23,9 @@ import org.apache.spark.sql.types.DataType
 
 import java.io.Writer
 
+/**
+ * Internal utilities to access the JSON spark functionality.
+ */
 object CouchbaseJsonUtils {
 
   def jsonParser(schema: DataType): JacksonParser = {

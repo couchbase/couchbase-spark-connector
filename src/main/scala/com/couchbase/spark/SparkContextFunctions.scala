@@ -31,58 +31,151 @@ import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
+/**
+ * Brings RDD related functions into the spark context when loaded as an import.
+ *
+ * @param sc the spark context, made available by spark.
+ */
 class SparkContextFunctions(@transient val sc: SparkContext) extends Serializable {
 
+  /**
+   * Fetches a seq of documents.
+   *
+   * @param ids the document IDs.
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param getOptions optional parameters to customize the behavior.
+   * @return the RDD result.
+   */
   def couchbaseGet(ids: Seq[Get],
     keyspace: Keyspace = Keyspace(),
     getOptions: GetOptions = null
   ): RDD[GetResult] =
     new GetRDD(sc, ids, keyspace, getOptions)
 
+  /**
+   * Upserts a seq of documents.
+   *
+   * @param docs the documents to upsert.
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param upsertOptions optional parameters to customize the behavior.
+   * @param serializer the implicit serializer used to encode the data.
+   * @tparam T the type of data that should be stored.
+   * @return the RDD result.
+   */
   def couchbaseUpsert[T](docs: Seq[Upsert[T]],
                    keyspace: Keyspace = Keyspace(),
                       upsertOptions: UpsertOptions = null
                   )(implicit serializer: JsonSerializer[T]): RDD[MutationResult] =
     new UpsertRDD[T](sc, docs, keyspace, upsertOptions)
 
+  /**
+   * Replaces a seq documents.
+   *
+   * @param docs the documents to replace.
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param replaceOptions optional parameters to customize the behavior.
+   * @param serializer the implicit serializer used to encode the data.
+   * @tparam T the type of data that should be stored.
+   * @return the RDD result.
+   */
   def couchbaseReplace[T](docs: Seq[Replace[T]],
                          keyspace: Keyspace = Keyspace(),
                           replaceOptions: ReplaceOptions = null
                         )(implicit serializer: JsonSerializer[T]): RDD[MutationResult] =
     new ReplaceRDD[T](sc, docs, keyspace, replaceOptions)
 
+  /**
+   * Inserts a seq of documents.
+   *
+   * @param docs the documents that should be inserted.
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param insertOptions optional parameters to customize the behavior.
+   * @param serializer the implicit serializer used to encode the data.
+   * @tparam T the type of data that should be stored.
+   * @return the RDD result.
+   */
   def couchbaseInsert[T](docs: Seq[Insert[T]],
                          keyspace: Keyspace = Keyspace(),
                          insertOptions: InsertOptions = null
                         )(implicit serializer: JsonSerializer[T]): RDD[MutationResult] =
     new InsertRDD[T](sc, docs, keyspace, insertOptions)
 
+  /**
+   * Removes a seq of documents.
+   *
+   * @param docs the documents which should be removed.
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param removeOptions optional parameters to customize the behavior.
+   * @return the RDD result.
+   */
   def couchbaseRemove(docs: Seq[Remove],
                          keyspace: Keyspace = Keyspace(),
                       removeOptions: RemoveOptions = null
                         ): RDD[MutationResult] =
     new RemoveRDD(sc, docs, keyspace, removeOptions)
 
+  /**
+   * Performs subdocument lookup.
+   *
+   * @param docs the documents to look up.
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param lookupInOptions optional parameters to customize the behavior.
+   * @return the RDD result.
+   */
   def couchbaseLookupIn(docs: Seq[LookupIn],
     keyspace: Keyspace = Keyspace(),
     lookupInOptions: LookupInOptions = null
   ): RDD[LookupInResult] =
     new LookupInRDD(sc, docs, keyspace, lookupInOptions)
 
+  /**
+   * Performs subdocument mutations.
+   *
+   * @param docs the documents to mutate.
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param mutateInOptions optional parameters to customize the behavior.
+   * @return the RDD result.
+   */
   def couchbaseMutateIn(docs: Seq[MutateIn],
     keyspace: Keyspace = Keyspace(),
     mutateInOptions: MutateInOptions = null
   ): RDD[MutateInResult] =
     new MutateInRDD(sc, docs, keyspace, mutateInOptions)
 
+  /**
+   * Performs a N1QL query.
+   *
+   * @param statement the query statement to execute.
+   * @param queryOptions optional parameters to customize the behavior.
+   * @param deserializer the implicit JSON deserializer to use.
+   * @tparam T the document type to decode into.
+   * @return the RDD result.
+   */
   def couchbaseQuery[T: ClassTag](statement: String, queryOptions: QueryOptions = null)
                                  (implicit deserializer: JsonDeserializer[T]): RDD[T] =
     new QueryRDD[T](sc, statement, queryOptions)
 
+  /**
+   * Performs an analytics query.
+   *
+   * @param statement the analytics statement to execute.
+   * @param analyticsOptions optional parameters to customize the behavior.
+   * @param deserializer the implicit JSON deserializer to use.
+   * @tparam T the document type to decode into.
+   * @return the RDD result.
+   */
   def couchbaseAnalyticsQuery[T: ClassTag](statement: String, analyticsOptions: AnalyticsOptions = null)
                                           (implicit deserializer: JsonDeserializer[T]): RDD[T] =
     new AnalyticsRDD[T](sc, statement, analyticsOptions)
 
+  /**
+   * Performs a full-text search query.
+   *
+   * @param indexName the name of the search index.
+   * @param query the search query to be sent to the index.
+   * @param searchOptions optional parameters to customize the behavior.
+   * @return the RDD result.
+   */
   def couchbaseSearchQuery(indexName: String, query: SearchQuery, searchOptions: SearchOptions = null): RDD[SearchResult] = {
     new SearchRDD(sc, indexName, query, searchOptions)
   }

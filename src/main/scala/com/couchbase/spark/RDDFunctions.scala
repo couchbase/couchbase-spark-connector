@@ -21,10 +21,26 @@ import com.couchbase.spark.config.CouchbaseConfig
 import com.couchbase.spark.kv.{Insert, KeyValueOperationRunner, MutateIn, Remove, Replace, Upsert}
 import org.apache.spark.rdd.RDD
 
+/**
+ * Functions which can be performed on an RDD if the evidence matches.
+ *
+ * @param rdd the rdd on which the operations are performed on.
+ * @tparam T the generic RDD type to operate on.
+ */
 class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
 
   private val config = CouchbaseConfig(rdd.sparkContext.getConf)
 
+  /**
+   * Upserts documents into couchbase.
+   *
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param upsertOptions optional parameters to customize the behavior.
+   * @param evidence the generic type for which this method is made available on the RDD.
+   * @param serializer the JSON serializer to use when encoding the documents.
+   * @tparam V the generic type to use.
+   * @return the RDD result.
+   */
   def couchbaseUpsert[V](keyspace: Keyspace = Keyspace(), upsertOptions: UpsertOptions = null)
                         (implicit evidence: RDD[T] <:< RDD[Upsert[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Upsert[V]] = this.rdd
@@ -38,6 +54,16 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
     }
   }
 
+  /**
+   * Inserts documents into couchbase.
+   *
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param insertOptions optional parameters to customize the behavior.
+   * @param evidence the generic type for which this method is made available on the RDD.
+   * @param serializer the JSON serializer to use when encoding the documents.
+   * @tparam V the generic type to use.
+   * @return the RDD result.
+   */
   def couchbaseInsert[V](keyspace: Keyspace = Keyspace(), insertOptions: InsertOptions = null)
                         (implicit evidence: RDD[T] <:< RDD[Insert[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Insert[V]] = this.rdd
@@ -51,6 +77,16 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
     }
   }
 
+  /**
+   * Replaces documents in couchbase.
+   *
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param replaceOptions optional parameters to customize the behavior.
+   * @param evidence the generic type for which this method is made available on the RDD.
+   * @param serializer the JSON serializer to use when encoding the documents.
+   * @tparam V the generic type to use.
+   * @return the RDD result.
+   */
   def couchbaseReplace[V](keyspace: Keyspace = Keyspace(), replaceOptions: ReplaceOptions = null)
                          (implicit evidence: RDD[T] <:< RDD[Replace[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Replace[V]] = this.rdd
@@ -64,6 +100,14 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
     }
   }
 
+  /**
+   * Removes documents from couchbase.
+   *
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param removeOptions optional parameters to customize the behavior.
+   * @param evidence the generic type for which this method is made available on the RDD.
+   * @return the RDD result.
+   */
   def couchbaseRemove(keyspace: Keyspace = Keyspace(), removeOptions: RemoveOptions = null)
                      (implicit evidence: RDD[T] <:< RDD[Remove]) : RDD[MutationResult] = {
     val rdd: RDD[Remove] = this.rdd
@@ -77,6 +121,14 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
     }
   }
 
+  /**
+   * Mutates sub-documents in couchbase.
+   *
+   * @param keyspace the optional keyspace to override the implicit configuration.
+   * @param mutateInOptions optional parameters to customize the behavior.
+   * @param evidence the generic type for which this method is made available on the RDD.
+   * @return the RDD result.
+   */
   def couchbaseMutateIn(keyspace: Keyspace = Keyspace(), mutateInOptions: MutateInOptions = null)
                      (implicit evidence: RDD[T] <:< RDD[MutateIn]) : RDD[MutateInResult] = {
     val rdd: RDD[MutateIn] = this.rdd

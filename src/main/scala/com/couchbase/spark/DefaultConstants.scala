@@ -17,6 +17,9 @@ package com.couchbase.spark
 
 import com.couchbase.client.core.io.CollectionIdentifier
 
+/**
+ * Default constants used across the whole spark connector project.
+ */
 object DefaultConstants {
 
   /**
