@@ -1,6 +1,6 @@
 = Getting Started
 :page-topic-type: concept
-:page-aliases: 6.5@server:connectors:spark-1.0/spark-shell
+:page-aliases: 6.6@server:connectors:spark-1.0/spark-shell
 
 [abstract]
 To get started with the Couchbase Spark connector quickly, learn how to add the connector to your Spark project and run simple queries.
