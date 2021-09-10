@@ -13,7 +13,7 @@ Please note that this release does not have separate release notes, rather refer
 *Highlights*
 
 * Support for Apache Spark 3.0.x
-* Built on top of the new Scala SDK 1.1.x
+* Built on top of the new Scala SDK 1.2.x
 * Support for Couchbase Server 7.0 and later
 
 == Couchbase Spark Connector 2.4.1 GA (November 2020)
