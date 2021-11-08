@@ -28,6 +28,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.analytics.{AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
 
+import scala.concurrent.duration.Duration
 import scala.util.matching.Regex
 
 class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig, filters: Array[Filter])
@@ -93,12 +94,13 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
   }
 
   def buildOptions(): CouchbaseAnalyticsOptions = {
-    val opts = CouchbaseAnalyticsOptions()
+    var opts = CouchbaseAnalyticsOptions()
     readConfig.scanConsistency match {
-      case AnalyticsOptions.NotBoundedScanConsistency => opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
-      case AnalyticsOptions.RequestPlusScanConsistency => opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
+      case AnalyticsOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
+      case AnalyticsOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
+    readConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 

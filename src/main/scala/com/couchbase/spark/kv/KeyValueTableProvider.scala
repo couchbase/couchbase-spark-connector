@@ -22,7 +22,6 @@ import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.kv.{InsertOptions, UpsertOptions}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.query.QueryOptions
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
@@ -32,6 +31,7 @@ import reactor.core.scala.publisher.{SFlux, SMono}
 
 import scala.collection.JavaConverters._
 import java.util
+import scala.concurrent.duration.Duration
 
 class KeyValueTableProvider extends Logging with DataSourceRegister with CreatableRelationProvider {
 
@@ -60,7 +60,8 @@ class KeyValueTableProvider extends Logging with DataSourceRegister with Creatab
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
       conf.implicitCollectionName(properties.get(KeyValueOptions.Collection)),
       Option(properties.get(KeyValueOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
-      Option(properties.get(KeyValueOptions.Durability))
+      Option(properties.get(KeyValueOptions.Durability)),
+      Option(properties.get(KeyValueOptions.Timeout))
     )
   }
 
@@ -99,15 +100,15 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
       .flatMap(v => {
         mode match {
           case SaveMode.Overwrite =>
-            coll.reactive.upsert(v._1, v._2, UpsertOptions().durability(durability).transcoder(RawJsonTranscoder.Instance))
+            coll.reactive.upsert(v._1, v._2, buildUpsertOptions(durability))
           case SaveMode.ErrorIfExists =>
-            coll.reactive.insert(v._1, v._2, InsertOptions().durability(durability).transcoder(RawJsonTranscoder.Instance))
+            coll.reactive.insert(v._1, v._2, buildInsertOptions(durability))
           case SaveMode.Ignore =>
-            coll.reactive.insert(v._1, v._2, InsertOptions().durability(durability).transcoder(RawJsonTranscoder.Instance)).onErrorResume(t => {
+            coll.reactive.insert(v._1, v._2, buildInsertOptions(durability)).onErrorResume(t => {
               if (t.isInstanceOf[DocumentExistsException]) {
                 SMono.empty
               } else {
-                SMono.raiseError(t)
+                SMono.error(t)
               }
             })
           case m =>
@@ -116,4 +117,17 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
       })
       .blockLast()
   }
+
+  def buildInsertOptions(durability: Durability): InsertOptions = {
+    var opts = InsertOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
+    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    opts
+  }
+
+  def buildUpsertOptions(durability: Durability): UpsertOptions = {
+    var opts = UpsertOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
+    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    opts
+  }
+
 }

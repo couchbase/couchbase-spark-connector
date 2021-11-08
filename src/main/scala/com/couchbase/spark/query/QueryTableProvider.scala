@@ -33,6 +33,7 @@ import org.apache.spark.sql.{DataFrame, Encoders, SQLContext, SaveMode, SparkSes
 
 import scala.collection.JavaConverters._
 import java.util
+import scala.concurrent.duration.Duration
 
 class QueryTableProvider extends TableProvider with Logging with DataSourceRegister with CreatableRelationProvider {
 
@@ -109,7 +110,8 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
       conf.implicitCollectionName(properties.get(QueryOptions.Collection)),
       Option(properties.get(QueryOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
       Option(properties.get(QueryOptions.Filter)),
-      Option(properties.get(QueryOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultQueryScanConsistency)
+      Option(properties.get(QueryOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultQueryScanConsistency),
+      Option(properties.get(QueryOptions.Timeout))
     )
   }
 
@@ -119,6 +121,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
       conf.implicitScopeNameOr(properties.get(QueryOptions.Scope)),
       conf.implicitCollectionName(properties.get(QueryOptions.Collection)),
       Option(properties.get(QueryOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
+      Option(properties.get(QueryOptions.Timeout))
     )
   }
 
@@ -182,7 +185,7 @@ class RelationPartitionWriter(writeConfig: QueryWriteConfig, couchbaseConfig: Co
 
     logDebug("Building and running N1QL query " + statement)
 
-    val opts = CouchbaseQueryOptions().metrics(true)
+    val opts = buildOptions()
     try {
       val result = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
         CouchbaseConnection().cluster(couchbaseConfig).query(statement, opts).get
@@ -199,5 +202,11 @@ class RelationPartitionWriter(writeConfig: QueryWriteConfig, couchbaseConfig: Co
           throw e
         }
     }
+  }
+
+  def buildOptions(): CouchbaseQueryOptions = {
+    var opts = CouchbaseQueryOptions().metrics(true)
+    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    opts
   }
 }

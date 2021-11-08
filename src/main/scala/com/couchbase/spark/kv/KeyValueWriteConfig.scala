@@ -20,5 +20,6 @@ case class KeyValueWriteConfig(
  scope: Option[String],
  collection: Option[String],
  idFieldName: String,
- durability: Option[String]
+ durability: Option[String],
+ timeout: Option[String],
 )

@@ -31,7 +31,12 @@ object QuerySqlExample {
       .config("spark.couchbase.implicitBucket", "travel-sample")
       .getOrCreate()
 
-    val airlines = spark.read.format("couchbase.query").option(QueryOptions.Filter, "type = 'airline'").option(QueryOptions.Bucket, "travel-sample").load()
+    val airlines = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Filter, "type = 'airline'")
+      .option(QueryOptions.Bucket, "travel-sample")
+      .option(QueryOptions.Timeout, "10s")
+      .load()
 
     airlines.show()
   }

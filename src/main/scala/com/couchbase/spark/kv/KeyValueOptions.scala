@@ -56,6 +56,13 @@ object KeyValueOptions {
   val Durability = "durability"
 
   /**
+   * Option Key: The timeout to use which overrides the default configured.
+   *
+   * The value is a string and must be parsable from a scala Duration.
+   */
+  val Timeout = "timeout"
+
+  /**
    * Option value: Majority Durability - to be used with [[Durability]] as the key.
    */
   val MajorityDurability = "majority"

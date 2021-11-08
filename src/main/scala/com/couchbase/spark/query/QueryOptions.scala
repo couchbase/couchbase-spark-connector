@@ -70,6 +70,13 @@ object QueryOptions {
   val InferLimit = "inferLimit"
 
   /**
+   * Option Key: The timeout to use which overrides the default configured.
+   *
+   * The value is a string and must be parsable from a scala Duration.
+   */
+  val Timeout = "timeout"
+
+  /**
    * Option Value: Not bounded scan consistency - to be used with [[ScanConsistency]] as the key.
    *
    * This is the default and usually does not need to be specified. The query will be executed immediately, and

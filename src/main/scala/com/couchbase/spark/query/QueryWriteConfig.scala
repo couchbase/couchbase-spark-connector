@@ -20,4 +20,5 @@ case class QueryWriteConfig(
  scope: Option[String],
  collection: Option[String],
  idFieldName: String,
+ timeout: Option[String],
 )

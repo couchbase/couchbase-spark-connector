@@ -23,4 +23,5 @@ case class AnalyticsReadConfig(
   idFieldName: String,
   userFilter: Option[String],
   scanConsistency: String,
+  timeout: Option[String],
 )

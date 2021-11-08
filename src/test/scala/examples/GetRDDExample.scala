@@ -25,7 +25,7 @@ object GetRDDExample {
       .builder()
       .master("local[*]")
       .appName("Get RDD Example")
-      //.config("spark.couchbase.connectionString", "127.0.0.1")
+      .config("spark.couchbase.connectionString", "127.0.0.1")
       .config("spark.couchbase.username", "Administrator")
       .config("spark.couchbase.password", "password")
       .config("spark.couchbase.implicitBucket", "travel-sample")

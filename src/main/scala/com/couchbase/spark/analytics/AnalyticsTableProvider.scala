@@ -86,7 +86,8 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
       conf.implicitScopeNameOr(properties.get(AnalyticsOptions.Scope)),
       Option(properties.get(AnalyticsOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
       Option(properties.get(AnalyticsOptions.Filter)),
-      Option(properties.get(AnalyticsOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultAnalyticsScanConsistency)
+      Option(properties.get(AnalyticsOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultAnalyticsScanConsistency),
+      Option(properties.get(AnalyticsOptions.Timeout))
     )
   }
 

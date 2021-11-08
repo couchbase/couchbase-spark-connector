@@ -40,6 +40,7 @@ object KeyValueSqlWriteExample {
     airlines.write.format("couchbase.kv")
       .option(KeyValueOptions.Bucket, "test")
       .option(KeyValueOptions.Durability, KeyValueOptions.MajorityDurability)
+      //.option(KeyValueOptions.Timeout, "10s")
       .mode(SaveMode.Ignore)
       .save()
   }

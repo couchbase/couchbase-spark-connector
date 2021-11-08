@@ -28,6 +28,8 @@ import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.query.{QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
 
+import scala.concurrent.duration.Duration
+
 class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: QueryReadConfig, filters: Array[Filter])
   extends PartitionReader[InternalRow]
   with Logging {
@@ -87,12 +89,13 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
   }
 
   def buildOptions(): CouchbaseQueryOptions = {
-    val opts = CouchbaseQueryOptions()
+    var opts = CouchbaseQueryOptions()
     readConfig.scanConsistency match {
-      case QueryOptions.NotBoundedScanConsistency => opts.scanConsistency(QueryScanConsistency.NotBounded)
-      case QueryOptions.RequestPlusScanConsistency => opts.scanConsistency(QueryScanConsistency.RequestPlus())
+      case QueryOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.NotBounded)
+      case QueryOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.RequestPlus())
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
+    readConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 
