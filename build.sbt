@@ -1,6 +1,6 @@
 name := "spark-connector"
 
-version := "3.1.0"
+version := "3.2.0"
 
 organization := "com.couchbase.client"
 
@@ -8,8 +8,8 @@ scalaVersion := "2.12.14"
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
-val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.1.2")
-val sdkVersion = "1.2.1"
+val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.2.0")
+val sdkVersion = "1.2.3"
 
 scalacOptions += "-feature"
 
@@ -21,7 +21,7 @@ libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-library" % scalaVersion.value % Provided,
   "com.couchbase.client" %% "scala-client" % sdkVersion,
   "net.aichler" % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers" % "couchbase" % "1.16.0" % Test
+  "org.testcontainers" % "couchbase" % "1.16.2" % Test
 )
 
 homepage := Some(url("https://couchbase.com"))
