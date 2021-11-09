@@ -28,13 +28,14 @@ object QueryRDDExample {
       .config("spark.couchbase.connectionString", "127.0.0.1")
       .config("spark.couchbase.username", "Administrator")
       .config("spark.couchbase.password", "password")
+      .config("spark.couchbase.implicitBucket", "travel-sample")
       .getOrCreate()
 
     import com.couchbase.spark._
 
     spark
       .sparkContext
-      .couchbaseQuery[JsonObject]("select count(*) as count from `travel-sample`")
+      .couchbaseQuery[JsonObject]("select count(*) as count from airport", keyspace = Keyspace(scope = Some("inventory")))
       .collect()
       .foreach(println)
   }

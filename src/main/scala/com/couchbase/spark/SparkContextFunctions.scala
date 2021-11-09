@@ -147,26 +147,29 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
    *
    * @param statement the query statement to execute.
    * @param queryOptions optional parameters to customize the behavior.
+   * @param keyspace the keyspace (only provide bucket and scope if needed).
    * @param deserializer the implicit JSON deserializer to use.
    * @tparam T the document type to decode into.
    * @return the RDD result.
    */
-  def couchbaseQuery[T: ClassTag](statement: String, queryOptions: QueryOptions = null)
+  def couchbaseQuery[T: ClassTag](statement: String, queryOptions: QueryOptions = null, keyspace: Keyspace = null)
                                  (implicit deserializer: JsonDeserializer[T]): RDD[T] =
-    new QueryRDD[T](sc, statement, queryOptions)
+    new QueryRDD[T](sc, statement, queryOptions, keyspace)
 
   /**
    * Performs an analytics query.
    *
    * @param statement the analytics statement to execute.
    * @param analyticsOptions optional parameters to customize the behavior.
+   * @param keyspace the keyspace (only provide bucket and scope if needed).
    * @param deserializer the implicit JSON deserializer to use.
    * @tparam T the document type to decode into.
    * @return the RDD result.
    */
-  def couchbaseAnalyticsQuery[T: ClassTag](statement: String, analyticsOptions: AnalyticsOptions = null)
+  def couchbaseAnalyticsQuery[T: ClassTag](statement: String, analyticsOptions: AnalyticsOptions = null,
+                                           keyspace: Keyspace = null)
                                           (implicit deserializer: JsonDeserializer[T]): RDD[T] =
-    new AnalyticsRDD[T](sc, statement, analyticsOptions)
+    new AnalyticsRDD[T](sc, statement, analyticsOptions, keyspace)
 
   /**
    * Performs a full-text search query.

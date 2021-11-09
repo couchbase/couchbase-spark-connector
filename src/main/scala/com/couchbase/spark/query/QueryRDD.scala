@@ -22,8 +22,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import com.couchbase.client.scala.query.{QueryOptions => CouchbaseQueryOptions}
-import collection.JavaConverters._
+import com.couchbase.spark.{DefaultConstants, Keyspace}
 
+import collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class QueryPartition(id: Int, loc: Seq[String]) extends Partition {
@@ -36,6 +37,7 @@ class QueryRDD[T: ClassTag](
   @transient private val sc: SparkContext,
   val statement: String,
   val queryOptions: CouchbaseQueryOptions = null,
+  val keyspace: Keyspace = null,
 )(implicit deserializer: JsonDeserializer[T]) extends RDD[T](sc, Nil) with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
@@ -51,7 +53,24 @@ class QueryRDD[T: ClassTag](
     }
     options = options.metrics(true)
 
-    val result = cluster.query(statement, options).get
+    val result = if (keyspace == null || keyspace.isEmpty) {
+      cluster.query(statement, options).get
+    } else {
+      if (keyspace.collection.isDefined) {
+        throw new IllegalArgumentException("A Collection must not be provided on a N1QL Query inside the Keyspace, " +
+          "only Bucket and/or Scope are allowed. The collection itself is provided as part of the statement itself!")
+      }
+
+      val bucketName = globalConfig.
+        implicitBucketNameOr(this.keyspace.bucket.orNull)
+
+      val scopeName = globalConfig
+        .implicitScopeNameOr(this.keyspace.scope.orNull).
+        getOrElse(DefaultConstants.DefaultScopeName)
+
+      cluster.bucket(bucketName).scope(scopeName).query(statement, options).get
+    }
+
     if (result.metaData.metrics.isDefined) {
       logDebug(s"Metrics for query $statement: " + result.metaData.metrics.get)
     }

@@ -15,6 +15,7 @@
  */
 package examples
 
+import com.couchbase.client.scala.analytics.AnalyticsOptions
 import com.couchbase.client.scala.json.JsonObject
 import org.apache.spark.sql.SparkSession
 
@@ -27,10 +28,16 @@ object AnalyticsRDDExample {
       .config("spark.couchbase.connectionString", "127.0.0.1")
       .config("spark.couchbase.username", "Administrator")
       .config("spark.couchbase.password", "password")
+      .config("spark.couchbase.implicitBucket", "travel-sample")
       .getOrCreate()
 
     import com.couchbase.spark._
 
-    spark.sparkContext.couchbaseAnalyticsQuery[JsonObject]("select 1=1").collect().foreach(println)
+    val options = AnalyticsOptions()
+    spark
+      .sparkContext
+      .couchbaseAnalyticsQuery[JsonObject]("select count(*) as count from airport", options, keyspace = Keyspace(scope = Some("inventory")))
+      .collect()
+      .foreach(println)
   }
 }

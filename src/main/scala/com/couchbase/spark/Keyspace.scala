@@ -26,4 +26,6 @@ package com.couchbase.spark
  * @param scope the scope name, if present.
  * @param collection the collection name, if present.
  */
-case class Keyspace(bucket: Option[String] = None, scope: Option[String] = None, collection: Option[String] = None)
+case class Keyspace(bucket: Option[String] = None, scope: Option[String] = None, collection: Option[String] = None) {
+  def isEmpty: Boolean = bucket.isEmpty && scope.isEmpty && collection.isEmpty
+}

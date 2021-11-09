@@ -28,6 +28,7 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 
 | Connector | Apache Spark | Couchbase Server |
 | --------- | ------------ | ---------------- |
+| 3.2.x (dev) | 3.2          | 6.x - 7.x        |
 | 3.1.x     | 3.1          | 6.x - 7.x        |
 | 3.0.x     | 3.0          | 6.x - 7.x        |
 | 2.4.x     | 2.4          | 5.x - 6.x        |
