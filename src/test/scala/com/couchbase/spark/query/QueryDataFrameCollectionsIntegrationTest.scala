@@ -16,6 +16,8 @@
 package com.couchbase.spark.query
 
 import com.couchbase.client.scala.json.JsonObject
+import com.couchbase.client.scala.manager.collection.CollectionSpec
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.kv.Upsert
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
@@ -26,17 +28,20 @@ import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 import java.util.UUID
 
 @TestInstance(Lifecycle.PER_CLASS)
-class QueryDataFrameIntegrationTest {
+class QueryDataFrameCollectionsIntegrationTest {
 
   var container: CouchbaseContainer = _
   var spark: SparkSession = _
 
+  private val bucketName = UUID.randomUUID().toString
+  private val scopeName = UUID.randomUUID().toString
+  private val airportCollectionName = UUID.randomUUID().toString
+  private val airlineCollectionName = UUID.randomUUID().toString
+
   @BeforeAll
   def setup(): Unit = {
-    val bucketName: String = UUID.randomUUID().toString
-
-    container = new CouchbaseContainer("couchbase/server:6.6.2")
-      .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(true))
+    container = new CouchbaseContainer("couchbase/server:7.0.3")
+      .withBucket(new BucketDefinition(bucketName))
     container.start()
 
     spark = SparkSession
@@ -48,6 +53,15 @@ class QueryDataFrameIntegrationTest {
       .config("spark.couchbase.password", container.getPassword)
       .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
+
+    val bucket = CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
+
+    bucket.collections.createScope(scopeName)
+    bucket.collections.createCollection(CollectionSpec(airportCollectionName, scopeName))
+    bucket.collections.createCollection(CollectionSpec(airlineCollectionName, scopeName))
+
+    bucket.scope(scopeName).query(s"create primary index on `$airportCollectionName`")
+    bucket.scope(scopeName).query(s"create primary index on `$airlineCollectionName`")
 
     prepareSampleData()
   }
@@ -62,26 +76,31 @@ class QueryDataFrameIntegrationTest {
 
     val airport_1255 = Upsert(
       "airport_1255",
-      JsonObject.fromJson("""{"type":"airport","airportname": "Peronne St Quentin"}""")
+      JsonObject.fromJson("""{"airportname": "Peronne St Quentin"}""")
     )
     val airport_1258 = Upsert(
       "airport_1258",
-      JsonObject.fromJson("""{"type":"airport","airportname": "Bray"}""")
+      JsonObject.fromJson("""{"airportname": "Bray"}""")
     )
 
     val airline_10748 = Upsert(
       "airline_10748",
-      JsonObject.fromJson("""{"type":"airline","name":"Locair"}""")
+      JsonObject.fromJson("""{"name":"Locair"}""")
     )
 
     val airline_10765 = Upsert(
       "airline_10765",
-      JsonObject.fromJson("""{"type":"airline","name":"SeaPort Airlines"}""")
+      JsonObject.fromJson("""{"name":"SeaPort Airlines"}""")
     )
 
     spark
       .sparkContext
-      .couchbaseUpsert(Seq(airport_1255, airport_1258, airline_10748, airline_10765))
+      .couchbaseUpsert(Seq(airport_1255, airport_1258), Keyspace(scope = Some(scopeName), collection = Some(airportCollectionName)))
+      .collect()
+
+    spark
+      .sparkContext
+      .couchbaseUpsert(Seq(airline_10748, airline_10765), Keyspace(scope = Some(scopeName), collection = Some(airlineCollectionName)))
       .collect()
   }
 
@@ -89,13 +108,13 @@ class QueryDataFrameIntegrationTest {
   def readsDocumentsWithFilter(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
+      .option(QueryOptions.Scope, scopeName)
+      .option(QueryOptions.Collection, airportCollectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
     assertEquals(2, airports.count)
     airports.foreach(row => {
-      assertEquals("airport", row.getAs[String]("type"))
       assertNotNull(row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("airportname"))
     })
@@ -105,16 +124,17 @@ class QueryDataFrameIntegrationTest {
   def canChangeIdFieldName(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
       .option(QueryOptions.IdFieldName, "myIdFieldName")
+      .option(QueryOptions.Scope, scopeName)
+      .option(QueryOptions.Collection, airportCollectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
     airports.foreach(row => {
-      assertEquals("airport", row.getAs[String]("type"))
       assertThrows(classOf[IllegalArgumentException], () => row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("myIdFieldName"))
     })
   }
+
 
 }

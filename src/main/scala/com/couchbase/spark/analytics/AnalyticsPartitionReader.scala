@@ -72,12 +72,11 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
   override def close(): Unit = {}
 
   def buildAnalyticsQuery(): String = {
-    val fields = schema
+    var fields = schema
       .fields
       .map(f => f.name)
       .filter(f => !f.equals(readConfig.idFieldName))
       .map(f => s"`$f`")
-      .mkString(", ")
 
     var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = compileFilter(filters)
@@ -87,7 +86,9 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
       predicate = " WHERE " + compiledFilters
     }
 
-    val query = s"select META().id as ${readConfig.idFieldName}, $fields from `${readConfig.dataset}`$predicate"
+    fields = fields :+ s"META().id as ${readConfig.idFieldName}"
+    val fieldsEncoded = fields.mkString(", ")
+    val query = s"select $fieldsEncoded from `${readConfig.dataset}`$predicate"
 
     logDebug(s"Building and running Analytics query $query")
     query

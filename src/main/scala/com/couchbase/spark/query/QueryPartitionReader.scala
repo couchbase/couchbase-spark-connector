@@ -64,11 +64,10 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
   protected var lastRow: InternalRow = InternalRow()
 
   def buildQuery(): String = {
-    val fields = schema
+    var fields = schema
       .fields
       .map(f => f.name)
       .filter(f => !f.equals(readConfig.idFieldName))
-      .mkString(", ")
 
     var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = N1qlFilters.compile(filters)
@@ -78,10 +77,13 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
       predicate = " WHERE " + compiledFilters
     }
 
+    fields = fields :+ s"META().id as ${readConfig.idFieldName}"
+    val fieldsEncoded = fields.mkString(", ")
+
     val query = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
-      s"select META().id as ${readConfig.idFieldName}, $fields from `${readConfig.bucket}`$predicate"
+      s"select $fieldsEncoded from `${readConfig.bucket}`$predicate"
     } else {
-      s"select META().id as ${readConfig.idFieldName}, $fields from `$collectionName`$predicate"
+      s"select $fieldsEncoded from `$collectionName`$predicate"
     }
 
     logDebug(s"Building and running N1QL query $query")
