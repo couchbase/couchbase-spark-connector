@@ -9,7 +9,7 @@ scalaVersion := "2.12.14"
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.2.0")
-val sdkVersion = "1.2.4-SNAPSHOT"
+val sdkVersion = "1.2.4"
 
 scalacOptions += "-feature"
 
@@ -26,7 +26,10 @@ libraryDependencies ++= Seq(
 
 homepage := Some(url("https://couchbase.com"))
 
-scmInfo := Some(ScmInfo(url("https://github.com/couchbase/couchbase-spark-connector"), "git@github.com:couchbase/couchbase-spark-connector.git"))
+scmInfo := Some(ScmInfo(
+  url("https://github.com/couchbase/couchbase-spark-connector"),
+  "git@github.com:couchbase/couchbase-spark-connector.git"
+))
 
 developers := List(Developer("daschl",
   "Michael Nitschinger",
