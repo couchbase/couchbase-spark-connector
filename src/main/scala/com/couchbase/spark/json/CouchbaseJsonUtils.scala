@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+package com.couchbase.spark.json
 
 import com.fasterxml.jackson.core.{JsonFactory, JsonParser}
-import org.apache.spark.sql.catalyst.json.{CreateJacksonParser, JSONOptions, JSONOptionsInRead, JacksonGenerator, JacksonParser}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
-
-import java.io.Writer
 
 /**
  * Internal utilities to access the JSON spark functionality.
@@ -33,11 +30,10 @@ object CouchbaseJsonUtils {
     new JacksonParser(schema, options, true)
   }
 
-  def jsonGenerator(schema: DataType, writer: Writer): JacksonGenerator = {
-    val options = new JSONOptions(Map.empty, SQLConf.get.sessionLocalTimeZone)
-    new JacksonGenerator(schema, writer, options)
-  }
+  def createParser(): (JsonFactory, String) => JsonParser = stringParser
 
-  def createParser(): (JsonFactory, String) => JsonParser = CreateJacksonParser.string
+  private def stringParser(jsonFactory: JsonFactory, record: String): JsonParser = {
+    jsonFactory.createParser(record)
+  }
 
 }

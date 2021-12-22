@@ -20,13 +20,13 @@ import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.CouchbaseJsonUtils
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.analytics.{AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
+import com.couchbase.spark.json.CouchbaseJsonUtils
 
 import scala.concurrent.duration.Duration
 import scala.util.matching.Regex
