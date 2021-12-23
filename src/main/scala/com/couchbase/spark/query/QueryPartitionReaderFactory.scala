@@ -23,6 +23,6 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader, Par
 class QueryPartitionReaderFactory(conf: CouchbaseConfig, readConfig: QueryReadConfig) extends PartitionReaderFactory {
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
     val part = partition.asInstanceOf[QueryInputPartition]
-    new QueryPartitionReader(part.schema, conf, readConfig, part.filters)
+    new QueryPartitionReader(part.schema, conf, readConfig, part.filters, part.aggregations)
   }
 }

@@ -15,9 +15,8 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.client.scala.json.JsonObject
-import com.couchbase.spark.kv.Upsert
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
@@ -57,32 +56,13 @@ class QueryDataFrameIntegrationTest {
     container.stop()
   }
 
-  private def prepareSampleData() = {
-    import com.couchbase.spark._
+  private def prepareSampleData(): Unit = {
+    val airports = spark
+      .read
+      .json("src/test/resources/airports.json")
+      .withColumn("type", lit("airport"))
 
-    val airport_1255 = Upsert(
-      "airport_1255",
-      JsonObject.fromJson("""{"type":"airport","airportname": "Peronne St Quentin"}""")
-    )
-    val airport_1258 = Upsert(
-      "airport_1258",
-      JsonObject.fromJson("""{"type":"airport","airportname": "Bray"}""")
-    )
-
-    val airline_10748 = Upsert(
-      "airline_10748",
-      JsonObject.fromJson("""{"type":"airline","name":"Locair"}""")
-    )
-
-    val airline_10765 = Upsert(
-      "airline_10765",
-      JsonObject.fromJson("""{"type":"airline","name":"SeaPort Airlines"}""")
-    )
-
-    spark
-      .sparkContext
-      .couchbaseUpsert(Seq(airport_1255, airport_1258, airline_10748, airline_10765))
-      .collect()
+    airports.write.format("couchbase.kv").save()
   }
 
   @Test
@@ -93,11 +73,11 @@ class QueryDataFrameIntegrationTest {
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
-    assertEquals(2, airports.count)
+    assertEquals(4, airports.count)
     airports.foreach(row => {
       assertEquals("airport", row.getAs[String]("type"))
       assertNotNull(row.getAs[String]("__META_ID"))
-      assertNotNull(row.getAs[String]("airportname"))
+      assertNotNull(row.getAs[String]("name"))
     })
   }
 
@@ -117,4 +97,36 @@ class QueryDataFrameIntegrationTest {
     })
   }
 
+  @Test
+  def canPushDownAggregationWithoutGroupBy(): Unit = {
+    val airports = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Filter, "type = 'airport'")
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+
+    airports.createOrReplaceTempView("airports")
+
+    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run from airports")
+
+    assertEquals(204, aggregates.first().getAs[Long]("el"))
+    assertEquals(2, aggregates.first().getAs[Long]("run"))
+  }
+
+  @Test
+  def canPushDownAggregationWithGroupBy(): Unit = {
+    val airports = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Filter, "type = 'airport'")
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+
+    airports.createOrReplaceTempView("airports")
+
+    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run, country from airports group by country")
+
+    assertEquals(3, aggregates.count())
+    assertEquals(183, aggregates.where("country = 'Austria'").first().getAs[Long]("el"))
+    assertEquals(4, aggregates.where("country = 'Germany'").first().getAs[Long]("run"))
+  }
 }

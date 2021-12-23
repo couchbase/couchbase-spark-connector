@@ -18,16 +18,17 @@ package com.couchbase.spark.query
 
 import com.couchbase.spark.config.CouchbaseConfig
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{Batch, Scan}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-class QueryScan(schema: StructType, readConfig: QueryReadConfig, filters: Array[Filter]) extends Scan {
+class QueryScan(schema: StructType, readConfig: QueryReadConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Scan {
 
   private lazy val conf = CouchbaseConfig(SparkSession.active.sparkContext.getConf)
 
   override def readSchema(): StructType = schema
-  override def toBatch: Batch = new QueryBatch(schema, conf, readConfig, filters)
+  override def toBatch: Batch = new QueryBatch(schema, conf, readConfig, filters, aggregations)
 
 }

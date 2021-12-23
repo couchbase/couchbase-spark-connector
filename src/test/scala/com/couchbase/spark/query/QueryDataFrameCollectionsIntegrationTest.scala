@@ -15,10 +15,9 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.manager.collection.CollectionSpec
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.kv.Upsert
+import com.couchbase.spark.kv.KeyValueOptions
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
 import org.junit.jupiter.api.TestInstance.Lifecycle
@@ -72,36 +71,15 @@ class QueryDataFrameCollectionsIntegrationTest {
   }
 
   private def prepareSampleData() = {
-    import com.couchbase.spark._
+    val airports = spark
+      .read
+      .json("src/test/resources/airports.json")
 
-    val airport_1255 = Upsert(
-      "airport_1255",
-      JsonObject.fromJson("""{"airportname": "Peronne St Quentin"}""")
-    )
-    val airport_1258 = Upsert(
-      "airport_1258",
-      JsonObject.fromJson("""{"airportname": "Bray"}""")
-    )
-
-    val airline_10748 = Upsert(
-      "airline_10748",
-      JsonObject.fromJson("""{"name":"Locair"}""")
-    )
-
-    val airline_10765 = Upsert(
-      "airline_10765",
-      JsonObject.fromJson("""{"name":"SeaPort Airlines"}""")
-    )
-
-    spark
-      .sparkContext
-      .couchbaseUpsert(Seq(airport_1255, airport_1258), Keyspace(scope = Some(scopeName), collection = Some(airportCollectionName)))
-      .collect()
-
-    spark
-      .sparkContext
-      .couchbaseUpsert(Seq(airline_10748, airline_10765), Keyspace(scope = Some(scopeName), collection = Some(airlineCollectionName)))
-      .collect()
+    airports.write
+      .format("couchbase.kv")
+      .option(KeyValueOptions.Scope, scopeName)
+      .option(KeyValueOptions.Collection, airportCollectionName)
+      .save()
   }
 
   @Test
@@ -113,10 +91,10 @@ class QueryDataFrameCollectionsIntegrationTest {
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
-    assertEquals(2, airports.count)
+    assertEquals(4, airports.count)
     airports.foreach(row => {
       assertNotNull(row.getAs[String]("__META_ID"))
-      assertNotNull(row.getAs[String]("airportname"))
+      assertNotNull(row.getAs[String]("name"))
     })
   }
 
@@ -134,6 +112,41 @@ class QueryDataFrameCollectionsIntegrationTest {
       assertThrows(classOf[IllegalArgumentException], () => row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("myIdFieldName"))
     })
+  }
+
+  @Test
+  def canPushDownAggregationWithoutGroupBy(): Unit = {
+    val airports = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Scope, scopeName)
+      .option(QueryOptions.Collection, airportCollectionName)
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+
+    airports.createOrReplaceTempView("airports")
+
+    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run from airports")
+
+    assertEquals(204, aggregates.first().getAs[Long]("el"))
+    assertEquals(2, aggregates.first().getAs[Long]("run"))
+  }
+
+  @Test
+  def canPushDownAggregationWithGroupBy(): Unit = {
+    val airports = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Scope, scopeName)
+      .option(QueryOptions.Collection, airportCollectionName)
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+
+    airports.createOrReplaceTempView("airports")
+
+    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run, country from airports group by country")
+
+    assertEquals(3, aggregates.count())
+    assertEquals(183, aggregates.where("country = 'Austria'").first().getAs[Long]("el"))
+    assertEquals(4, aggregates.where("country = 'Germany'").first().getAs[Long]("run"))
   }
 
 

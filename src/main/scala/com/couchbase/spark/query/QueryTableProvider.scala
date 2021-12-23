@@ -111,7 +111,8 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
       Option(properties.get(QueryOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
       Option(properties.get(QueryOptions.Filter)),
       Option(properties.get(QueryOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultQueryScanConsistency),
-      Option(properties.get(QueryOptions.Timeout))
+      Option(properties.get(QueryOptions.Timeout)),
+      Option(properties.get(QueryOptions.PushDownAggregate)).getOrElse("true").toBoolean
     )
   }
 
