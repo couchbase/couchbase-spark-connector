@@ -15,10 +15,12 @@
  */
 package com.couchbase.spark.analytics
 
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 
-class AnalyticsInputPartition(val schema: StructType, val filters: Array[Filter], val locations: Array[String]) extends InputPartition {
+class AnalyticsInputPartition(val schema: StructType, val filters: Array[Filter], val locations: Array[String],
+                              val aggregations: Option[Aggregation]) extends InputPartition {
   override def preferredLocations(): Array[String] = locations
 }

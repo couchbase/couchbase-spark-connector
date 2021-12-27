@@ -16,8 +16,9 @@
 package com.couchbase.spark.query
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2Relation, DataSourceV2ScanRelation}
 import org.apache.spark.sql.functions.lit
-import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
@@ -66,7 +67,7 @@ class QueryDataFrameIntegrationTest {
   }
 
   @Test
-  def readsDocumentsWithFilter(): Unit = {
+  def testReadDocumentsWithFilter(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
       .option(QueryOptions.Filter, "type = 'airport'")
@@ -109,6 +110,12 @@ class QueryDataFrameIntegrationTest {
 
     val aggregates = spark.sql("select max(elevation) as el, min(runways) as run from airports")
 
+    aggregates.queryExecution.optimizedPlan.collect {
+      case p: DataSourceV2ScanRelation =>
+        assertTrue(p.toString().contains("MAX(`elevation`)"))
+        assertTrue(p.toString().contains("MIN(`runways`)"))
+    }
+
     assertEquals(204, aggregates.first().getAs[Long]("el"))
     assertEquals(2, aggregates.first().getAs[Long]("run"))
   }
@@ -124,6 +131,13 @@ class QueryDataFrameIntegrationTest {
     airports.createOrReplaceTempView("airports")
 
     val aggregates = spark.sql("select max(elevation) as el, min(runways) as run, country from airports group by country")
+
+    aggregates.queryExecution.optimizedPlan.collect {
+      case p: DataSourceV2ScanRelation =>
+        assertTrue(p.toString().contains("country"))
+        assertTrue(p.toString().contains("MAX(`elevation`)"))
+        assertTrue(p.toString().contains("MIN(`runways`)"))
+    }
 
     assertEquals(3, aggregates.count())
     assertEquals(183, aggregates.where("country = 'Austria'").first().getAs[Long]("el"))

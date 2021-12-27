@@ -74,6 +74,14 @@ object AnalyticsOptions {
   val Timeout = "timeout"
 
   /**
+   * Option Key: If aggregates should be allowed to be pushed down by spark into the analytics engine.
+   *
+   * This value is true by default for performance reasons. It is available to be disabled should there
+   * be any issues identified in the field.
+   */
+  val PushDownAggregate = "pushDownAggregate"
+
+  /**
    * Option Value: Not bounded scan consistency - to be used with [[ScanConsistency]] as the key.
    *
    * This is the default and usually does not need to be specified. The query will be executed immediately, and

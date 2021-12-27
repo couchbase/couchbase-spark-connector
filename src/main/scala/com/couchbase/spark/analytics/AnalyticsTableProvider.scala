@@ -19,6 +19,7 @@ import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.client.scala.analytics.{AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
+import com.couchbase.spark.query.QueryOptions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Encoders, SparkSession}
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -87,7 +88,8 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
       Option(properties.get(AnalyticsOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
       Option(properties.get(AnalyticsOptions.Filter)),
       Option(properties.get(AnalyticsOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultAnalyticsScanConsistency),
-      Option(properties.get(AnalyticsOptions.Timeout))
+      Option(properties.get(AnalyticsOptions.Timeout)),
+      Option(properties.get(AnalyticsOptions.PushDownAggregate)).getOrElse("true").toBoolean
     )
   }
 

@@ -17,7 +17,6 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
-import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
@@ -25,18 +24,29 @@ import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
-import com.couchbase.client.scala.analytics.{AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
+import com.couchbase.client.scala.analytics.{AnalyticsMetrics, AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.spark.json.CouchbaseJsonUtils
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
+import org.apache.spark.sql.connector.metric.CustomTaskMetric
 
 import scala.concurrent.duration.Duration
 import scala.util.matching.Regex
 
-class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig, filters: Array[Filter])
+class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig,
+                               filters: Array[Filter], aggregations: Option[Aggregation])
   extends PartitionReader[InternalRow]
     with Logging {
 
   private val parser = CouchbaseJsonUtils.jsonParser(schema)
   private val createParser = CouchbaseJsonUtils.createParser()
+
+  private var resultMetrics: Option[AnalyticsMetrics] = None
+
+  private val groupByColumns = if (aggregations.isDefined) {
+    aggregations.get.groupByColumns().map(n => n.fieldNames().head).toSeq
+  } else {
+    Seq.empty
+  }
 
   private lazy val result = {
     if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
@@ -47,10 +57,28 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
   }
 
   private lazy val rows = result
-    .flatMap(result => result.rowsAs[String](Passthrough.StringConvert))
+    .flatMap(result => {
+      resultMetrics = Some(result.metaData.metrics)
+      result.rowsAs[String](Passthrough.StringConvert)
+    })
     .get
-    .flatMap(row => {
+    .flatMap(r => {
+      var row = r
+
       try {
+        // Aggregates like MIN, MAX etc will end up as $1, $2 .. so they need to be replaced
+        // with their original field names from the schema so that the JSON parser can pick
+        // them up properly
+        if (hasAggregateFields) {
+          var idx = 1
+          schema.fields.foreach(field => {
+            if (!groupByColumns.contains(field.name)) {
+              row = row.replace("$" + idx, field.name)
+              idx = idx + 1
+            }
+          })
+        }
+
         parser.parse(row, createParser, UTF8String.fromString)
       } catch {
         case e: Exception =>
@@ -76,7 +104,9 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
       .fields
       .map(f => f.name)
       .filter(f => !f.equals(readConfig.idFieldName))
-      .map(f => s"`$f`")
+    if (!hasAggregateFields) {
+      fields = fields :+ s"META().id as ${readConfig.idFieldName}"
+    }
 
     var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = compileFilter(filters)
@@ -86,9 +116,14 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
       predicate = " WHERE " + compiledFilters
     }
 
-    fields = fields :+ s"META().id as ${readConfig.idFieldName}"
+    val groupBy = if (hasAggregateGroupBy) {
+      " GROUP BY " + aggregations.get.groupByColumns().map(n => s"`${n.fieldNames().head}`").mkString(", ")
+    } else {
+      ""
+    }
+
     val fieldsEncoded = fields.mkString(", ")
-    val query = s"select $fieldsEncoded from `${readConfig.dataset}`$predicate"
+    val query = s"select $fieldsEncoded from `${readConfig.dataset}`$predicate$groupBy"
 
     logDebug(s"Building and running Analytics query $query")
     query
@@ -191,4 +226,54 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
     case v => v.split('.').map(elem => s"`$elem`").mkString(".")
   }
 
+  def hasAggregateFields: Boolean = {
+    aggregations match {
+      case Some(a) => !a.aggregateExpressions().isEmpty
+      case None => false
+    }
+  }
+
+  def hasAggregateGroupBy: Boolean = {
+    aggregations match {
+      case Some(a) => !a.groupByColumns().isEmpty
+      case None => false
+    }
+  }
+
+  override def currentMetricsValues(): Array[CustomTaskMetric] = {
+    resultMetrics match {
+      case Some(m) =>
+        Array(
+          new CustomTaskMetric {
+            override def name(): String = "elapsedTimeMs"
+            override def value(): Long = m.elapsedTime.toMillis
+          },
+          new CustomTaskMetric {
+            override def name(): String = "executionTimeMs"
+            override def value(): Long = m.executionTime.toMillis
+          },
+          new CustomTaskMetric {
+            override def name(): String = "errorCount"
+            override def value(): Long = m.errorCount
+          },
+          new CustomTaskMetric {
+            override def name(): String = "resultSize"
+            override def value(): Long = m.resultSize
+          },
+          new CustomTaskMetric {
+            override def name(): String = "processedObjects"
+            override def value(): Long = m.processedObjects
+          },
+          new CustomTaskMetric {
+            override def name(): String = "resultCount"
+            override def value(): Long = m.resultCount
+          },
+          new CustomTaskMetric {
+            override def name(): String = "warningCount"
+            override def value(): Long = m.warningCount
+          },
+        )
+      case None => Array()
+    }
+  }
 }

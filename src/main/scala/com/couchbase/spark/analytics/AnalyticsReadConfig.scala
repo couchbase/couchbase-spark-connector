@@ -24,4 +24,5 @@ case class AnalyticsReadConfig(
   userFilter: Option[String],
   scanConsistency: String,
   timeout: Option[String],
+  pushDownAggregate: Boolean
 )
