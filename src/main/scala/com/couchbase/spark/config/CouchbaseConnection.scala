@@ -21,6 +21,7 @@ import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
+import org.apache.spark.internal.Logging
 
 import java.nio.file.Paths
 import java.util
@@ -28,7 +29,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.collection.JavaConverters._
 
-class CouchbaseConnection extends Serializable {
+class CouchbaseConnection extends Serializable with Logging {
 
   @transient var envRef: Option[ClusterEnvironment] = None
 
@@ -118,11 +119,17 @@ class CouchbaseConnection extends Serializable {
 
   def stop(): Unit = {
     this.synchronized {
-      if (clusterRef.isDefined) {
-        clusterRef.get.disconnect()
-      }
-      if (envRef.isDefined) {
-        envRef.get.shutdown()
+      try {
+        if (clusterRef.isDefined) {
+          clusterRef.get.disconnect()
+          clusterRef = None
+        }
+        if (envRef.isDefined) {
+          envRef.get.shutdown()
+          envRef = None
+        }
+      } catch {
+        case e: Throwable => logDebug(s"Encountered error during shutdown $e")
       }
     }
   }
@@ -160,7 +167,8 @@ object CouchbaseConnection {
 
 }
 
-class SparkPropertyLoader(properties: Seq[(String, String)]) extends AbstractMapPropertyLoader[CoreEnvironment.Builder[_]]{
+class SparkPropertyLoader(properties: Seq[(String, String)])
+  extends AbstractMapPropertyLoader[CoreEnvironment.Builder[_]]{
   override def propertyMap(): util.Map[String, String] = {
     properties.toMap.asJava
   }

@@ -45,10 +45,9 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
 
   private var resultMetrics: Option[QueryMetrics] = None
 
-  private val groupByColumns = if (aggregations.isDefined) {
-    aggregations.get.groupByColumns().map(n => n.fieldNames().head).toSeq
-  } else {
-    Seq.empty
+  private val groupByColumns = aggregations match {
+    case Some(agg) => agg.groupByColumns().map(n => n.fieldNames().head).toSeq
+    case None => Seq.empty
   }
 
   private lazy val result = {
@@ -95,8 +94,9 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
       .fields
       .map(f => f.name)
       .filter(f => !f.equals(readConfig.idFieldName))
+      .map(f => maybeEscapeField(f))
     if (!hasAggregateFields) {
-      fields = fields :+ s"META().id as ${readConfig.idFieldName}"
+      fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
     }
 
     var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
@@ -136,6 +136,18 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
     aggregations match {
       case Some(a) => !a.groupByColumns().isEmpty
       case None => false
+    }
+  }
+
+  def maybeEscapeField(field: String): String = {
+    if (field.startsWith("MAX")
+      || field.startsWith("MIN")
+      || field.startsWith("COUNT")
+      || field.startsWith("SUM")
+      || field.startsWith("`")) {
+      field
+    } else {
+      s"`$field`"
     }
   }
 

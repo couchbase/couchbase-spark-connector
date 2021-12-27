@@ -42,10 +42,9 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
 
   private var resultMetrics: Option[AnalyticsMetrics] = None
 
-  private val groupByColumns = if (aggregations.isDefined) {
-    aggregations.get.groupByColumns().map(n => n.fieldNames().head).toSeq
-  } else {
-    Seq.empty
+  private val groupByColumns = aggregations match {
+    case Some(agg) => agg.groupByColumns().map(n => n.fieldNames().head).toSeq
+    case None => Seq.empty
   }
 
   private lazy val result = {
@@ -104,8 +103,9 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
       .fields
       .map(f => f.name)
       .filter(f => !f.equals(readConfig.idFieldName))
+      .map(f => maybeEscapeField(f))
     if (!hasAggregateFields) {
-      fields = fields :+ s"META().id as ${readConfig.idFieldName}"
+      fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
     }
 
     var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
@@ -127,6 +127,18 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
 
     logDebug(s"Building and running Analytics query $query")
     query
+  }
+
+  def maybeEscapeField(field: String): String = {
+    if (field.startsWith("MAX")
+      || field.startsWith("MIN")
+      || field.startsWith("COUNT")
+      || field.startsWith("SUM")
+      || field.startsWith("`")) {
+      field
+    } else {
+      s"`$field`"
+    }
   }
 
   def buildOptions(): CouchbaseAnalyticsOptions = {

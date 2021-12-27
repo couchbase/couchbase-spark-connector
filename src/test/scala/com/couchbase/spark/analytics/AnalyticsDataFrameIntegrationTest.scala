@@ -60,6 +60,7 @@ class AnalyticsDataFrameIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
+    CouchbaseConnection().stop()
     container.stop()
   }
 

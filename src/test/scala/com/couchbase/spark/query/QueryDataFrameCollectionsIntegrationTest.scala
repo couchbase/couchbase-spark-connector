@@ -68,6 +68,7 @@ class QueryDataFrameCollectionsIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
+    CouchbaseConnection().stop()
     container.stop()
   }
 

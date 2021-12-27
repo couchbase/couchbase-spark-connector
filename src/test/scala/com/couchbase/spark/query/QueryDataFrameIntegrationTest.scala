@@ -15,8 +15,9 @@
  */
 package com.couchbase.spark.query
 
+import com.couchbase.spark.config.CouchbaseConnection
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2Relation, DataSourceV2ScanRelation}
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.TestInstance.Lifecycle
@@ -54,6 +55,7 @@ class QueryDataFrameIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
+    CouchbaseConnection().stop()
     container.stop()
   }
 
