@@ -62,6 +62,7 @@ class AnalyticsDataFrameIntegrationTest {
   def teardown(): Unit = {
     CouchbaseConnection().stop()
     container.stop()
+    spark.stop()
   }
 
   private def prepareSampleData(): Unit = {

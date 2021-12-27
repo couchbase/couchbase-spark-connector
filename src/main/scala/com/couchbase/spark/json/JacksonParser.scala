@@ -388,7 +388,7 @@ class JacksonParser(
       Some(schema.fieldIndex(name))
     } catch {
       case e: IllegalArgumentException => None
-      case e => throw e
+      case e: Throwable => throw e
     }
   }
 
