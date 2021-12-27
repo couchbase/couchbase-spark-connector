@@ -13,19 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.couchbase.spark.query
+package com.couchbase.spark.analytics
 
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
+import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer, CouchbaseService}
 
 import java.util.UUID
 
 @TestInstance(Lifecycle.PER_CLASS)
-class QueryDataFrameIntegrationTest {
+class AnalyticsDataFrameIntegrationTest {
 
   var container: CouchbaseContainer = _
   var spark: SparkSession = _
@@ -35,7 +36,8 @@ class QueryDataFrameIntegrationTest {
     val bucketName: String = UUID.randomUUID().toString
 
     container = new CouchbaseContainer("couchbase/server:6.6.2")
-      .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(true))
+      .withEnabledServices(CouchbaseService.KV, CouchbaseService.ANALYTICS)
+      .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(false))
     container.start()
 
     spark = SparkSession
@@ -47,6 +49,10 @@ class QueryDataFrameIntegrationTest {
       .config("spark.couchbase.password", container.getPassword)
       .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
+
+    val cluster = CouchbaseConnection().cluster(CouchbaseConfig(spark.sparkContext.getConf))
+    cluster.analyticsIndexes.createDataset("airports", bucketName)
+    cluster.analyticsQuery("connect link Local").get
 
     prepareSampleData()
   }
@@ -66,16 +72,15 @@ class QueryDataFrameIntegrationTest {
   }
 
   @Test
-  def readsDocumentsWithFilter(): Unit = {
+  def testReadDocumentsFromDataset(): Unit = {
     val airports = spark.read
-      .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .format("couchbase.analytics")
+      .option(AnalyticsOptions.Dataset, "airports")
+      .option(AnalyticsOptions.ScanConsistency, AnalyticsOptions.RequestPlusScanConsistency)
       .load()
 
     assertEquals(4, airports.count)
     airports.foreach(row => {
-      assertEquals("airport", row.getAs[String]("type"))
       assertNotNull(row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("name"))
     })
@@ -84,49 +89,16 @@ class QueryDataFrameIntegrationTest {
   @Test
   def testChangeIdFieldName(): Unit = {
     val airports = spark.read
-      .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.IdFieldName, "myIdFieldName")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .format("couchbase.analytics")
+      .option(AnalyticsOptions.IdFieldName, "myIdFieldName")
+      .option(AnalyticsOptions.Dataset, "airports")
+      .option(AnalyticsOptions.ScanConsistency, AnalyticsOptions.RequestPlusScanConsistency)
       .load()
 
     airports.foreach(row => {
-      assertEquals("airport", row.getAs[String]("type"))
       assertThrows(classOf[IllegalArgumentException], () => row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("myIdFieldName"))
     })
   }
 
-  @Test
-  def testPushDownAggregationWithoutGroupBy(): Unit = {
-    val airports = spark.read
-      .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
-      .load()
-
-    airports.createOrReplaceTempView("airports")
-
-    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run from airports")
-
-    assertEquals(204, aggregates.first().getAs[Long]("el"))
-    assertEquals(2, aggregates.first().getAs[Long]("run"))
-  }
-
-  @Test
-  def testPushDownAggregationWithGroupBy(): Unit = {
-    val airports = spark.read
-      .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
-      .load()
-
-    airports.createOrReplaceTempView("airports")
-
-    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run, country from airports group by country")
-
-    assertEquals(3, aggregates.count())
-    assertEquals(183, aggregates.where("country = 'Austria'").first().getAs[Long]("el"))
-    assertEquals(4, aggregates.where("country = 'Germany'").first().getAs[Long]("run"))
-  }
 }

@@ -70,7 +70,7 @@ class QueryDataFrameCollectionsIntegrationTest {
     container.stop()
   }
 
-  private def prepareSampleData() = {
+  private def prepareSampleData(): Unit = {
     val airports = spark
       .read
       .json("src/test/resources/airports.json")
@@ -83,7 +83,7 @@ class QueryDataFrameCollectionsIntegrationTest {
   }
 
   @Test
-  def readsDocumentsWithFilter(): Unit = {
+  def readsDocumentsFromCollection(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
       .option(QueryOptions.Scope, scopeName)
@@ -99,7 +99,7 @@ class QueryDataFrameCollectionsIntegrationTest {
   }
 
   @Test
-  def canChangeIdFieldName(): Unit = {
+  def testChangeIdFieldName(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
       .option(QueryOptions.IdFieldName, "myIdFieldName")
@@ -115,7 +115,7 @@ class QueryDataFrameCollectionsIntegrationTest {
   }
 
   @Test
-  def canPushDownAggregationWithoutGroupBy(): Unit = {
+  def testPushDownAggregationWithoutGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
       .option(QueryOptions.Scope, scopeName)
@@ -132,7 +132,7 @@ class QueryDataFrameCollectionsIntegrationTest {
   }
 
   @Test
-  def canPushDownAggregationWithGroupBy(): Unit = {
+  def testPushDownAggregationWithGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
       .option(QueryOptions.Scope, scopeName)
