@@ -4,6 +4,24 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 3.2.0 GA (January 2021)
+
+Version 3.1.0 is the first version to support Spark 3.2.x and is built on top of the Couchbase Scala SDK 1.2.x.
+
+*Features*
+
+* Support for Apache Spark 3.2.x
+* https://issues.couchbase.com/browse/SPARKC-146[SPARKC-146^]: Added support for scope-level Query and Analytics RDDs (through `Keyspace`)
+* https://issues.couchbase.com/browse/SPARKC-148[SPARKC-148^]: Added support for aggregate pushdown for Query DataFrames.
+* https://issues.couchbase.com/browse/SPARKC-148[SPARKC-149^]: Added support for aggregate pushdown for Analytics DataFrames.
+
+*Bug fixes and stability*
+
+* https://issues.couchbase.com/browse/SPARKC-143[SPARKC-143^]: Allow passing timeouts to KV, Query and Analytics DataFrame as option.
+* https://issues.couchbase.com/browse/SPARKC-151[SPARKC-151^]: Fix ScanConsistency not being applied for Analytics and Query DataFrames.
+* https://issues.couchbase.com/browse/SPARKC-144[SPARKC-144^], https://issues.couchbase.com/browse/SPARKC-145[SPARKC-145^]: Move Jackson JSON handling into the connector. This solves issues in the databricks notebook environment.
+* https://issues.couchbase.com/browse/SPARKC-153[SPARKC-153^]: Properly escape fields for Analytics and Query DataFrames.
+
 == Couchbase Spark Connector 3.1.0 GA (September 2021)
 
 Version 3.1.0 is the first version to support Spark 3.1.x and is built on top of the Couchbase Scala SDK 1.1.x.

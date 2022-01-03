@@ -140,3 +140,19 @@ include::example$SparkSQL.scala[tag=dsfetch,indent=0]
 ----
 
 Fore more information on Datasets, please refer to the http://spark.apache.org/docs/latest/sql-programming-guide.html#datasets[Spark Dataset Docs^].
+
+== Aggregate Push Down (Spark 3.2.0+)
+
+Apache Spark SQL 3.2.0 added support for https://issues.apache.org/jira/browse/SPARK-34952[aggregate push downs^], and since the Connector version 3.2.0 this feature is supported as well.
+
+The following predicates are pushed down to both the query and analytics engines if possible:
+
+- `MIN(field)`
+- `MAX(field)`
+- `COUNT(field)`
+- `SUM(field)`
+- `COUNT(*)`
+
+They are supported both with and without grouping (`GROUP BY`).
+
+For performance reasons, this feature is enabled by default. If for some reason it should be disabled, the `PushDownAggregate` option can be used. Note that your queries will still work fine (although likely slower) since Spark will handle the aggregations in this case.

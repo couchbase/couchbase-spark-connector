@@ -8,16 +8,16 @@ The connector is available through the following coordinates:
 
  - **Group:** `com.couchbase.client`
  - **Artifact:** `spark-connector_2.12`
- - **Version:** `3.1.0` 
+ - **Version:** `3.2.0` 
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.1.0"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.2.0"
 ```
 
 ## Documentation
-The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/3.1/index.html).
+The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/3.2/index.html).
 
 ## Version Compatibility
 
@@ -27,21 +27,21 @@ appropriate, please see [Maven Central](http://search.maven.org/#search%7Cga%7C1
 or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-connector) for releases to download.
 
 | Connector | Apache Spark | Couchbase Server |
-| --------- | ------------ | ---------------- |
-| 3.2.x (dev) | 3.2          | 6.x - 7.x        |
-| 3.1.x     | 3.1          | 6.x - 7.x        |
-| 3.0.x     | 3.0          | 6.x - 7.x        |
-| 2.4.x     | 2.4          | 5.x - 6.x        |
-| 2.3.x     | 2.3          | 2.5.x - 6.x      |
-| 2.2.x     | 2.2          | 2.5.x - 5.x      |
-| 2.1.x     | 2.1          | 2.5.x - 4.x      |
-| 2.0.x     | 2.0          | 2.5.x - 4.x      |
-| 1.2.x     | 1.6          | 2.5.x - 4.x      |
-| 1.1.x     | 1.5          | 2.5.x - 4.x      |
-| 1.0.x     | 1.4          | 2.5.x - 4.x      |
+| ----- | ------------ | ---------------- |
+| 3.2.x | 3.2          | 6.x - 7.x        |
+| 3.1.x | 3.1          | 6.x - 7.x        |
+| 3.0.x | 3.0          | 6.x - 7.x        |
+| 2.4.x | 2.4          | 5.x - 6.x        |
+| 2.3.x | 2.3          | 2.5.x - 6.x      |
+| 2.2.x | 2.2          | 2.5.x - 5.x      |
+| 2.1.x | 2.1          | 2.5.x - 4.x      |
+| 2.0.x | 2.0          | 2.5.x - 4.x      |
+| 1.2.x | 1.6          | 2.5.x - 4.x      |
+| 1.1.x | 1.5          | 2.5.x - 4.x      |
+| 1.0.x | 1.4          | 2.5.x - 4.x      |
 
 ## License
-Copyright 2015-2021 Couchbase Inc.
+Copyright 2015-2022 Couchbase Inc.
 
 Licensed under the Apache License, Version 2.0.
 
