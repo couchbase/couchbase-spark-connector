@@ -36,7 +36,6 @@ class QueryDataFrameCollectionsIntegrationTest {
   private val bucketName = UUID.randomUUID().toString
   private val scopeName = UUID.randomUUID().toString
   private val airportCollectionName = UUID.randomUUID().toString
-  private val airlineCollectionName = UUID.randomUUID().toString
 
   @BeforeAll
   def setup(): Unit = {
@@ -58,10 +57,8 @@ class QueryDataFrameCollectionsIntegrationTest {
 
     bucket.collections.createScope(scopeName)
     bucket.collections.createCollection(CollectionSpec(airportCollectionName, scopeName))
-    bucket.collections.createCollection(CollectionSpec(airlineCollectionName, scopeName))
 
     bucket.scope(scopeName).query(s"create primary index on `$airportCollectionName`")
-    bucket.scope(scopeName).query(s"create primary index on `$airlineCollectionName`")
 
     prepareSampleData()
   }
