@@ -35,7 +35,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 /**
- * Constructs a parser for a given schema that translates a json string to an [[InternalRow]].
+ * Constructs a parser for a given schema that translates a json string to an InternalRow.
  */
 class JacksonParser(
                      schema: DataType,
@@ -469,7 +469,7 @@ class JacksonParser(
   }
 
   /**
-   * Parse the JSON input to the set of [[InternalRow]]s.
+   * Parse the JSON input to the set of InternalRows.
    *
    * @param recordLiteral an optional function that will be used to generate
    *   the corrupt record text instead of record.toString

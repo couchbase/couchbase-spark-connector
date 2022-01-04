@@ -32,7 +32,7 @@ import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
 /**
  * Options for parsing JSON data into Spark SQL rows.
  *
- * Most of these map directly to Jackson's internal options, specified in [[JsonReadFeature]].
+ * Most of these map directly to Jackson's internal options, specified in JsonReadFeature.
  */
 class JSONOptions(
                                 @transient val parameters: CaseInsensitiveMap[String],
@@ -141,7 +141,7 @@ class JSONOptions(
   val writeNonAsciiCharacterAsCodePoint: Boolean =
     parameters.get("writeNonAsciiCharacterAsCodePoint").map(_.toBoolean).getOrElse(false)
 
-  /** Build a Jackson [[JsonFactory]] using JSON options. */
+  /** Build a Jackson JsonFactory using JSON options. */
   def buildJsonFactory(): JsonFactory = {
     new JsonFactoryBuilder()
       .configure(JsonReadFeature.ALLOW_JAVA_COMMENTS, allowComments)
