@@ -107,6 +107,49 @@ The following example reads data from a bucket and writes the first 5 results in
 include::example$SparkSQL.scala[tag=kvwrite,indent=0]
 ----
 
+=== SaveMode Mapping
+SparkSQL DataFrames allow to configure how data is written to the data source by specifying a https://spark.apache.org/docs/latest/api/java/index.html?org/apache/spark/sql/SaveMode.html[SaveMode], of which there are four: `Append`, `Overwrite`, `ErrorIfExists` and `Ignore`.
+
+Couchbase has similar names for different write semantics: `Insert`, `Upsert` and `Replace`. The following tables descripe the mappings for both `couchbase.query` and `couchbase.kv`:
+
+Note that `SaveMode.Append` is not supported, since the operations are always writing the full document body (and not appending to one).
+
+.couchbase.kv mappings
+|===
+| SparkSQL | Couchbase KV
+
+| SaveMode.Overwrite
+| Upsert
+
+| SaveMode.ErrorIfExists
+| Insert
+
+| SaveMode.Ignore
+| Insert (Ignores DocumentExistsException)
+
+| SaveMode.Append
+| _not supported_
+
+|===
+
+.couchbase.query mappings
+|===
+| SparkSQL | Couchbase N1QL
+
+| SaveMode.Overwrite
+| UPSERT INTO
+
+| SaveMode.ErrorIfExists
+| INSERT INTO
+
+| SaveMode.Ignore
+| INSERT INTO
+
+| SaveMode.Append
+| _not supported_
+
+|===
+
 == Working with Datasets
 
 You can call `.as[Target]` on your `DataFrame` to turn it into typesafe counterpart (most of the time a case class).

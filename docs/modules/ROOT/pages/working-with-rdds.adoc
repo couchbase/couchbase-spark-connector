@@ -156,3 +156,5 @@ include::example$WorkingWithRDDs.scala[tag=upsert,indent=0]
 It first loads two documents from the travel-sample bucket and returns a `RDD[GetResult]`. The objective is to store those two documents in the `targetBucket`.
 
 As a next step, inside the map function, a `Upsert` case class is constructed which takes the document ID and content. This type is then passed to the `couchbaseUpsert` function which executes the operation. Note that also a custom `keyspace` is passed which overrides the default implicit one and therefore allows to write the data to a different bucket.
+
+*Note*: If you are working with DataFrames and need to adjust the store semantics, see the section on `SaveMode Mapping` in the Spark SQL section.
