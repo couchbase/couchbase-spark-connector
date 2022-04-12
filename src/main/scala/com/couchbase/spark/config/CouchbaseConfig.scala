@@ -18,6 +18,8 @@ package com.couchbase.spark.config
 
 import org.apache.spark.SparkConf
 
+import java.util.Locale
+
 case class Credentials(username: String, password: String)
 
 case class SparkSslOptions(enabled: Boolean, keystorePath: String, keystorePassword: String)
@@ -58,6 +60,20 @@ case class CouchbaseConfig(
       cn = collectionName
     }
     cn
+  }
+
+  def dcpConnectionString(): String = {
+    val lowerCasedConnstr = connectionString.toLowerCase(Locale.ROOT)
+
+    if (lowerCasedConnstr.startsWith("couchbase://") || lowerCasedConnstr.startsWith("couchbases://")) {
+      connectionString
+    } else {
+      if (sparkSslOptions.enabled) {
+        "couchbases://" + connectionString
+      } else {
+        "couchbase://" + connectionString
+      }
+    }
   }
 
 }

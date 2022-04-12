@@ -21,6 +21,7 @@ import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
+import com.couchbase.spark.config.CouchbaseConnection.connection
 import org.apache.spark.internal.Logging
 
 import java.nio.file.Paths
@@ -155,6 +156,37 @@ class CouchbaseConnection extends Serializable with Logging {
       case Some(name) => name
       case None => CollectionIdentifier.DEFAULT_COLLECTION
     }
+  }
+
+  def dcpSeedNodes(cfg: CouchbaseConfig): String = {
+    val allSeedNodes = CouchbaseConnection().cluster(cfg).async.core.configurationProvider()
+      .seedNodes()
+      .blockFirst().asScala
+      .map(_.address())
+
+    allSeedNodes.mkString(",")
+  }
+
+  def dcpSecurityConfig(cfg: CouchbaseConfig): com.couchbase.client.dcp.SecurityConfig = {
+    // Make sure we are bootstrapped.
+    val _ = CouchbaseConnection().cluster(cfg)
+
+    val coreSecurityConfig = envRef.get.core.securityConfig()
+
+    val dcpSecurityConfig = com.couchbase.client.dcp.SecurityConfig.builder()
+
+    dcpSecurityConfig.enableTls(coreSecurityConfig.tlsEnabled())
+    dcpSecurityConfig.enableNativeTls(coreSecurityConfig.nativeTlsEnabled())
+    dcpSecurityConfig.enableHostnameVerification(coreSecurityConfig.hostnameVerificationEnabled())
+
+    if (coreSecurityConfig.trustManagerFactory() != null) {
+      dcpSecurityConfig.trustManagerFactory(coreSecurityConfig.trustManagerFactory())
+    }
+    if (coreSecurityConfig.trustCertificates() != null) {
+      dcpSecurityConfig.trustCertificates(coreSecurityConfig.trustCertificates())
+    }
+
+    dcpSecurityConfig.build()
   }
 
 }

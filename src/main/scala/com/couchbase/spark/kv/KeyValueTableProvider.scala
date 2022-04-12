@@ -24,23 +24,31 @@ import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, DataSourceRegister}
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{BinaryType, BooleanType, IntegerType, LongType, MapType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import reactor.core.scala.publisher.{SFlux, SMono}
 
 import scala.collection.JavaConverters._
 import java.util
 import scala.concurrent.duration.Duration
 
-class KeyValueTableProvider extends Logging with DataSourceRegister with CreatableRelationProvider {
+class KeyValueTableProvider
+  extends Logging
+  with TableProvider
+  with DataSourceRegister
+  with CreatableRelationProvider {
 
   private lazy val sparkSession = SparkSession.active
   private lazy val conf = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   override def shortName(): String = "couchbase.kv"
 
-  override def createRelation(ctx: SQLContext, mode: SaveMode, parameters: Map[String, String], data: DataFrame): BaseRelation = {
+  override def createRelation(ctx: SQLContext, mode: SaveMode, parameters: Map[String, String],
+                              data: DataFrame): BaseRelation = {
     val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf)
     data.toJSON.foreachPartition(new RelationPartitionWriter(writeConfig(parameters.asJava), couchbaseConfig, mode))
 
@@ -63,6 +71,86 @@ class KeyValueTableProvider extends Logging with DataSourceRegister with Creatab
       Option(properties.get(KeyValueOptions.Durability)),
       Option(properties.get(KeyValueOptions.Timeout))
     )
+  }
+
+  def streamConfig(properties: util.Map[String, String]): KeyValueStreamConfig = {
+    val defaultNumPartitions = SparkSession.active.sparkContext.defaultParallelism
+
+    var collections: Seq[String] = Seq()
+
+    val userCollection = conf.implicitCollectionName(properties.get(KeyValueOptions.Collection))
+    if (userCollection.isDefined) {
+      collections = collections :+ userCollection.get
+    }
+    val userCollections = conf.implicitCollectionName(properties.get(KeyValueOptions.Collections))
+    if (userCollections.isDefined) {
+      collections = collections ++ userCollections.get.split(",")
+    }
+
+    val meta = properties.get(KeyValueOptions.StreamMetaData)
+    val streamXattrs = meta != null && meta.equals(KeyValueOptions.StreamMetaDataFull)
+
+    val streamFrom = properties.get(KeyValueOptions.StreamFrom) match {
+      case KeyValueOptions.StreamFromNow => StreamFromVariants.FromNow
+      case KeyValueOptions.StreamFromSavedOffsetOrNow => StreamFromVariants.FromOffsetOrNow
+      case KeyValueOptions.StreamFromBeginning => StreamFromVariants.FromBeginning
+      case KeyValueOptions.StreamFromSavedOffsetOrBeginning | null => StreamFromVariants.FromOffsetOrBeginning
+      case v => throw new IllegalArgumentException("Unknown streamFrom value " + v)
+    }
+
+    val c = KeyValueStreamConfig(
+      streamFrom,
+      Option(properties.get(KeyValueOptions.NumPartitions)).getOrElse(defaultNumPartitions.toString).toInt,
+      conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
+      conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
+      collections,
+      Option(properties.get(KeyValueOptions.StreamContent)).getOrElse("true").toBoolean,
+      streamXattrs,
+      Option(properties.get(KeyValueOptions.StreamFlowControlBufferSize)).map(_.toInt),
+      Option(properties.get(KeyValueOptions.StreamPersistencePollingInterval))
+    )
+    logDebug(s"Using KeyValueStreamConfig of $c")
+    c
+  }
+
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+    val always = if (options.containsKey(KeyValueOptions.StreamContent) && !options.get(KeyValueOptions.StreamContent).toBoolean) {
+      Seq(
+        StructField("id", StringType, nullable = false),
+        StructField("deletion", BooleanType, nullable = false)
+      )
+    } else {
+      Seq(
+        StructField("id", StringType, nullable = false),
+        StructField("content", BinaryType, nullable = true),
+        StructField("deletion", BooleanType, nullable = false)
+      )
+    }
+
+    val basic = Seq(
+      StructField("cas", LongType, nullable = false),
+      StructField("scope", StringType, nullable = true),
+      StructField("collection", StringType, nullable = true),
+    )
+    val full = Seq(
+      StructField("timestamp", TimestampType, nullable = false),
+      StructField("vbucket", IntegerType, nullable = false),
+      StructField("xattrs", MapType(StringType, StringType), nullable = true)
+    )
+
+    val fields = options.get(KeyValueOptions.StreamMetaData) match {
+      case KeyValueOptions.StreamMetaDataNone => always
+      case null | KeyValueOptions.StreamMetaDataBasic => always ++ basic
+      case KeyValueOptions.StreamMetaDataFull => always ++ basic ++ full
+    }
+
+    logDebug(s"Streaming the following fields $fields")
+
+    StructType(fields)
+  }
+
+  override def getTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String]): Table = {
+    new KeyValueTable(schema, streamConfig(properties))
   }
 
 }

@@ -5,6 +5,7 @@
 * xref:working-with-rdds.adoc[Working With RDDs]
 * xref:spark-sql.adoc[Spark SQL Integration]
 * xref:java-api.adoc[Java API]
+* xref:streaming.adoc[Structured Streaming Support]
 * xref:spark-shell.adoc[Using the Spark Shell]
 * xref:cloud.adoc[Couchbase Cloud Support]
 * xref:configuration.adoc[Configuration]

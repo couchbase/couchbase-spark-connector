@@ -42,6 +42,13 @@ object KeyValueOptions {
   val Collection = "collection"
 
   /**
+   * Option Key: The name of the collections (comma separated) that will be used for Spark Streaming.
+   *
+   * The [[Collection]] arg can also be used if only one needs to be specified.
+   */
+  val Collections = "collections"
+
+  /**
    * Option Key: The field name of the document ID, used to override the default.
    *
    * The default can be located in [[DefaultConstants.DefaultIdFieldName]]
@@ -63,6 +70,50 @@ object KeyValueOptions {
   val Timeout = "timeout"
 
   /**
+   * Option Key: The number of partitions to use when using Spark Streaming.
+   *
+   * If not provided, defaults to the defaultParallelism of the spark context.
+   */
+  val NumPartitions = "numPartitions"
+
+  /**
+   * Option Key: Controls from where the connector starts streaming from.
+   *
+   * If not provided, defaults to
+   */
+  val StreamFrom = "streamFrom"
+
+  /**
+   * Option Key: The type of streaming metadata that should be sent to a downstream consumer per row.
+   *
+   * Choose either [[StreamMetaDataNone]], [[StreamMetaDataBasic]] or [[StreamMetaDataFull]] as the values, where
+   * Basic is the default value if none provided.
+   */
+  val StreamMetaData = "streamMetaData"
+
+  /**
+   * Option Key: If the content of a document should also be streamed, or just the id (Spark Streaming only).
+   *
+   * The value is a "true" or "false", where "true" is the default.
+   */
+  val StreamContent = "streamContent"
+
+  /**
+   * Option Key: The flow control buffer size to use for a DCP stream (spark streaming only).
+   *
+   * The value is a buffer size in bytes and defaults to 10MB (1024 * 1024 * 10).
+   */
+  val StreamFlowControlBufferSize = "streamFlowControlBufferSize"
+
+  /**
+   * Option Key: the polling interval to mitigate rollbacks.
+   *
+   * The value is a string and must be parsable from a scala Duration (defaults to 100ms). If
+   * set to 0, the polling interval is disabled.
+   */
+  val StreamPersistencePollingInterval = "streamPersistencePollingInterval"
+
+  /**
    * Option value: Majority Durability - to be used with [[Durability]] as the key.
    */
   val MajorityDurability = "majority"
@@ -76,5 +127,44 @@ object KeyValueOptions {
    * Option value: Persist To Majority Durability - to be used with [[Durability]] as the key.
    */
   val PersistToMajorityDurability = "PersistToMajority"
+
+  /**
+   * Option value: Do not stream any additional metadata for a spark stream.
+   */
+  val StreamMetaDataNone = "none"
+
+  /**
+   * Option value: Only stream basic metadata information.
+   */
+  val StreamMetaDataBasic = "basic"
+
+  /**
+   * Option value: Stream all mutation metadata that is available.
+   */
+  val StreamMetaDataFull = "full"
+
+  /**
+   * Option value: Start the Structured stream from "now" (no mutations are streamed from
+   * before this point).
+   */
+  val StreamFromNow = "fromNow"
+
+  /**
+   * Option value: Start the Structured stream from "beginning" (previous mutations are streamed
+   * from before this point).
+   */
+  val StreamFromBeginning = "fromBeginning"
+
+  /**
+   * Option value: If an offset has been saved start from there, otherwise start the Structured stream from
+   * "beginning" (previous mutations are streamed from before this point).
+   */
+  val StreamFromSavedOffsetOrBeginning = "fromSavedOffsetOrBeginning"
+
+  /**
+   * Option value: If an offset has been saved start from there, otherwise start the Structured stream from "now"
+   * (no mutations are streamed from before this point).
+   */
+  val StreamFromSavedOffsetOrNow = "fromSavedOffsetOrNow"
 
 }

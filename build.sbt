@@ -9,7 +9,8 @@ scalaVersion := "2.12.14"
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.2.0")
-val sdkVersion = "1.2.4"
+val sdkVersion = "1.3.0"
+val dcpVersion = "0.40.0"
 
 scalacOptions += "-feature"
 
@@ -20,6 +21,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % sparkVersion % Provided,
   "org.scala-lang" % "scala-library" % scalaVersion.value % Provided,
   "com.couchbase.client" %% "scala-client" % sdkVersion,
+  "com.couchbase.client" % "dcp-client" % dcpVersion,
   "net.aichler" % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
   "org.testcontainers" % "couchbase" % "1.16.2" % Test
 )
@@ -56,3 +58,10 @@ publishTo := Some(
   else
     Opts.resolver.sonatypeStaging
 )
+
+ThisBuild / assemblyMergeStrategy := {
+  case "META-INF/io.netty.versions.properties" => MergeStrategy.first
+  case x =>
+    val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
+    oldStrategy(x)
+}
