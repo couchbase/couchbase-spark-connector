@@ -4,7 +4,7 @@
 [abstract]
 Release notes for the Spark Connector.
 
-== Couchbase Spark Connector 3.2.0 GA (January 2021)
+== Couchbase Spark Connector 3.2.0 GA (January 2022)
 
 Version 3.1.0 is the first version to support Spark 3.2.x and is built on top of the Couchbase Scala SDK 1.2.x.
 
