@@ -32,12 +32,12 @@ case class KeyValueStreamConfig(
 object StreamFromVariants extends Enumeration {
   type StreamFrom = Value
 
-  val FromNow, FromBeginning, FromOffsetOrNow, FromOffsetOrBeginning = Value
+  val FromNow, FromBeginning = Value
 
   implicit class StreamFromVariantsValue(from: StreamFrom) {
     def fromBeginning(): Boolean = {
       from match {
-        case FromBeginning | FromOffsetOrBeginning => true
+        case FromBeginning => true
         case _ => false
       }
     }

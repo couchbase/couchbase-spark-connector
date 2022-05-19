@@ -92,9 +92,7 @@ class KeyValueTableProvider
 
     val streamFrom = properties.get(KeyValueOptions.StreamFrom) match {
       case KeyValueOptions.StreamFromNow => StreamFromVariants.FromNow
-      case KeyValueOptions.StreamFromSavedOffsetOrNow => StreamFromVariants.FromOffsetOrNow
       case KeyValueOptions.StreamFromBeginning => StreamFromVariants.FromBeginning
-      case KeyValueOptions.StreamFromSavedOffsetOrBeginning | null => StreamFromVariants.FromOffsetOrBeginning
       case v => throw new IllegalArgumentException("Unknown streamFrom value " + v)
     }
 

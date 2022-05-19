@@ -148,10 +148,12 @@ NOTE: for performance reasons it is recommended to use `Continuous` if small int
 
 When a stream is started for the first time, a fundamental choice needs to be made based on the use case:
 
-- If all current data in the bucket/collection should be streamed as well, either `KeyValueOptions.StreamFromBeginning` or `KeyValueOptions.StreamFromSavedOffsetOrBeginning` need to be used.
-- If the stream should be started at the current point in time and only subsequent changes should be processed, either `KeyValueOptions.StreamFromNow` or `KeyValueOptions.StreamFromSavedOffsetOrNow` need to be used.
+- If all current data in the bucket/collection should be streamed as well, `KeyValueOptions.StreamFromBeginning` needs to be used.
+- If the stream should be started at the current point in time and only subsequent changes should be processed, `KeyValueOptions.StreamFromNow` needs to be used.
 
-In the `SavedOffsetOr` cases, the connector looks for a saved initial offset which is stored inside the `checkpointLocation`. If not provided explicitly be user, spark will create a temporary directory automatically.
+The connector looks for a saved initial offset which is stored inside the `checkpointLocation`. If not provided explicitly be user, spark will create a temporary directory automatically.
+
+NOTE: If it's required to delete a current checkpoint location, please set `spark.sql.streaming.forceDeleteTempCheckpointLocation` to `true`. According to spark docs, deleting the temp checkpoint folder is best effort.
 
 == Persistence Polling Interval
 
@@ -201,7 +203,7 @@ Other options are available to further tweak the behavior:
 
 | `KeyValueOptions.StreamFrom`
 | String
-| Defines from which logical point the stream should be started/restarted (`KeyValueOptions.StreamFromBeginning`, `KeyValueOptions.StreamFromSavedOffsetOrBeginning`, `KeyValueOptions.StreamFromNow`, `KeyValueOptions.StreamFromSavedOffsetOrNow`).
+| Defines from which logical point the stream should be started/restarted (`KeyValueOptions.StreamFromBeginning`, `KeyValueOptions.StreamFromNow`).
 
 | `KeyValueOptions.StreamMetaData`
 | String

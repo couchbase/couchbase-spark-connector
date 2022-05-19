@@ -17,7 +17,7 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.dcp.highlevel.{SnapshotMarker, StreamOffset}
 import com.couchbase.client.dcp.message.DcpFailoverLogResponse
-import com.couchbase.client.dcp.{Client, SecurityConfig}
+import com.couchbase.client.dcp.Client
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.util.Version
 import org.apache.spark.internal.Logging
@@ -81,26 +81,23 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
 
   private def reloadStartOffsetCheckpoints() = {
     val startOffsets = mutable.Map[Int, KeyValueStreamOffset]() ++= (config.streamFrom match {
-      case StreamFromVariants.FromBeginning | StreamFromVariants.FromOffsetOrBeginning =>
+      case StreamFromVariants.FromBeginning =>
         (0 until numKvPartitions).map((_, KeyValueStreamOffset(StreamOffset.ZERO))).toMap
-      case StreamFromVariants.FromNow | StreamFromVariants.FromOffsetOrNow =>
+      case StreamFromVariants.FromNow =>
         currentOffsets()
     })
 
-    if (config.streamFrom == StreamFromVariants.FromOffsetOrBeginning || config.streamFrom == StreamFromVariants.FromOffsetOrNow) {
-      val checkpointLog = new KeyValueSourceInitialOffsetWriter(sparkSession, checkpointLocation)
+    val checkpointLog = new KeyValueSourceInitialOffsetWriter(sparkSession, checkpointLocation)
 
-      checkpointLog.get(0) match {
-        case Some(l) =>
-          l.foreach(v => {
-            startOffsets += (v._1 -> v._2)
-          })
-        case None =>
-      }
-
-      checkpointLog.add(0, startOffsets.toMap)
+    checkpointLog.get(0) match {
+      case Some(l) =>
+        l.foreach(v => {
+          startOffsets += (v._1 -> v._2)
+        })
+      case None =>
     }
 
+    checkpointLog.add(0, startOffsets.toMap)
     startOffsets
   }
 

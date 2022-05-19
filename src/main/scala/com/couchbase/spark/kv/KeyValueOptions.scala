@@ -144,27 +144,15 @@ object KeyValueOptions {
   val StreamMetaDataFull = "full"
 
   /**
-   * Option value: Start the Structured stream from "now" (no mutations are streamed from
-   * before this point).
+   * Option value: If an offset has been saved start from there, otherwise start the Structured stream from "now"
+   * (no mutations are streamed from before this point).
    */
   val StreamFromNow = "fromNow"
-
-  /**
-   * Option value: Start the Structured stream from "beginning" (previous mutations are streamed
-   * from before this point).
-   */
-  val StreamFromBeginning = "fromBeginning"
 
   /**
    * Option value: If an offset has been saved start from there, otherwise start the Structured stream from
    * "beginning" (previous mutations are streamed from before this point).
    */
-  val StreamFromSavedOffsetOrBeginning = "fromSavedOffsetOrBeginning"
-
-  /**
-   * Option value: If an offset has been saved start from there, otherwise start the Structured stream from "now"
-   * (no mutations are streamed from before this point).
-   */
-  val StreamFromSavedOffsetOrNow = "fromSavedOffsetOrNow"
+  val StreamFromBeginning = "fromBeginning"
 
 }
