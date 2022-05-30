@@ -6,6 +6,8 @@ Spark Structured Streaming for Couchbase is a scalable and fault-tolerant stream
 
 == Overview
 
+NOTE: Spark Structured Streaming is available from connector version 3.2.1 and later.
+
 The connector supports Spark Structured Streaming (as opposed to the older streaming support through `DStreams`) which is built on top of the Spark SQL capabilities.
 
 NOTE: The basic concepts of how structured streaming works are not discussed in this document - please refer to the https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#basic-concepts[official Spark documentation] for further information.
