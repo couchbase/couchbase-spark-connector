@@ -16,12 +16,13 @@
 
 package com.couchbase.spark.kv
 
+import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoundException}
 import com.couchbase.client.scala.codec.JsonSerializer
 import com.couchbase.client.scala.kv.{InsertOptions, MutateInOptions, MutateInResult, MutationResult, RemoveOptions, ReplaceOptions, UpsertOptions}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
-import reactor.core.scala.publisher.SFlux
+import reactor.core.scala.publisher.{SFlux, SMono}
 
 object KeyValueOperationRunner extends Logging {
 
@@ -56,7 +57,8 @@ object KeyValueOperationRunner extends Logging {
   }
 
   def insert[T](config: CouchbaseConfig, keyspace: Keyspace, insert: Seq[Insert[T]],
-                insertOptions: InsertOptions = null)(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
+                insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false)
+               (implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(config)
 
@@ -76,17 +78,26 @@ object KeyValueOperationRunner extends Logging {
       insertOptions
     }
 
-    logDebug(s"Performing bulk insert against ids ${insert.map(_.id)} with options $options")
+    logDebug(s"Performing bulk insert against ids ${insert.map(_.id)} with options $options and " +
+      s"ignoreIfExists $ignoreIfExists")
 
     SFlux
       .fromIterable(insert)
-      .flatMap(doc => collection.insert(doc.id, doc.content, options))
+      .flatMap(doc => {
+        collection.insert(doc.id, doc.content, options).onErrorResume(t => {
+          if (ignoreIfExists && t.isInstanceOf[DocumentExistsException]) {
+            SMono.empty
+          } else {
+            SMono.error(t)
+          }
+        })
+      })
       .collectSeq()
       .block()
   }
 
   def replace[T](config: CouchbaseConfig, keyspace: Keyspace, replace: Seq[Replace[T]],
-                 replaceOptions: ReplaceOptions = null)(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
+                 replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(config)
 
@@ -106,17 +117,26 @@ object KeyValueOperationRunner extends Logging {
       replaceOptions
     }
 
-    logDebug(s"Performing bulk replace against ids ${replace.map(_.id)} with options $options")
+    logDebug(s"Performing bulk replace against ids ${replace.map(_.id)} with options $options and " +
+      s"ignoreIfNotFound $ignoreIfNotFound")
 
     SFlux
       .fromIterable(replace)
-      .flatMap(doc => collection.replace(doc.id, doc.content, options.cas(doc.cas)))
+      .flatMap(doc => {
+        collection.replace(doc.id, doc.content, options.cas(doc.cas)).onErrorResume(t => {
+          if (ignoreIfNotFound && t.isInstanceOf[DocumentNotFoundException]) {
+            SMono.empty
+          } else {
+            SMono.error(t)
+          }
+        })
+      })
       .collectSeq()
       .block()
   }
 
   def remove(config: CouchbaseConfig, keyspace: Keyspace, remove: Seq[Remove],
-             removeOptions: RemoveOptions = null): Seq[MutationResult] = {
+             removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false): Seq[MutationResult] = {
     val connection = CouchbaseConnection()
     val cluster = connection.cluster(config)
 
@@ -136,11 +156,20 @@ object KeyValueOperationRunner extends Logging {
       removeOptions
     }
 
-    logDebug(s"Performing bulk remove against ids ${remove.map(_.id)} with options $options")
+    logDebug(s"Performing bulk remove against ids ${remove.map(_.id)} with options $options " +
+      s"and ignoreIfNotFound $ignoreIfNotFound")
 
     SFlux
       .fromIterable(remove)
-      .flatMap(doc => collection.remove(doc.id, options.cas(doc.cas)))
+      .flatMap(doc => {
+        collection.remove(doc.id, options.cas(doc.cas)).onErrorResume(t => {
+          if (ignoreIfNotFound && t.isInstanceOf[DocumentNotFoundException]) {
+            SMono.empty
+          } else {
+            SMono.error(t)
+          }
+        })
+      })
       .collectSeq()
       .block()
   }

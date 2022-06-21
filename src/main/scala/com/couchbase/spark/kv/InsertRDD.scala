@@ -24,7 +24,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
 class InsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Insert[T]], val keyspace: Keyspace,
-                val insertOptions: InsertOptions = null)(implicit serializer: JsonSerializer[T])
+                val insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false)(implicit serializer: JsonSerializer[T])
   extends RDD[MutationResult](sc, Nil)
     with Logging {
 
@@ -34,7 +34,7 @@ class InsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Insert
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val splitIds = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
-    KeyValueOperationRunner.insert(globalConfig, keyspace, docsToWrite, insertOptions).iterator
+    KeyValueOperationRunner.insert(globalConfig, keyspace, docsToWrite, insertOptions, ignoreIfExists).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {

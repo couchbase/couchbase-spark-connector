@@ -23,7 +23,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import reactor.core.scala.publisher.SFlux
 
-class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], val keyspace: Keyspace, removeOptions: RemoveOptions = null)
+class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], val keyspace: Keyspace,
+                removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false)
   extends RDD[MutationResult](sc, Nil)
     with Logging {
 
@@ -33,7 +34,7 @@ class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val splitIds = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
-    KeyValueOperationRunner.remove(globalConfig, keyspace, docsToWrite, removeOptions).iterator
+    KeyValueOperationRunner.remove(globalConfig, keyspace, docsToWrite, removeOptions, ignoreIfNotFound).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {

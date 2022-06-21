@@ -28,6 +28,7 @@ import com.couchbase.spark.query.QueryRDD
 import com.couchbase.spark.search.SearchRDD
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoundException}
 
 import scala.reflect.ClassTag
 
@@ -74,15 +75,17 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
    * @param docs the documents to replace.
    * @param keyspace the optional keyspace to override the implicit configuration.
    * @param replaceOptions optional parameters to customize the behavior.
+   * @param ignoreIfNotFound set to true if individual [[DocumentNotFoundException]] should be ignored.
    * @param serializer the implicit serializer used to encode the data.
    * @tparam T the type of data that should be stored.
    * @return the RDD result.
    */
   def couchbaseReplace[T](docs: Seq[Replace[T]],
-                         keyspace: Keyspace = Keyspace(),
-                          replaceOptions: ReplaceOptions = null
+                          keyspace: Keyspace = Keyspace(),
+                          replaceOptions: ReplaceOptions = null,
+                          ignoreIfNotFound: Boolean = false
                         )(implicit serializer: JsonSerializer[T]): RDD[MutationResult] =
-    new ReplaceRDD[T](sc, docs, keyspace, replaceOptions)
+    new ReplaceRDD[T](sc, docs, keyspace, replaceOptions, ignoreIfNotFound)
 
   /**
    * Inserts a seq of documents.
@@ -90,15 +93,17 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
    * @param docs the documents that should be inserted.
    * @param keyspace the optional keyspace to override the implicit configuration.
    * @param insertOptions optional parameters to customize the behavior.
+   * @param ignoreIfExists set to true if individual [[DocumentExistsException]] should be ignored.
    * @param serializer the implicit serializer used to encode the data.
    * @tparam T the type of data that should be stored.
    * @return the RDD result.
    */
   def couchbaseInsert[T](docs: Seq[Insert[T]],
                          keyspace: Keyspace = Keyspace(),
-                         insertOptions: InsertOptions = null
+                         insertOptions: InsertOptions = null,
+                         ignoreIfExists: Boolean = false
                         )(implicit serializer: JsonSerializer[T]): RDD[MutationResult] =
-    new InsertRDD[T](sc, docs, keyspace, insertOptions)
+    new InsertRDD[T](sc, docs, keyspace, insertOptions, ignoreIfExists)
 
   /**
    * Removes a seq of documents.
@@ -106,13 +111,14 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
    * @param docs the documents which should be removed.
    * @param keyspace the optional keyspace to override the implicit configuration.
    * @param removeOptions optional parameters to customize the behavior.
+   * @param ignoreIfNotFound set to true if individual [[DocumentNotFoundException]] should be ignored.
    * @return the RDD result.
    */
   def couchbaseRemove(docs: Seq[Remove],
-                         keyspace: Keyspace = Keyspace(),
-                      removeOptions: RemoveOptions = null
-                        ): RDD[MutationResult] =
-    new RemoveRDD(sc, docs, keyspace, removeOptions)
+                      keyspace: Keyspace = Keyspace(),
+                      removeOptions: RemoveOptions = null,
+                      ignoreIfNotFound: Boolean = false): RDD[MutationResult] =
+    new RemoveRDD(sc, docs, keyspace, removeOptions, ignoreIfNotFound)
 
   /**
    * Performs subdocument lookup.

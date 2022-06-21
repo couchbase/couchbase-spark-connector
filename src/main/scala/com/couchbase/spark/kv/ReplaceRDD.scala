@@ -24,7 +24,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
 class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Replace[T]], val keyspace: Keyspace,
-                val replaceOptions: ReplaceOptions = null)(implicit serializer: JsonSerializer[T])
+                val replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)(implicit serializer: JsonSerializer[T])
   extends RDD[MutationResult](sc, Nil)
     with Logging {
 
@@ -34,7 +34,7 @@ class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Repla
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val splitIds = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
-    KeyValueOperationRunner.replace(globalConfig, keyspace, docsToWrite, replaceOptions).iterator
+    KeyValueOperationRunner.replace(globalConfig, keyspace, docsToWrite, replaceOptions, ignoreIfNotFound).iterator
   }
 
   override protected def getPartitions: Array[Partition] = {

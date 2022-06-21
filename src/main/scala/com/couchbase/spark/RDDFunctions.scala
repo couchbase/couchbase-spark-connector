@@ -20,6 +20,7 @@ import com.couchbase.client.scala.kv.{InsertOptions, MutateInOptions, MutateInRe
 import com.couchbase.spark.config.CouchbaseConfig
 import com.couchbase.spark.kv.{Insert, KeyValueOperationRunner, MutateIn, Remove, Replace, Upsert}
 import org.apache.spark.rdd.RDD
+import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoundException}
 
 /**
  * Functions which can be performed on an RDD if the evidence matches.
@@ -59,12 +60,13 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    *
    * @param keyspace the optional keyspace to override the implicit configuration.
    * @param insertOptions optional parameters to customize the behavior.
+   * @param ignoreIfExists set to true if individual [[DocumentExistsException]] should be ignored.
    * @param evidence the generic type for which this method is made available on the RDD.
    * @param serializer the JSON serializer to use when encoding the documents.
    * @tparam V the generic type to use.
    * @return the RDD result.
    */
-  def couchbaseInsert[V](keyspace: Keyspace = Keyspace(), insertOptions: InsertOptions = null)
+  def couchbaseInsert[V](keyspace: Keyspace = Keyspace(), insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false)
                         (implicit evidence: RDD[T] <:< RDD[Insert[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Insert[V]] = this.rdd
 
@@ -72,7 +74,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.insert(config, keyspace, iterator.toSeq, insertOptions).iterator
+        KeyValueOperationRunner.insert(config, keyspace, iterator.toSeq, insertOptions, ignoreIfExists).iterator
       }
     }
   }
@@ -82,12 +84,13 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    *
    * @param keyspace the optional keyspace to override the implicit configuration.
    * @param replaceOptions optional parameters to customize the behavior.
+   * @param ignoreIfNotFound set to true if individual [[DocumentNotFoundException]] should be ignored.
    * @param evidence the generic type for which this method is made available on the RDD.
    * @param serializer the JSON serializer to use when encoding the documents.
    * @tparam V the generic type to use.
    * @return the RDD result.
    */
-  def couchbaseReplace[V](keyspace: Keyspace = Keyspace(), replaceOptions: ReplaceOptions = null)
+  def couchbaseReplace[V](keyspace: Keyspace = Keyspace(), replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)
                          (implicit evidence: RDD[T] <:< RDD[Replace[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Replace[V]] = this.rdd
 
@@ -95,7 +98,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.replace(config, keyspace, iterator.toSeq, replaceOptions).iterator
+        KeyValueOperationRunner.replace(config, keyspace, iterator.toSeq, replaceOptions, ignoreIfNotFound).iterator
       }
     }
   }
@@ -105,10 +108,11 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    *
    * @param keyspace the optional keyspace to override the implicit configuration.
    * @param removeOptions optional parameters to customize the behavior.
+   * @param ignoreIfNotFound set to true if individual [[DocumentNotFoundException]] should be ignored.
    * @param evidence the generic type for which this method is made available on the RDD.
    * @return the RDD result.
    */
-  def couchbaseRemove(keyspace: Keyspace = Keyspace(), removeOptions: RemoveOptions = null)
+  def couchbaseRemove(keyspace: Keyspace = Keyspace(), removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false)
                      (implicit evidence: RDD[T] <:< RDD[Remove]) : RDD[MutationResult] = {
     val rdd: RDD[Remove] = this.rdd
 
@@ -116,7 +120,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.remove(config, keyspace, iterator.toSeq, removeOptions).iterator
+        KeyValueOperationRunner.remove(config, keyspace, iterator.toSeq, removeOptions, ignoreIfNotFound).iterator
       }
     }
   }
