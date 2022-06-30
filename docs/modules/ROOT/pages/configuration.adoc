@@ -105,6 +105,9 @@ TLS connections can be confiugred through SDK properties shown above, but there 
 | spark.ssl.keyStorePassword
 | the password of the jvm keystore
 
+| spark.ssl.insecure
+| Uses the InsecureTrustManager and accepts all certificates. This should only be used during development!
+
 |===
 
 Note that the prefix for these properties is not `spark.couchbase` but `spark.ssl`, since they are spark-generic properties.

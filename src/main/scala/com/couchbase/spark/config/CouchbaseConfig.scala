@@ -22,7 +22,7 @@ import java.util.Locale
 
 case class Credentials(username: String, password: String)
 
-case class SparkSslOptions(enabled: Boolean, keystorePath: String, keystorePassword: String)
+case class SparkSslOptions(enabled: Boolean, keystorePath: Option[String], keystorePassword: Option[String], insecure: Boolean)
 
 case class CouchbaseConfig(
   connectionString: String,
@@ -95,6 +95,7 @@ object CouchbaseConfig {
   private val SPARK_SSL_ENABLED = SPARK_SSL_PREFIX + "enabled"
   private val SPARK_SSL_KEYSTORE = SPARK_SSL_PREFIX + "keyStore"
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
+  private val SPARK_SSL_INSECURE = SPARK_SSL_PREFIX + "insecure"
 
   def checkRequiredProperties(cfg: SparkConf): Unit = {
     if (!cfg.contains(CONNECTION_STRING)) {
@@ -123,15 +124,17 @@ object CouchbaseConfig {
     val waitUntilReadyTimeout = cfg.getOption(WAIT_UNTIL_READY_TIMEOUT)
 
     var useSsl = false
-    var keyStorePath = ""
-    var keyStorePassword = ""
+    var keyStorePath: Option[String] = None
+    var keyStorePassword: Option[String] = None
 
     // check for spark-related SSL settings
     if (cfg.get(SPARK_SSL_ENABLED, "false").toBoolean) {
       useSsl = true
-      keyStorePath = cfg.get(SPARK_SSL_KEYSTORE)
-      keyStorePassword = cfg.get(SPARK_SSL_KEYSTORE_PASSWORD)
+      keyStorePath = cfg.getOption(SPARK_SSL_KEYSTORE)
+      keyStorePassword = cfg.getOption(SPARK_SSL_KEYSTORE_PASSWORD)
     }
+
+    val sslInsecure = cfg.get(SPARK_SSL_INSECURE, "false").toBoolean
 
     val properties = cfg.getAllWithPrefix(PREFIX).toMap
     val filteredProperties = properties.filterKeys(key => {
@@ -155,7 +158,7 @@ object CouchbaseConfig {
       scopeName,
       collectionName,
       waitUntilReadyTimeout,
-      SparkSslOptions(useSsl, keyStorePath, keyStorePassword),
+      SparkSslOptions(useSsl, keyStorePath, keyStorePassword, sslInsecure),
       filteredProperties
     )
   }

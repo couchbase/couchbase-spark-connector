@@ -19,9 +19,11 @@ package com.couchbase.spark.config
 import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment, PropertyLoader}
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
+import com.couchbase.client.core.util.ConnectionString
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
 import com.couchbase.spark.config.CouchbaseConnection.connection
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
 
 import java.nio.file.Paths
@@ -51,12 +53,15 @@ class CouchbaseConnection extends Serializable with Logging {
       if (envRef.isEmpty) {
         var builder = ClusterEnvironment.builder
 
-
-        if (cfg.sparkSslOptions.enabled) {
-         builder = builder.securityConfig(SecurityConfig()
-           .enableTls(true)
-           .trustStore(Paths.get(cfg.sparkSslOptions.keystorePath), cfg.sparkSslOptions.keystorePassword)
-         )
+        val parsedConnstr = ConnectionString.create(cfg.connectionString)
+        if (cfg.sparkSslOptions.enabled || parsedConnstr.scheme() == ConnectionString.Scheme.COUCHBASES) {
+          var securityConfig = SecurityConfig().enableTls(true)
+          if (cfg.sparkSslOptions.keystorePath.isDefined) {
+            securityConfig = securityConfig.trustStore(Paths.get(cfg.sparkSslOptions.keystorePath.get), cfg.sparkSslOptions.keystorePassword.get)
+          } else if (cfg.sparkSslOptions.insecure) {
+            securityConfig = securityConfig.trustManagerFactory(InsecureTrustManagerFactory.INSTANCE)
+          }
+          builder = builder.securityConfig(securityConfig)
         }
         builder = builder.loaders(Seq(new SparkPropertyLoader(cfg.properties)))
 
