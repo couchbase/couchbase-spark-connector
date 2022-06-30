@@ -75,17 +75,30 @@ class CouchbaseConnection extends Serializable with Logging {
         clusterRef.get.waitUntilReady(waitUntilReadyTimeout)
       }
 
+      if (cfg.bucketName.isDefined) {
+        // If an implicit bucket is defined, we proactively open the bucket also to help with pre 6.5 cluster
+        // compatibility.
+        val _ = bucket(cfg, None, clusterRef)
+      }
+
       clusterRef.get
     }
   }
 
   def bucket(cfg: CouchbaseConfig, bucketName: Option[String]): Bucket = {
+    bucket(cfg, bucketName, None)
+  }
+
+  private def bucket(cfg: CouchbaseConfig, bucketName: Option[String], c: Option[Cluster]): Bucket = {
     val bname = this.bucketName(cfg, bucketName)
     this.synchronized {
       if (bucketsRef.contains(bname)) {
         return bucketsRef(bname)
       }
-      val bucket = cluster(cfg).bucket(bname)
+      val bucket = c match {
+        case Some(cl) => cl.bucket(bname)
+        case None => cluster(cfg).bucket(bname)
+      }
       bucketsRef.put(bname, bucket)
 
       val waitUntilReadyTimeout = cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
