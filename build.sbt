@@ -65,3 +65,7 @@ ThisBuild / assemblyMergeStrategy := {
     val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
     oldStrategy(x)
 }
+
+ThisBuild / assemblyShadeRules := Seq(
+  ShadeRule.rename("reactor.**" -> "com.couchbase.spark.deps.reactor.@1").inAll
+)
