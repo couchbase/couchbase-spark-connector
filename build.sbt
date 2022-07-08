@@ -9,7 +9,7 @@ scalaVersion := "2.12.14"
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.2.0")
-val sdkVersion = "1.3.1"
+val sdkVersion = "1.3.2"
 val dcpVersion = "0.40.0"
 
 scalacOptions += "-feature"
