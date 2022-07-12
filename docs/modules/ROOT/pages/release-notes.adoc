@@ -4,9 +4,25 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 3.2.2 GA (July 2022)
+
+Version 3.2.2 is the third version to support Spark 3.2.x and is built on top of the Couchbase Scala SDK 1.3.x as well
+as the Java DCP Client.
+
+*Features*
+* https://issues.couchbase.com/browse/SPARKC-157[SPARKC-157^]: Add support for "ignore" variants for KeyValue insert, replace and remove operations. This has been available in the Spark Connector 2.x series and has not been ported forward until this point.
+* https://issues.couchbase.com/browse/SPARKC-159[SPARKC-159^]: TLS configuration is now more flexible. TLS can be enabled trough couchbases:// in the connection string, as well as being more robust in accepting certail security config parameters.
+* https://issues.couchbase.com/browse/SPARKC-160[SPARKC-160^]: To avoid classpath issues in the Databricks notebook environment, the
+Reactor library is now shaded in the assembly jar that is available for download. The regular jar still has the unshaded version of Reactor.
+
+*Bug fixes and stability*
+* https://issues.couchbase.com/browse/SPARKC-158[SPARKC-158^]: Open the implicitBucket if set for cluster-level operations. This
+makes sure that cluster-level operations like N1QL queries can be performed against Couchbase Server clusters pre 6.5.
+
 == Couchbase Spark Connector 3.2.1 GA (May 2022)
 
-Version 3.2.1 is the second version to support Spark 3.2.x and is built on top of the Couchbase Scala SDK 1.3.x.
+Version 3.2.1 is the second version to support Spark 3.2.x and is built on top of the Couchbase Scala SDK 1.3.x as well
+as the Java DCP Client.
 
 *Features*
 
