@@ -93,7 +93,8 @@ class KeyValueTableProvider
     val streamFrom = properties.get(KeyValueOptions.StreamFrom) match {
       case KeyValueOptions.StreamFromNow => StreamFromVariants.FromNow
       case KeyValueOptions.StreamFromBeginning => StreamFromVariants.FromBeginning
-      case v => throw new IllegalArgumentException("Unknown streamFrom value " + v)
+      case null => throw new IllegalArgumentException("A KeyValueOptions.StreamFrom option must be provided")
+      case v => throw new IllegalArgumentException("Unknown KeyValueOptions.StreamFrom option: " + v)
     }
 
     val c = KeyValueStreamConfig(

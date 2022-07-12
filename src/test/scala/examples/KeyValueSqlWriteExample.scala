@@ -38,8 +38,9 @@ object KeyValueSqlWriteExample {
       .limit(5)
 
     airlines.write.format("couchbase.kv")
-      .option(KeyValueOptions.Bucket, "test")
+      .option(KeyValueOptions.Bucket, "travel-sample")
       .option(KeyValueOptions.Durability, KeyValueOptions.MajorityDurability)
+      .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
       //.option(KeyValueOptions.Timeout, "10s")
       .mode(SaveMode.Ignore)
       .save()
