@@ -19,6 +19,7 @@ package com.couchbase.spark.config
 import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment, PropertyLoader}
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
+import com.couchbase.client.core.transaction.config.CoreTransactionsCleanupConfig
 import com.couchbase.client.core.util.ConnectionString
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
@@ -51,6 +52,11 @@ class CouchbaseConnection extends Serializable with Logging {
   def cluster(cfg: CouchbaseConfig): Cluster = {
     this.synchronized {
       if (envRef.isEmpty) {
+        // The spark connector does not use any transaction functionality, so make use of the backdoor
+        // to disable txn processing and save resources.
+        System.setProperty(CoreTransactionsCleanupConfig.TRANSACTIONS_CLEANUP_LOST_PROPERTY, "false")
+        System.setProperty(CoreTransactionsCleanupConfig.TRANSACTIONS_CLEANUP_REGULAR_PROPERTY, "false")
+
         var builder = ClusterEnvironment.builder
 
         val parsedConnstr = ConnectionString.create(cfg.connectionString)
