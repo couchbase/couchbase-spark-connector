@@ -8,6 +8,7 @@
 * xref:streaming.adoc[Structured Streaming Support]
 * xref:spark-shell.adoc[Using the Spark Shell]
 * xref:cloud.adoc[Couchbase Cloud Support]
+* xref:databricks.adoc[Databricks Support]
 * xref:configuration.adoc[Configuration]
 * xref:migration.adoc[Migration Guide]
 * xref:release-notes.adoc[Release Notes]
