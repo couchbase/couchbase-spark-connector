@@ -29,7 +29,7 @@ image::databricks-properties.png[Databricks Cluster Property Config]
 Once the cluster is started, the Couchbase Spark Connector needs to be attached as a dependency to the cluster. To avoid
 classpath issues in the environment, the assembly jar must be used (as opposed to the regular jar with transitive dependencies).
 
-On the xref:release-notes.adoc[Release Notes] page you can download the assembly jar for each version - please keep in mind that only 3.2.2 or later are supported.
+On the xref:download-links.adoc[Download and API Reference] page you can download the assembly jar for each version - please keep in mind that only 3.2.2 or later are supported.
 
 image::databricks-library.png[Databricks Cluster Library Loaded]
 
