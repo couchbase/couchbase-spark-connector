@@ -43,7 +43,6 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
   override def shortName(): String = "couchbase.query"
 
   private lazy val sparkSession = SparkSession.active
-  private var conf = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   /**
    * InferSchema is always called if the user does not pass in an explicit schema.
@@ -52,7 +51,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
    * @return the inferred schema, if possible.
    */
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    conf = conf.loadSparkOptions(options)
+    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf).loadSparkOptions(options)
     if (isWrite) {
       logDebug("Not inferring schema because called from the DataFrameWriter")
       return null
@@ -116,7 +115,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
    * @return the table instance which performs the actual work inside it.
    */
   override def getTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String]): Table =
-    new QueryTable(schema, partitioning, properties, conf.loadSparkOptions(properties))
+    new QueryTable(schema, partitioning, properties,CouchbaseConfig(sparkSession.sparkContext.getConf).loadSparkOptions(properties))
 
   /**
    * We allow a user passing in a custom schema.
@@ -124,9 +123,8 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
   override def supportsExternalMetadata(): Boolean = true
 
   override def createRelation(ctx: SQLContext, mode: SaveMode, properties: Map[String, String], data: DataFrame): BaseRelation = {
-    val writeConfig = conf.loadSparkOptions(properties.asJava).queryConfig
     val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf).loadSparkOptions(properties.asJava)
-    data.toJSON.foreachPartition(new RelationPartitionWriter(writeConfig, couchbaseConfig, mode))
+    data.toJSON.foreachPartition(new RelationPartitionWriter(couchbaseConfig, mode))
 
     new BaseRelation {
       override def sqlContext: SQLContext = ctx
@@ -136,18 +134,18 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
 
 }
 
-class RelationPartitionWriter(writeConfig: QueryConfig, couchbaseConfig: CouchbaseConfig, mode: SaveMode)
+class RelationPartitionWriter(couchbaseConfig: CouchbaseConfig, mode: SaveMode)
   extends ForeachPartitionFunction[String]
     with Logging {
 
   override def call(t: util.Iterator[String]): Unit = {
-    val scopeName = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
-    val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+    val scopeName = couchbaseConfig.queryConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
+    val collectionName = couchbaseConfig.queryConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
     val values = t.asScala.map(encoded => {
       val decoded = JsonObject.fromJson(encoded)
-      val id = decoded.str(writeConfig.idFieldName)
-      decoded.remove(writeConfig.idFieldName)
+      val id = decoded.str(couchbaseConfig.queryConfig.idFieldName)
+      decoded.remove(couchbaseConfig.queryConfig.idFieldName)
       s"VALUES ('$id', ${decoded.toString})"
     }).mkString(", ")
 
@@ -160,7 +158,7 @@ class RelationPartitionWriter(writeConfig: QueryConfig, couchbaseConfig: Couchba
 
     val statement = if (scopeName.equals(DefaultConstants.DefaultScopeName) &&
       collectionName.equals(DefaultConstants.DefaultCollectionName)) {
-      s"$prefix INTO `${writeConfig.bucket}` (KEY, VALUE) $values"
+      s"$prefix INTO `${couchbaseConfig.queryConfig.bucket}` (KEY, VALUE) $values"
     } else {
       s"$prefix INTO `$collectionName` (KEY, VALUE) $values"
     }
@@ -172,7 +170,7 @@ class RelationPartitionWriter(writeConfig: QueryConfig, couchbaseConfig: Couchba
       val result = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
         CouchbaseConnectionPool().getConnection(couchbaseConfig).cluster().query(statement, opts).get
       } else {
-        CouchbaseConnectionPool().getConnection(couchbaseConfig).cluster().bucket(writeConfig.bucket).scope(scopeName).query(statement, opts).get
+        CouchbaseConnectionPool().getConnection(couchbaseConfig).cluster().bucket(couchbaseConfig.queryConfig.bucket).scope(scopeName).query(statement, opts).get
       }
 
       logDebug("Completed query in: " + result.metaData.metrics.get)
@@ -188,7 +186,7 @@ class RelationPartitionWriter(writeConfig: QueryConfig, couchbaseConfig: Couchba
 
   def buildOptions(): CouchbaseQueryOptions = {
     var opts = CouchbaseQueryOptions().metrics(true)
-    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    couchbaseConfig.queryConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 }
