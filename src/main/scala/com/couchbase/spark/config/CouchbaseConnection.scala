@@ -23,7 +23,6 @@ import com.couchbase.client.core.transaction.config.CoreTransactionsCleanupConfi
 import com.couchbase.client.core.util.ConnectionString
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
-import com.couchbase.spark.config.CouchbaseConnection.connection
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
 
@@ -33,7 +32,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.collection.JavaConverters._
 
-class CouchbaseConnection extends Serializable with Logging {
+class CouchbaseConnection(cfg: CouchbaseConfig) extends Serializable with Logging {
 
   @transient var envRef: Option[ClusterEnvironment] = None
 
@@ -44,12 +43,12 @@ class CouchbaseConnection extends Serializable with Logging {
   Runtime.getRuntime.addShutdownHook(new Thread {
     override def run(): Unit = {
       Thread.currentThread().setName("couchbase-shutdown-in-progress")
-      CouchbaseConnection().stop()
+      CouchbaseConnectionPool().getConnection(cfg).stop()
       Thread.currentThread().setName("couchbase-shutdown-complete")
     }
   })
 
-  def cluster(cfg: CouchbaseConfig): Cluster = {
+  def cluster(): Cluster = {
     this.synchronized {
       if (envRef.isEmpty) {
         // The spark connector does not use any transaction functionality, so make use of the backdoor
@@ -89,26 +88,26 @@ class CouchbaseConnection extends Serializable with Logging {
       if (cfg.bucketName.isDefined) {
         // If an implicit bucket is defined, we proactively open the bucket also to help with pre 6.5 cluster
         // compatibility.
-        val _ = bucket(cfg, None, clusterRef)
+        val _ = bucket(None, clusterRef)
       }
 
       clusterRef.get
     }
   }
 
-  def bucket(cfg: CouchbaseConfig, bucketName: Option[String]): Bucket = {
-    bucket(cfg, bucketName, None)
+  def bucket(bucketName: Option[String]): Bucket = {
+    bucket(bucketName, None)
   }
 
-  private def bucket(cfg: CouchbaseConfig, bucketName: Option[String], c: Option[Cluster]): Bucket = {
-    val bname = this.bucketName(cfg, bucketName)
+  private def bucket(bucketName: Option[String], c: Option[Cluster]): Bucket = {
+    val bname = this.bucketName(bucketName)
     this.synchronized {
       if (bucketsRef.contains(bname)) {
         return bucketsRef(bname)
       }
       val bucket = c match {
         case Some(cl) => cl.bucket(bname)
-        case None => cluster(cfg).bucket(bname)
+        case None => cluster().bucket(bname)
       }
       bucketsRef.put(bname, bucket)
 
@@ -118,26 +117,26 @@ class CouchbaseConnection extends Serializable with Logging {
     }
   }
 
-  def scope(cfg: CouchbaseConfig, bucketName: Option[String], scopeName: Option[String]): Scope = {
-    val name = this.scopeName(cfg, scopeName)
+  def scope(bucketName: Option[String], scopeName: Option[String]): Scope = {
+    val name = this.scopeName(scopeName)
 
     if (name.equals(CollectionIdentifier.DEFAULT_SCOPE)) {
-      bucket(cfg, bucketName).defaultScope
+      bucket(bucketName).defaultScope
     } else {
-      bucket(cfg, bucketName).scope(name)
+      bucket(bucketName).scope(name)
     }
   }
 
-  def collection(cfg: CouchbaseConfig, bucketName: Option[String], scopeName: Option[String],
+  def collection(bucketName: Option[String], scopeName: Option[String],
                  collectionName: Option[String]): Collection = {
-    val parsedScopeName = this.scopeName(cfg, scopeName)
-    val parsedCollectionName = this.collectionName(cfg, collectionName)
+    val parsedScopeName = this.scopeName(scopeName)
+    val parsedCollectionName = this.collectionName(collectionName)
 
     if (parsedScopeName.equals(CollectionIdentifier.DEFAULT_SCOPE)
       && parsedCollectionName.equals(CollectionIdentifier.DEFAULT_COLLECTION)) {
-      bucket(cfg, bucketName).defaultCollection
+      bucket(bucketName).defaultCollection
     } else {
-      scope(cfg, bucketName, scopeName).collection(parsedCollectionName)
+      scope( bucketName, scopeName).collection(parsedCollectionName)
     }
 
   }
@@ -153,13 +152,14 @@ class CouchbaseConnection extends Serializable with Logging {
           envRef.get.shutdown()
           envRef = None
         }
+        CouchbaseConnectionPool().closeConnection(cfg)
       } catch {
         case e: Throwable => logDebug(s"Encountered error during shutdown $e")
       }
     }
   }
 
-  def bucketName(cfg: CouchbaseConfig, name: Option[String]): String = {
+  def bucketName(name: Option[String]): String = {
     name.orElse(cfg.bucketName) match {
       case Some(name) => name
       case None => throw InvalidArgumentException
@@ -168,22 +168,22 @@ class CouchbaseConnection extends Serializable with Logging {
     }
   }
 
-  private def scopeName(cfg: CouchbaseConfig, name: Option[String]): String = {
+  private def scopeName(name: Option[String]): String = {
     name.orElse(cfg.scopeName) match {
       case Some(name) => name
       case None => CollectionIdentifier.DEFAULT_SCOPE
     }
   }
 
-  private def collectionName(cfg: CouchbaseConfig, name: Option[String]): String = {
+  private def collectionName(name: Option[String]): String = {
     name.orElse(cfg.collectionName) match {
       case Some(name) => name
       case None => CollectionIdentifier.DEFAULT_COLLECTION
     }
   }
 
-  def dcpSeedNodes(cfg: CouchbaseConfig): String = {
-    val allSeedNodes = CouchbaseConnection().cluster(cfg).async.core.configurationProvider()
+  def dcpSeedNodes(): String = {
+    val allSeedNodes = cluster().async.core.configurationProvider()
       .seedNodes()
       .blockFirst().asScala
       .map(_.address())
@@ -191,9 +191,9 @@ class CouchbaseConnection extends Serializable with Logging {
     allSeedNodes.mkString(",")
   }
 
-  def dcpSecurityConfig(cfg: CouchbaseConfig): com.couchbase.client.dcp.SecurityConfig = {
+  def dcpSecurityConfig(): com.couchbase.client.dcp.SecurityConfig = {
     // Make sure we are bootstrapped.
-    val _ = CouchbaseConnection().cluster(cfg)
+    val _ = cluster()
 
     val coreSecurityConfig = envRef.get.core.securityConfig()
 
@@ -217,9 +217,7 @@ class CouchbaseConnection extends Serializable with Logging {
 
 object CouchbaseConnection {
 
-  lazy val connection = new CouchbaseConnection()
-
-  def apply() = connection
+  def apply(cfg: CouchbaseConfig) = new CouchbaseConnection(cfg)
 
 }
 

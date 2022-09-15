@@ -17,6 +17,7 @@
 package com.couchbase.spark.query
 
 import com.couchbase.spark.DefaultConstants
+import com.couchbase.spark.config.CouchbaseConfig
 import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, TableCapability}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.ScanBuilder
@@ -28,16 +29,16 @@ import java.util
 import scala.collection.JavaConverters._
 
 class QueryTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String],
-                 readConfig: QueryReadConfig)
+                 conf: CouchbaseConfig)
   extends SupportsRead {
 
   override def name(): String = {
-    if (readConfig.scope.isEmpty && readConfig.collection.isEmpty) {
-      readConfig.bucket
+    if (conf.queryConfig.scope.isEmpty && conf.queryConfig.collection.isEmpty) {
+      conf.queryConfig.bucket
     } else {
-      readConfig.bucket + ":" +
-        readConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
-        readConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+      conf.queryConfig.bucket + ":" +
+        conf.queryConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
+        conf.queryConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
     }
   }
   override def schema(): StructType = schema
@@ -50,6 +51,6 @@ class QueryTable(schema: StructType, partitioning: Array[Transform], properties:
       TableCapability.ACCEPT_ANY_SCHEMA
     ).asJava
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
-    new QueryScanBuilder(schema, readConfig)
+    new QueryScanBuilder(schema, conf)
 
 }

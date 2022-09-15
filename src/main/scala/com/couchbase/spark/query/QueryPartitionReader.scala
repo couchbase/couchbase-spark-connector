@@ -17,7 +17,7 @@
 package com.couchbase.spark.query
 
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
@@ -32,13 +32,13 @@ import org.apache.spark.sql.connector.metric.CustomTaskMetric
 
 import scala.concurrent.duration.Duration
 
-class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: QueryReadConfig, filters: Array[Filter],
+class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, filters: Array[Filter],
                            aggregations: Option[Aggregation])
   extends PartitionReader[InternalRow]
   with Logging {
 
-  private val scopeName = readConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
-  private val collectionName = readConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+  private val scopeName = conf.queryConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
+  private val collectionName = conf.queryConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
   private val parser = CouchbaseJsonUtils.jsonParser(schema)
   private val createParser = CouchbaseJsonUtils.createParser()
@@ -52,9 +52,9 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
 
   private lazy val result = {
     if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
-      CouchbaseConnection().cluster(conf).query(buildQuery(), buildOptions())
+      CouchbaseConnectionPool().getConnection(conf).cluster().query(buildQuery(), buildOptions())
     } else {
-      CouchbaseConnection().cluster(conf).bucket(readConfig.bucket).scope(scopeName).query(buildQuery(), buildOptions())
+      CouchbaseConnectionPool().getConnection(conf).cluster().bucket(conf.queryConfig.bucket).scope(scopeName).query(buildQuery(), buildOptions())
     }
   }
 
@@ -93,13 +93,13 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
     var fields = schema
       .fields
       .map(f => f.name)
-      .filter(f => !f.equals(readConfig.idFieldName))
+      .filter(f => !f.equals(conf.queryConfig.idFieldName))
       .map(f => maybeEscapeField(f))
     if (!hasAggregateFields) {
-      fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
+      fields = fields :+ s"META().id as `${conf.queryConfig.idFieldName}`"
     }
 
-    var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
+    var predicate = conf.queryConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = N1qlFilters.compile(filters)
     if (compiledFilters.nonEmpty && predicate.nonEmpty) {
       predicate = predicate + " AND " + compiledFilters
@@ -116,7 +116,7 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
     val fieldsEncoded = fields.mkString(", ")
 
     val query = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
-      s"select $fieldsEncoded from `${readConfig.bucket}`$predicate$groupBy"
+      s"select $fieldsEncoded from `${conf.queryConfig.bucket}`$predicate$groupBy"
     } else {
       s"select $fieldsEncoded from `$collectionName`$predicate$groupBy"
     }
@@ -153,12 +153,12 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
 
   def buildOptions(): CouchbaseQueryOptions = {
     var opts = CouchbaseQueryOptions().metrics(true)
-    readConfig.scanConsistency match {
+    conf.queryConfig.scanConsistency match {
       case QueryOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.NotBounded)
       case QueryOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.RequestPlus())
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
-    readConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    conf.queryConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 

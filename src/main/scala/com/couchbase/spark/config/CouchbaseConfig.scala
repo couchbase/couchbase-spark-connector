@@ -16,13 +16,34 @@
 
 package com.couchbase.spark.config
 
+import com.couchbase.spark.DefaultConstants
+import com.couchbase.spark.config.CouchbaseConfig.extractConf
+import com.couchbase.spark.query.{QueryConfig, QueryOptions}
 import org.apache.spark.SparkConf
 
+import java.security.MessageDigest
 import java.util.Locale
+import java.util
+import collection.JavaConverters._
 
 case class Credentials(username: String, password: String)
 
 case class SparkSslOptions(enabled: Boolean, keystorePath: Option[String], keystorePassword: Option[String], insecure: Boolean)
+case class SparkOptions(connectionString: Option[String],
+                        userName: Option[String],
+                        password: Option[String],
+                        credentials: Option[Credentials],
+                        bucketName: Option[String],
+                        scopeName: Option[String],
+                        collectionName: Option[String],
+                        waitUntilReadyTimeout: Option[String],
+                        useSsl: Boolean,
+                        keyStorePath: Option[String],
+                        keyStorePassword: Option[String],
+                        sslInsecure: Boolean,
+                        sslConfigured: Boolean,
+                        filteredProperties: Seq[(String,String)]
+                       )
 
 case class CouchbaseConfig(
   connectionString: String,
@@ -32,8 +53,11 @@ case class CouchbaseConfig(
   collectionName: Option[String],
   waitUntilReadyTimeout: Option[String],
   sparkSslOptions: SparkSslOptions,
-  properties: Seq[(String, String)]
+  properties: Seq[(String, String)],
+  queryConfig: QueryConfig
 ) {
+
+  private var connectionKey: Option[String] = None
 
   def implicitBucketNameOr(explicitName: String): String = {
     var bn = Option(explicitName)
@@ -76,6 +100,55 @@ case class CouchbaseConfig(
     }
   }
 
+  def loadSparkOptions(conf: SparkConf) : CouchbaseConfig = {
+    val sparkOptions = extractConf(conf)
+    CouchbaseConfig(
+      sparkOptions.connectionString.getOrElse(connectionString),
+      sparkOptions.credentials.getOrElse(credentials),
+      Option(sparkOptions.bucketName.getOrElse(bucketName.getOrElse(null))),
+      Option(sparkOptions.scopeName.getOrElse(scopeName.getOrElse(null))),
+      Option(sparkOptions.collectionName.getOrElse(collectionName.getOrElse(null))),
+      Option(sparkOptions.waitUntilReadyTimeout.getOrElse(waitUntilReadyTimeout.getOrElse(null))),
+      configureSSl(sparkOptions),
+      mergeFilteredOptions(sparkOptions.filteredProperties),
+      extractQueryConfig(conf)
+    )
+  }
+
+  private def mergeFilteredOptions(filteredOptions:Seq[(String,String)]) : Seq[(String,String)] = {
+    val mergedOptions = new util.HashMap[String,String]()
+    properties.map(kv => mergedOptions.put(kv._1,kv._2))
+    filteredOptions.map(kv => mergedOptions.put(kv._1,kv._2))
+    mergedOptions.asScala.toSeq
+  }
+
+  private def configureSSl(sparkOptions: SparkOptions): SparkSslOptions = {
+    if (sparkOptions.sslConfigured){
+      SparkSslOptions(sparkOptions.useSsl, sparkOptions.keyStorePath, sparkOptions.keyStorePassword, sparkOptions.sslInsecure)
+    } else{
+      sparkSslOptions
+    }
+  }
+
+  private def extractQueryConfig(properties: util.Map[String, String]): QueryConfig = {
+    QueryConfig(
+      implicitBucketNameOr(properties.get(QueryOptions.Bucket)),
+      implicitScopeNameOr(properties.get(QueryOptions.Scope)),
+      implicitCollectionName(properties.get(QueryOptions.Collection)),
+      Option(properties.get(QueryOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
+      Option(properties.get(QueryOptions.Filter)),
+      Option(properties.get(QueryOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultQueryScanConsistency),
+      Option(properties.get(QueryOptions.Timeout)),
+      Option(properties.get(QueryOptions.PushDownAggregate)).getOrElse("true").toBoolean
+    )
+  }
+
+  def getKey: String = {
+    if (!connectionKey.isDefined){
+      connectionKey =  Some(MessageDigest.getInstance("MD5").digest(s"${connectionString}${credentials.username}${credentials.password}".getBytes()).toString)
+    }
+    connectionKey.get
+  }
 }
 
 object CouchbaseConfig {
@@ -97,6 +170,8 @@ object CouchbaseConfig {
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
   private val SPARK_SSL_INSECURE = SPARK_SSL_PREFIX + "insecure"
 
+  private val EXTRA_SPARK_OPTIONS = s"${USERNAME},"
+
   def checkRequiredProperties(cfg: SparkConf): Unit = {
     if (!cfg.contains(CONNECTION_STRING)) {
       throw new IllegalArgumentException("Required config property " + CONNECTION_STRING + " is not present")
@@ -112,11 +187,30 @@ object CouchbaseConfig {
   def apply(cfg: SparkConf): CouchbaseConfig = {
     checkRequiredProperties(cfg)
 
-    val connectionString = cfg.get(CONNECTION_STRING)
+   val sparkOptions = extractConf(cfg)
+    CouchbaseConfig(
+      sparkOptions.connectionString.orNull,
+      sparkOptions.credentials.orNull,
+      sparkOptions.bucketName,
+      sparkOptions.scopeName,
+      sparkOptions.collectionName,
+      sparkOptions.waitUntilReadyTimeout,
+      SparkSslOptions(sparkOptions.useSsl, sparkOptions.keyStorePath, sparkOptions.keyStorePassword, sparkOptions.sslInsecure),
+      sparkOptions.filteredProperties,
+      null
+    )
+  }
 
-    val username = cfg.get(USERNAME)
-    val password = cfg.get(PASSWORD)
-    val credentials = Credentials(username, password)
+  private def extractConf(cfg: SparkConf): SparkOptions = {
+    val connectionString = cfg.getOption(CONNECTION_STRING)
+
+    val username = cfg.getOption(USERNAME)
+    val password = cfg.getOption(PASSWORD)
+    val credentials = if (username.isDefined && password.isDefined){
+      Some(Credentials(username.get, password.get))
+    } else{
+      None
+    }
 
     val bucketName = cfg.getOption(BUCKET_NAME)
     val scopeName = cfg.getOption(SCOPE_NAME)
@@ -134,6 +228,7 @@ object CouchbaseConfig {
       keyStorePassword = cfg.getOption(SPARK_SSL_KEYSTORE_PASSWORD)
     }
 
+    val sslConfigured = cfg.contains(SPARK_SSL_INSECURE)
     val sslInsecure = cfg.get(SPARK_SSL_INSECURE, "false").toBoolean
 
     val properties = cfg.getAllWithPrefix(PREFIX).toMap
@@ -151,14 +246,19 @@ object CouchbaseConfig {
         prefixedKey != SPARK_SSL_KEYSTORE_PASSWORD
     }).toSeq
 
-    CouchbaseConfig(
-      connectionString,
+    SparkOptions(connectionString,
+      username,
+      password,
       credentials,
       bucketName,
       scopeName,
       collectionName,
       waitUntilReadyTimeout,
-      SparkSslOptions(useSsl, keyStorePath, keyStorePassword, sslInsecure),
+      useSsl,
+      keyStorePath,
+      keyStorePassword,
+      sslInsecure,
+      sslConfigured,
       filteredProperties
     )
   }

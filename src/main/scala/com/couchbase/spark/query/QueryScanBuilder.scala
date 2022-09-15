@@ -16,12 +16,13 @@
 
 package com.couchbase.spark.query
 
+import com.couchbase.spark.config.CouchbaseConfig
 import org.apache.spark.sql.connector.expressions.aggregate.{Aggregation, Count, CountStar, Max, Min, Sum}
 import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{LongType, StructField, StructType}
 
-class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
+class QueryScanBuilder(schema: StructType, conf: CouchbaseConfig)
   extends ScanBuilder
     with SupportsPushDownFilters
     with SupportsPushDownRequiredColumns
@@ -32,7 +33,7 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
   private var aggregations: Option[Aggregation] = None
 
   override def build(): Scan = {
-    new QueryScan(finalSchema, readConfig, pushedFilter, aggregations)
+    new QueryScan(finalSchema, conf, pushedFilter, aggregations)
   }
 
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
@@ -48,7 +49,7 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
   }
 
   override def pushAggregation(agg: Aggregation): Boolean = {
-    if (!readConfig.pushDownAggregate) {
+    if (!conf.queryConfig.pushDownAggregate) {
       return false
     }
 

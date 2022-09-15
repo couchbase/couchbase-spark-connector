@@ -20,9 +20,9 @@ import com.couchbase.spark.config.CouchbaseConfig
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader, PartitionReaderFactory}
 
-class QueryPartitionReaderFactory(conf: CouchbaseConfig, readConfig: QueryReadConfig) extends PartitionReaderFactory {
+class QueryPartitionReaderFactory(conf: CouchbaseConfig) extends PartitionReaderFactory {
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
     val part = partition.asInstanceOf[QueryInputPartition]
-    new QueryPartitionReader(part.schema, conf, readConfig, part.filters, part.aggregations)
+    new QueryPartitionReader(part.schema, conf, part.filters, part.aggregations)
   }
 }

@@ -24,11 +24,9 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-class QueryScan(schema: StructType, readConfig: QueryReadConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Scan {
-
-  private lazy val conf = CouchbaseConfig(SparkSession.active.sparkContext.getConf)
+class QueryScan(schema: StructType, conf: CouchbaseConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Scan {
 
   override def readSchema(): StructType = schema
-  override def toBatch: Batch = new QueryBatch(schema, conf, readConfig, filters, aggregations)
+  override def toBatch: Batch = new QueryBatch(schema, conf, filters, aggregations)
 
 }

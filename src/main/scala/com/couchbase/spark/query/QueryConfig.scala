@@ -13,12 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.couchbase.spark.query
 
-case class QueryWriteConfig(
- bucket: String,
- scope: Option[String],
- collection: Option[String],
- idFieldName: String,
- timeout: Option[String],
+case class QueryConfig(
+  bucket: String,
+  scope: Option[String],
+  collection: Option[String],
+  idFieldName: String,
+  userFilter: Option[String],
+  scanConsistency: String,
+  timeout: Option[String],
+  pushDownAggregate: Boolean
 )
