@@ -29,20 +29,20 @@ import collection.JavaConverters._
 case class Credentials(username: String, password: String)
 
 case class SparkSslOptions(enabled: Boolean, keystorePath: Option[String], keystorePassword: Option[String], insecure: Boolean)
-case class SparkOptions(connectionString: Option[String],
-                        userName: Option[String],
-                        password: Option[String],
-                        credentials: Option[Credentials],
-                        bucketName: Option[String],
-                        scopeName: Option[String],
-                        collectionName: Option[String],
-                        waitUntilReadyTimeout: Option[String],
-                        useSsl: Boolean,
-                        keyStorePath: Option[String],
-                        keyStorePassword: Option[String],
-                        sslInsecure: Boolean,
-                        sslConfigured: Boolean,
-                        filteredProperties: Seq[(String,String)]
+case class DSOptions(connectionString: Option[String],
+                     userName: Option[String],
+                     password: Option[String],
+                     credentials: Option[Credentials],
+                     bucketName: Option[String],
+                     scopeName: Option[String],
+                     collectionName: Option[String],
+                     waitUntilReadyTimeout: Option[String],
+                     useSsl: Boolean,
+                     keyStorePath: Option[String],
+                     keyStorePassword: Option[String],
+                     sslInsecure: Boolean,
+                     sslConfigured: Boolean,
+                     filteredProperties: Seq[(String,String)]
                        )
 
 case class CouchbaseConfig(
@@ -100,17 +100,17 @@ case class CouchbaseConfig(
     }
   }
 
-  def loadSparkOptions(conf: SparkConf) : CouchbaseConfig = {
-    val sparkOptions = extractConf(conf)
+  def loadDSOptions(conf: SparkConf) : CouchbaseConfig = {
+    val dsOptions = extractConf(conf)
     CouchbaseConfig(
-      sparkOptions.connectionString.getOrElse(connectionString),
-      sparkOptions.credentials.getOrElse(credentials),
-      Option(sparkOptions.bucketName.getOrElse(bucketName.getOrElse(null))),
-      Option(sparkOptions.scopeName.getOrElse(scopeName.getOrElse(null))),
-      Option(sparkOptions.collectionName.getOrElse(collectionName.getOrElse(null))),
-      Option(sparkOptions.waitUntilReadyTimeout.getOrElse(waitUntilReadyTimeout.getOrElse(null))),
-      configureSSl(sparkOptions),
-      mergeFilteredOptions(sparkOptions.filteredProperties),
+      dsOptions.connectionString.getOrElse(connectionString),
+      dsOptions.credentials.getOrElse(credentials),
+      Option(dsOptions.bucketName.getOrElse(bucketName.getOrElse(null))),
+      Option(dsOptions.scopeName.getOrElse(scopeName.getOrElse(null))),
+      Option(dsOptions.collectionName.getOrElse(collectionName.getOrElse(null))),
+      Option(dsOptions.waitUntilReadyTimeout.getOrElse(waitUntilReadyTimeout.getOrElse(null))),
+      configureSSl(dsOptions),
+      mergeFilteredOptions(dsOptions.filteredProperties),
       extractQueryConfig(conf)
     )
   }
@@ -122,7 +122,7 @@ case class CouchbaseConfig(
     mergedOptions.asScala.toSeq
   }
 
-  private def configureSSl(sparkOptions: SparkOptions): SparkSslOptions = {
+  private def configureSSl(sparkOptions: DSOptions): SparkSslOptions = {
     if (sparkOptions.sslConfigured){
       SparkSslOptions(sparkOptions.useSsl, sparkOptions.keyStorePath, sparkOptions.keyStorePassword, sparkOptions.sslInsecure)
     } else{
@@ -201,7 +201,7 @@ object CouchbaseConfig {
     )
   }
 
-  private def extractConf(cfg: SparkConf): SparkOptions = {
+  private def extractConf(cfg: SparkConf): DSOptions = {
     val connectionString = cfg.getOption(CONNECTION_STRING)
 
     val username = cfg.getOption(USERNAME)
@@ -246,7 +246,7 @@ object CouchbaseConfig {
         prefixedKey != SPARK_SSL_KEYSTORE_PASSWORD
     }).toSeq
 
-    SparkOptions(connectionString,
+    DSOptions(connectionString,
       username,
       password,
       credentials,

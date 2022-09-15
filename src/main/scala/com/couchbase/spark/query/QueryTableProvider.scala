@@ -51,7 +51,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
    * @return the inferred schema, if possible.
    */
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf).loadSparkOptions(options)
+    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf).loadDSOptions(options)
     if (isWrite) {
       logDebug("Not inferring schema because called from the DataFrameWriter")
       return null
@@ -115,7 +115,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
    * @return the table instance which performs the actual work inside it.
    */
   override def getTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String]): Table =
-    new QueryTable(schema, partitioning, properties,CouchbaseConfig(sparkSession.sparkContext.getConf).loadSparkOptions(properties))
+    new QueryTable(schema, partitioning, properties,CouchbaseConfig(sparkSession.sparkContext.getConf).loadDSOptions(properties))
 
   /**
    * We allow a user passing in a custom schema.
@@ -123,7 +123,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
   override def supportsExternalMetadata(): Boolean = true
 
   override def createRelation(ctx: SQLContext, mode: SaveMode, properties: Map[String, String], data: DataFrame): BaseRelation = {
-    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf).loadSparkOptions(properties.asJava)
+    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf).loadDSOptions(properties.asJava)
     data.toJSON.foreachPartition(new RelationPartitionWriter(couchbaseConfig, mode))
 
     new BaseRelation {
