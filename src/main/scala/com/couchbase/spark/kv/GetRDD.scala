@@ -23,12 +23,15 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import reactor.core.scala.publisher.SFlux
 
+import java.util.{HashMap, Map}
 
-class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null)
+import com.couchbase.spark.config.mapToSparkConf
+
+class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null,val connectionOptions: Map[String,String] = new HashMap[String,String]())
   extends RDD[GetResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,false).loadDSOptions(connectionOptions)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {

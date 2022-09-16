@@ -23,12 +23,16 @@ import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
+import java.util.{HashMap, Map}
+
+import com.couchbase.spark.config.mapToSparkConf
+
 class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Replace[T]], val keyspace: Keyspace,
-                val replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)(implicit serializer: JsonSerializer[T])
+                val replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false,val connectionOptions: Map[String,String] = new HashMap[String,String]())(implicit serializer: JsonSerializer[T])
   extends RDD[MutationResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,false).loadDSOptions(connectionOptions)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {

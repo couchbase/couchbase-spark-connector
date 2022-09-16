@@ -23,11 +23,15 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import reactor.core.scala.publisher.SFlux
 
-class MutateInRDD(@transient private val sc: SparkContext, val docs: Seq[MutateIn], val keyspace: Keyspace, mutateInOptions: MutateInOptions = null)
+import java.util.{HashMap, Map}
+
+import com.couchbase.spark.config.mapToSparkConf
+
+class MutateInRDD(@transient private val sc: SparkContext, val docs: Seq[MutateIn], val keyspace: Keyspace, mutateInOptions: MutateInOptions = null,val connectionOptions: Map[String,String] = new HashMap[String,String]())
   extends RDD[MutateInResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,false).loadDSOptions(connectionOptions)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutateInResult] = {

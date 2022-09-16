@@ -24,9 +24,11 @@ import org.apache.spark.rdd.RDD
 import com.couchbase.client.scala.query.{QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
 
+import java.util.{HashMap, Map}
 import collection.JavaConverters._
 import scala.reflect.ClassTag
 
+import com.couchbase.spark.config.mapToSparkConf
 class QueryPartition(id: Int, loc: Seq[String]) extends Partition {
   override def index: Int = id
   def location: Seq[String] = loc
@@ -38,9 +40,10 @@ class QueryRDD[T: ClassTag](
   val statement: String,
   val queryOptions: CouchbaseQueryOptions = null,
   val keyspace: Keyspace = null,
+  val connectionOptions: Map[String,String] = new HashMap[String,String]()
 )(implicit deserializer: JsonDeserializer[T]) extends RDD[T](sc, Nil) with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,false).loadDSOptions(connectionOptions)
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val connection = CouchbaseConnectionPool().getConnection(globalConfig)

@@ -26,6 +26,9 @@ import org.apache.spark.{Partition, SparkContext, TaskContext}
 
 import scala.reflect.ClassTag
 import collection.JavaConverters._
+import java.util.{Map,HashMap}
+
+import com.couchbase.spark.config.mapToSparkConf
 
 class AnalyticsPartition(id: Int, loc: Seq[String]) extends Partition {
   override def index: Int = id
@@ -38,9 +41,10 @@ class AnalyticsRDD[T: ClassTag](
   val statement: String,
   val analyticsOptions: CouchbaseAnalyticsOptions = null,
   val keyspace: Keyspace = null,
+  val connectionOptions: Map[String,String] = new HashMap[String,String]()
 )(implicit deserializer: JsonDeserializer[T]) extends RDD[T](sc, Nil) with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,false).loadDSOptions(connectionOptions)
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val connection = CouchbaseConnectionPool().getConnection(globalConfig)

@@ -22,6 +22,10 @@ import com.couchbase.spark.kv.{Insert, KeyValueOperationRunner, MutateIn, Remove
 import org.apache.spark.rdd.RDD
 import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoundException}
 
+import java.util.{HashMap, Map}
+
+import com.couchbase.spark.config.mapToSparkConf
+
 /**
  * Functions which can be performed on an RDD if the evidence matches.
  *
@@ -30,7 +34,7 @@ import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoun
  */
 class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
 
-  private val config = CouchbaseConfig(rdd.sparkContext.getConf,true)
+  private val config = CouchbaseConfig(rdd.sparkContext.getConf,false)
 
   /**
    * Upserts documents into couchbase.
@@ -42,7 +46,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    * @tparam V the generic type to use.
    * @return the RDD result.
    */
-  def couchbaseUpsert[V](keyspace: Keyspace = Keyspace(), upsertOptions: UpsertOptions = null)
+  def couchbaseUpsert[V](keyspace: Keyspace = Keyspace(), upsertOptions: UpsertOptions = null, connectionOptions: Map[String,String] = new HashMap[String,String]())
                         (implicit evidence: RDD[T] <:< RDD[Upsert[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Upsert[V]] = this.rdd
 
@@ -50,7 +54,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.upsert(config, keyspace, iterator.toSeq, upsertOptions).iterator
+        KeyValueOperationRunner.upsert(config.loadDSOptions(connectionOptions), keyspace, iterator.toSeq, upsertOptions).iterator
       }
     }
   }
@@ -66,7 +70,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    * @tparam V the generic type to use.
    * @return the RDD result.
    */
-  def couchbaseInsert[V](keyspace: Keyspace = Keyspace(), insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false)
+  def couchbaseInsert[V](keyspace: Keyspace = Keyspace(), insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false, connectionOptions: Map[String,String] = new HashMap[String,String]())
                         (implicit evidence: RDD[T] <:< RDD[Insert[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Insert[V]] = this.rdd
 
@@ -74,7 +78,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.insert(config, keyspace, iterator.toSeq, insertOptions, ignoreIfExists).iterator
+        KeyValueOperationRunner.insert(config.loadDSOptions(connectionOptions), keyspace, iterator.toSeq, insertOptions, ignoreIfExists).iterator
       }
     }
   }
@@ -90,7 +94,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    * @tparam V the generic type to use.
    * @return the RDD result.
    */
-  def couchbaseReplace[V](keyspace: Keyspace = Keyspace(), replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)
+  def couchbaseReplace[V](keyspace: Keyspace = Keyspace(), replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false, connectionOptions: Map[String,String] = new HashMap[String,String]())
                          (implicit evidence: RDD[T] <:< RDD[Replace[V]], serializer: JsonSerializer[V]) : RDD[MutationResult] = {
     val rdd: RDD[Replace[V]] = this.rdd
 
@@ -98,7 +102,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.replace(config, keyspace, iterator.toSeq, replaceOptions, ignoreIfNotFound).iterator
+        KeyValueOperationRunner.replace(config.loadDSOptions(connectionOptions), keyspace, iterator.toSeq, replaceOptions, ignoreIfNotFound).iterator
       }
     }
   }
@@ -112,7 +116,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    * @param evidence the generic type for which this method is made available on the RDD.
    * @return the RDD result.
    */
-  def couchbaseRemove(keyspace: Keyspace = Keyspace(), removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false)
+  def couchbaseRemove(keyspace: Keyspace = Keyspace(), removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false, connectionOptions: Map[String,String] = new HashMap[String,String]())
                      (implicit evidence: RDD[T] <:< RDD[Remove]) : RDD[MutationResult] = {
     val rdd: RDD[Remove] = this.rdd
 
@@ -120,7 +124,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.remove(config, keyspace, iterator.toSeq, removeOptions, ignoreIfNotFound).iterator
+        KeyValueOperationRunner.remove(config.loadDSOptions(connectionOptions), keyspace, iterator.toSeq, removeOptions, ignoreIfNotFound).iterator
       }
     }
   }
@@ -133,7 +137,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
    * @param evidence the generic type for which this method is made available on the RDD.
    * @return the RDD result.
    */
-  def couchbaseMutateIn(keyspace: Keyspace = Keyspace(), mutateInOptions: MutateInOptions = null)
+  def couchbaseMutateIn(keyspace: Keyspace = Keyspace(), mutateInOptions: MutateInOptions = null, connectionOptions: Map[String,String] = new HashMap[String,String]())
                      (implicit evidence: RDD[T] <:< RDD[MutateIn]) : RDD[MutateInResult] = {
     val rdd: RDD[MutateIn] = this.rdd
 
@@ -141,7 +145,7 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
       if (iterator.isEmpty) {
         Iterator[MutateInResult]()
       } else {
-        KeyValueOperationRunner.mutateIn(config, keyspace, iterator.toSeq, mutateInOptions).iterator
+        KeyValueOperationRunner.mutateIn(config.loadDSOptions(connectionOptions), keyspace, iterator.toSeq, mutateInOptions).iterator
       }
     }
   }

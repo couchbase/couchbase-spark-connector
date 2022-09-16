@@ -24,7 +24,10 @@ import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
+import java.util.{HashMap, Map}
 import collection.JavaConverters._
+
+import com.couchbase.spark.config.mapToSparkConf
 
 class SearchPartition(id: Int, loc: Seq[String]) extends Partition {
   override def index: Int = id
@@ -33,11 +36,11 @@ class SearchPartition(id: Int, loc: Seq[String]) extends Partition {
 }
 
 class SearchRDD(@transient private val sc: SparkContext, val indexName: String, val query: SearchQuery,
-                val searchOptions: SearchOptions = null)
+                val searchOptions: SearchOptions = null,val connectionOptions: Map[String,String] = new HashMap[String,String]())
   extends RDD[SearchResult](sc, Nil)
   with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,false).loadDSOptions(connectionOptions)
 
   override def compute(split: Partition, context: TaskContext): Iterator[SearchResult] = {
     val connection = CouchbaseConnectionPool().getConnection(globalConfig)
