@@ -17,7 +17,7 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.client.core.service.ServiceType
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.sources.Filter
@@ -25,10 +25,10 @@ import org.apache.spark.sql.types.StructType
 
 import collection.JavaConverters._
 
-class AnalyticsBatch(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Batch {
+class AnalyticsBatch(schema: StructType, conf: CouchbaseConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Batch {
 
   override def planInputPartitions(): Array[InputPartition] = {
-    val core = CouchbaseConnection().cluster(conf).async.core
+    val core = CouchbaseConnectionPool().getConnection(conf).cluster().async.core
     val config = core.clusterConfig()
 
     val locations = if (config.globalConfig() != null) {
@@ -52,5 +52,5 @@ class AnalyticsBatch(schema: StructType, conf: CouchbaseConfig, readConfig: Anal
     Array(new AnalyticsInputPartition(schema, filters, locations, aggregations))
   }
 
-  override def createReaderFactory(): PartitionReaderFactory = new AnalyticsPartitionReaderFactory(conf, readConfig)
+  override def createReaderFactory(): PartitionReaderFactory = new AnalyticsPartitionReaderFactory(conf)
 }

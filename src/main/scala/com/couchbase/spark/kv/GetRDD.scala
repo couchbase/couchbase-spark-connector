@@ -17,7 +17,7 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.{GetOptions, GetResult}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -28,14 +28,14 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
   extends RDD[GetResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
     val partition = split.asInstanceOf[KeyValuePartition]
 
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val connection = CouchbaseConnectionPool().getConnection(globalConfig)
+    val cluster = connection.cluster()
 
     val scopeName = globalConfig
       .implicitScopeNameOr(this.keyspace.scope.orNull).
@@ -63,7 +63,7 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.ids.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(this.ids.map(_.id), CouchbaseConnectionPool().getConnection(globalConfig), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
     logDebug(s"Calculated KeyValuePartitions for Get operation ${partitions.mkString("Array(", ", ", ")")}")

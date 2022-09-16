@@ -15,7 +15,7 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.spark.config.CouchbaseConnection
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.apache.spark.sql.functions.lit
@@ -55,7 +55,7 @@ class QueryDataFrameIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
-    CouchbaseConnection().stop()
+    CouchbaseConnectionPool().getConnection(CouchbaseConfig(spark.sparkContext.getConf,true)).stop()
     container.stop()
     spark.stop()
   }
@@ -73,8 +73,8 @@ class QueryDataFrameIntegrationTest {
   def testReadDocumentsWithFilter(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Filter, "type = 'airport'")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     assertEquals(4, airports.count)
@@ -89,9 +89,9 @@ class QueryDataFrameIntegrationTest {
   def testChangeIdFieldName(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.IdFieldName, "myIdFieldName")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Filter, "type = 'airport'")
+      .option(DSConfigOptions.IdFieldName, "myIdFieldName")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.foreach(row => {
@@ -105,8 +105,8 @@ class QueryDataFrameIntegrationTest {
   def testPushDownAggregationWithoutGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Filter, "type = 'airport'")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.createOrReplaceTempView("airports")
@@ -127,8 +127,8 @@ class QueryDataFrameIntegrationTest {
   def testPushDownAggregationWithGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airport'")
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Filter, "type = 'airport'")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.createOrReplaceTempView("airports")

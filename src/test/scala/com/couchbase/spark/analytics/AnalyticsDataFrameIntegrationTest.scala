@@ -15,7 +15,7 @@
  */
 package com.couchbase.spark.analytics
 
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.apache.spark.sql.functions.lit
@@ -51,7 +51,7 @@ class AnalyticsDataFrameIntegrationTest {
       .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
 
-    val cluster = CouchbaseConnection().cluster(CouchbaseConfig(spark.sparkContext.getConf))
+    val cluster = CouchbaseConnectionPool().getConnection(CouchbaseConfig(spark.sparkContext.getConf,true)).cluster()
     cluster.analyticsIndexes.createDataset("airports", bucketName)
     cluster.analyticsQuery("connect link Local").get
 
@@ -60,7 +60,7 @@ class AnalyticsDataFrameIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
-    CouchbaseConnection().stop()
+    CouchbaseConnectionPool().getConnection(CouchbaseConfig(spark.sparkContext.getConf,true)).stop()
     container.stop()
     spark.stop()
   }
@@ -78,8 +78,8 @@ class AnalyticsDataFrameIntegrationTest {
   def testReadDocumentsFromDataset(): Unit = {
     val airports = spark.read
       .format("couchbase.analytics")
-      .option(AnalyticsOptions.Dataset, "airports")
-      .option(AnalyticsOptions.ScanConsistency, AnalyticsOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Dataset, "airports")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     assertEquals(4, airports.count)
@@ -93,9 +93,9 @@ class AnalyticsDataFrameIntegrationTest {
   def testChangeIdFieldName(): Unit = {
     val airports = spark.read
       .format("couchbase.analytics")
-      .option(AnalyticsOptions.IdFieldName, "myIdFieldName")
-      .option(AnalyticsOptions.Dataset, "airports")
-      .option(AnalyticsOptions.ScanConsistency, AnalyticsOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.IdFieldName, "myIdFieldName")
+      .option(DSConfigOptions.Dataset, "airports")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.foreach(row => {
@@ -108,8 +108,8 @@ class AnalyticsDataFrameIntegrationTest {
   def testPushDownAggregationWithoutGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.analytics")
-      .option(AnalyticsOptions.Dataset, "airports")
-      .option(AnalyticsOptions.ScanConsistency, AnalyticsOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Dataset, "airports")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.createOrReplaceTempView("airports")
@@ -130,8 +130,8 @@ class AnalyticsDataFrameIntegrationTest {
   def testPushDownAggregationWithGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.analytics")
-      .option(AnalyticsOptions.Dataset, "airports")
-      .option(AnalyticsOptions.ScanConsistency, AnalyticsOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Dataset, "airports")
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.createOrReplaceTempView("airports")

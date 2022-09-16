@@ -17,8 +17,8 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.codec.JsonSerializer
 import com.couchbase.client.scala.kv.{InsertOptions, MutationResult}
-import com.couchbase.spark.{Keyspace}
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.Keyspace
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -28,7 +28,7 @@ class InsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Insert
   extends RDD[MutationResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
@@ -39,7 +39,7 @@ class InsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Insert
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(this.docs.map(_.id), CouchbaseConnectionPool().getConnection(globalConfig), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
     logDebug(s"Calculated KeyValuePartitions for Insert operation ${partitions.mkString("Array(", ", ", ")")}")

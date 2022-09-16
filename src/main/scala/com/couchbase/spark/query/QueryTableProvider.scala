@@ -21,7 +21,7 @@ import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.query.{QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnectionPool, DSConfigOptions, mapToSparkConf, optionsToSparkConf}
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -34,9 +34,6 @@ import org.apache.spark.sql.{DataFrame, Encoders, SQLContext, SaveMode, SparkSes
 import scala.collection.JavaConverters._
 import java.util
 import scala.concurrent.duration.Duration
-
-import com.couchbase.spark.config.optionsToSparkConf
-import com.couchbase.spark.config.mapToSparkConf
 
 class QueryTableProvider extends TableProvider with Logging with DataSourceRegister with CreatableRelationProvider {
 
@@ -51,29 +48,29 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
    * @return the inferred schema, if possible.
    */
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf).loadDSOptions(options)
+    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(options)
     if (isWrite) {
       logDebug("Not inferring schema because called from the DataFrameWriter")
       return null
     }
 
-    val idFieldName = Option(options.get(QueryOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName)
-    val whereClause = Option(options.get(QueryOptions.Filter)).map(p => s" WHERE $p").getOrElse("")
-    val bucketName = conf.implicitBucketNameOr(options.get(QueryOptions.Bucket))
-    val inferLimit = Option(options.get(QueryOptions.InferLimit)).getOrElse(DefaultConstants.DefaultInferLimit)
+    val idFieldName = Option(options.get(DSConfigOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName)
+    val whereClause = Option(options.get(DSConfigOptions.Filter)).map(p => s" WHERE $p").getOrElse("")
+    val bucketName = conf.implicitBucketNameOr(options.get(DSConfigOptions.Bucket))
+    val inferLimit = Option(options.get(DSConfigOptions.InferLimit)).getOrElse(DefaultConstants.DefaultInferLimit)
 
-    val scanConsistency = Option(options.get(QueryOptions.ScanConsistency))
+    val scanConsistency = Option(options.get(DSConfigOptions.ScanConsistency))
       .getOrElse(DefaultConstants.DefaultQueryScanConsistency)
 
     val opts = CouchbaseQueryOptions()
     scanConsistency match {
-      case QueryOptions.NotBoundedScanConsistency => opts.scanConsistency(QueryScanConsistency.NotBounded)
-      case QueryOptions.RequestPlusScanConsistency => opts.scanConsistency(QueryScanConsistency.RequestPlus())
+      case DSConfigOptions.NotBoundedScanConsistency => opts.scanConsistency(QueryScanConsistency.NotBounded)
+      case DSConfigOptions.RequestPlusScanConsistency => opts.scanConsistency(QueryScanConsistency.RequestPlus())
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
 
-    val scopeName = conf.implicitScopeNameOr(options.get(QueryOptions.Scope)).getOrElse(DefaultConstants.DefaultScopeName)
-    val collectionName = conf.implicitCollectionName(options.get(QueryOptions.Collection)).getOrElse(DefaultConstants.DefaultCollectionName)
+    val scopeName = conf.implicitScopeNameOr(options.get(DSConfigOptions.Scope)).getOrElse(DefaultConstants.DefaultScopeName)
+    val collectionName = conf.implicitCollectionName(options.get(DSConfigOptions.Collection)).getOrElse(DefaultConstants.DefaultCollectionName)
 
     val result = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
       val statement = s"SELECT META().id as $idFieldName, `$bucketName`.* FROM `$bucketName`$whereClause LIMIT $inferLimit"
@@ -115,7 +112,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
    * @return the table instance which performs the actual work inside it.
    */
   override def getTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String]): Table =
-    new QueryTable(schema, partitioning, properties,CouchbaseConfig(sparkSession.sparkContext.getConf).loadDSOptions(properties))
+    new QueryTable(schema, partitioning, properties,CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(properties))
 
   /**
    * We allow a user passing in a custom schema.
@@ -123,7 +120,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
   override def supportsExternalMetadata(): Boolean = true
 
   override def createRelation(ctx: SQLContext, mode: SaveMode, properties: Map[String, String], data: DataFrame): BaseRelation = {
-    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf).loadDSOptions(properties.asJava)
+    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf,false).loadDSOptions(properties.asJava)
     data.toJSON.foreachPartition(new RelationPartitionWriter(couchbaseConfig, mode))
 
     new BaseRelation {
@@ -139,13 +136,13 @@ class RelationPartitionWriter(couchbaseConfig: CouchbaseConfig, mode: SaveMode)
     with Logging {
 
   override def call(t: util.Iterator[String]): Unit = {
-    val scopeName = couchbaseConfig.queryConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
-    val collectionName = couchbaseConfig.queryConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+    val scopeName = couchbaseConfig.dsConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
+    val collectionName = couchbaseConfig.dsConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
     val values = t.asScala.map(encoded => {
       val decoded = JsonObject.fromJson(encoded)
-      val id = decoded.str(couchbaseConfig.queryConfig.idFieldName)
-      decoded.remove(couchbaseConfig.queryConfig.idFieldName)
+      val id = decoded.str(couchbaseConfig.dsConfig.idFieldName)
+      decoded.remove(couchbaseConfig.dsConfig.idFieldName)
       s"VALUES ('$id', ${decoded.toString})"
     }).mkString(", ")
 
@@ -158,7 +155,7 @@ class RelationPartitionWriter(couchbaseConfig: CouchbaseConfig, mode: SaveMode)
 
     val statement = if (scopeName.equals(DefaultConstants.DefaultScopeName) &&
       collectionName.equals(DefaultConstants.DefaultCollectionName)) {
-      s"$prefix INTO `${couchbaseConfig.queryConfig.bucket}` (KEY, VALUE) $values"
+      s"$prefix INTO `${couchbaseConfig.dsConfig.bucket}` (KEY, VALUE) $values"
     } else {
       s"$prefix INTO `$collectionName` (KEY, VALUE) $values"
     }
@@ -170,7 +167,7 @@ class RelationPartitionWriter(couchbaseConfig: CouchbaseConfig, mode: SaveMode)
       val result = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
         CouchbaseConnectionPool().getConnection(couchbaseConfig).cluster().query(statement, opts).get
       } else {
-        CouchbaseConnectionPool().getConnection(couchbaseConfig).cluster().bucket(couchbaseConfig.queryConfig.bucket).scope(scopeName).query(statement, opts).get
+        CouchbaseConnectionPool().getConnection(couchbaseConfig).cluster().bucket(couchbaseConfig.dsConfig.bucket).scope(scopeName).query(statement, opts).get
       }
 
       logDebug("Completed query in: " + result.metaData.metrics.get)
@@ -186,7 +183,7 @@ class RelationPartitionWriter(couchbaseConfig: CouchbaseConfig, mode: SaveMode)
 
   def buildOptions(): CouchbaseQueryOptions = {
     var opts = CouchbaseQueryOptions().metrics(true)
-    couchbaseConfig.queryConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    couchbaseConfig.dsConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 }

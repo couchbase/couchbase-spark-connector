@@ -31,8 +31,8 @@ class KeyValuePartition(id: Int, docIds: Seq[String], loc: Option[String]) exten
 object KeyValuePartition {
 
   def partitionsForIds(ids: Seq[String], connection: CouchbaseConnection, couchbaseConfig: CouchbaseConfig, bucketName: String): Array[KeyValuePartition] = {
-    val core = connection.cluster(couchbaseConfig).async.core
-    val _ = connection.bucket(couchbaseConfig, Some(bucketName))
+    val core = connection.cluster().async.core
+    val _ = connection.bucket(Some(bucketName))
     val config = core.clusterConfig().bucketConfig(bucketName)
 
     config match {

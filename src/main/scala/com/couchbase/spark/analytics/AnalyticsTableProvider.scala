@@ -16,10 +16,9 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.spark.DefaultConstants
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnectionPool, DSConfigOptions, mapToSparkConf}
 import com.couchbase.client.scala.analytics.{AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
-import com.couchbase.spark.query.QueryOptions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Encoders, SparkSession}
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -35,35 +34,35 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
   override def shortName(): String = "couchbase.analytics"
 
   private lazy val sparkSession = SparkSession.active
-  private lazy val conf = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    val idFieldName = Option(options.get(AnalyticsOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName)
-    val whereClause = Option(options.get(AnalyticsOptions.Filter)).map(p => s" WHERE $p").getOrElse("")
-    val dataset = options.get(AnalyticsOptions.Dataset)
-    val inferLimit = Option(options.get(AnalyticsOptions.InferLimit)).getOrElse(DefaultConstants.DefaultInferLimit)
+    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(options)
+    val idFieldName = Option(options.get(DSConfigOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName)
+    val whereClause = Option(options.get(DSConfigOptions.Filter)).map(p => s" WHERE $p").getOrElse("")
+    val dataset = options.get(DSConfigOptions.Dataset)
+    val inferLimit = Option(options.get(DSConfigOptions.InferLimit)).getOrElse(DefaultConstants.DefaultInferLimit)
 
-    val scanConsistency = Option(options.get(AnalyticsOptions.ScanConsistency))
+    val scanConsistency = Option(options.get(DSConfigOptions.ScanConsistency))
       .getOrElse(DefaultConstants.DefaultAnalyticsScanConsistency)
 
     val opts = CouchbaseAnalyticsOptions()
     scanConsistency match {
-      case AnalyticsOptions.NotBoundedScanConsistency => opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
-      case AnalyticsOptions.RequestPlusScanConsistency => opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
+      case DSConfigOptions.NotBoundedScanConsistency => opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
+      case DSConfigOptions.RequestPlusScanConsistency => opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
 
-    val bucketName = Option(options.get(AnalyticsOptions.Bucket)).orElse(conf.bucketName)
-    val scopeName = conf.implicitScopeNameOr(options.get(AnalyticsOptions.Scope))
+    val bucketName = conf.bucketName
+    val scopeName = conf.scopeName
 
     val result = if (bucketName.isEmpty || scopeName.isEmpty) {
       val statement = s"SELECT META().id as $idFieldName, `$dataset`.* FROM `$dataset`$whereClause LIMIT $inferLimit"
       logDebug(s"Inferring schema from bucket $dataset with query '$statement'")
-      CouchbaseConnection().cluster(conf).analyticsQuery(statement, opts)
+      CouchbaseConnectionPool().getConnection(conf).cluster().analyticsQuery(statement, opts)
     } else {
       val statement = s"SELECT META().id as $idFieldName, `$dataset`.* FROM `$dataset`$whereClause LIMIT $inferLimit"
       logDebug(s"Inferring schema from bucket/scope/dataset $bucketName/$scopeName/$dataset with query '$statement'")
-      CouchbaseConnection().cluster(conf).bucket(bucketName.get).scope(scopeName.get).analyticsQuery(statement, opts)
+      CouchbaseConnectionPool().getConnection(conf).cluster().bucket(bucketName.get).scope(scopeName.get).analyticsQuery(statement, opts)
     }
 
     val rows = result.flatMap(result => result.rowsAs[String](Passthrough.StringConvert)).get
@@ -75,22 +74,12 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
     schema
   }
 
-  def readConfig(properties: util.Map[String, String]): AnalyticsReadConfig = {
-    val dataset = properties.get(AnalyticsOptions.Dataset)
+  def validateConfig(couchbaseConfig: CouchbaseConfig): CouchbaseConfig = {
+    val dataset = couchbaseConfig.dsConfig.dataset
     if (dataset == null) {
       throw new IllegalArgumentException("A dataset must be provided through the options!")
     }
-
-    AnalyticsReadConfig(
-      dataset,
-      Option(properties.get(AnalyticsOptions.Bucket)).orElse(conf.bucketName),
-      conf.implicitScopeNameOr(properties.get(AnalyticsOptions.Scope)),
-      Option(properties.get(AnalyticsOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
-      Option(properties.get(AnalyticsOptions.Filter)),
-      Option(properties.get(AnalyticsOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultAnalyticsScanConsistency),
-      Option(properties.get(AnalyticsOptions.Timeout)),
-      Option(properties.get(AnalyticsOptions.PushDownAggregate)).getOrElse("true").toBoolean
-    )
+    couchbaseConfig
   }
 
   /**
@@ -102,7 +91,7 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
    * @return the table instance which performs the actual work inside it.
    */
   override def getTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String]): Table =
-    new AnalyticsTable(schema, partitioning, properties, readConfig(properties))
+    new AnalyticsTable(schema, partitioning, properties, validateConfig(CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(properties)))
 
   /**
    * We allow a user passing in a custom schema.

@@ -61,9 +61,7 @@ publishTo := Some(
 
 ThisBuild / assemblyMergeStrategy := {
   case "META-INF/io.netty.versions.properties" => MergeStrategy.first
-  case x =>
-    val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
-    oldStrategy(x)
+  case x => MergeStrategy.first
 }
 
 ThisBuild / assemblyShadeRules := Seq(

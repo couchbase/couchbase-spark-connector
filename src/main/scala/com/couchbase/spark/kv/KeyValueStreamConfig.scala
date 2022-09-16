@@ -15,18 +15,18 @@
  */
 package com.couchbase.spark.kv
 
+import com.couchbase.spark.config.CouchbaseConfig
 import com.couchbase.spark.kv.StreamFromVariants.StreamFrom
 
 case class KeyValueStreamConfig(
   streamFrom: StreamFrom,
   numInputPartitions: Int,
-  bucket: String,
-  scope: Option[String],
   collections: Seq[String],
   streamContent: Boolean,
   streamXattrs: Boolean,
   flowControlBufferSize: Option[Int],
-  persistencePollingInterval: Option[String]
+  persistencePollingInterval: Option[String],
+  couchbaseConfig: CouchbaseConfig
 )
 
 object StreamFromVariants extends Enumeration {

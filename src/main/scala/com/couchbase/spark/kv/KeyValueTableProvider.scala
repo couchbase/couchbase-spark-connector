@@ -21,7 +21,7 @@ import com.couchbase.client.scala.durability.Durability
 import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.kv.{InsertOptions, UpsertOptions}
 import com.couchbase.spark.DefaultConstants
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions, mapToSparkConf}
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -43,14 +43,13 @@ class KeyValueTableProvider
   with CreatableRelationProvider {
 
   private lazy val sparkSession = SparkSession.active
-  private lazy val conf = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   override def shortName(): String = "couchbase.kv"
 
   override def createRelation(ctx: SQLContext, mode: SaveMode, parameters: Map[String, String],
                               data: DataFrame): BaseRelation = {
-    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf)
-    data.toJSON.foreachPartition(new RelationPartitionWriter(writeConfig(parameters.asJava), couchbaseConfig, mode))
+    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf,false).loadDSOptions(parameters.asJava)
+    data.toJSON.foreachPartition(new RelationPartitionWriter(couchbaseConfig, mode))
 
     if (mode == SaveMode.Append) {
       throw new IllegalArgumentException("SaveMode.Append is not supported - please use the other SaveMode types.")
@@ -62,58 +61,46 @@ class KeyValueTableProvider
     }
   }
 
-  def writeConfig(properties: util.Map[String, String]): KeyValueWriteConfig = {
-    KeyValueWriteConfig(
-      conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
-      conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
-      conf.implicitCollectionName(properties.get(KeyValueOptions.Collection)),
-      Option(properties.get(KeyValueOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
-      Option(properties.get(KeyValueOptions.Durability)),
-      Option(properties.get(KeyValueOptions.Timeout))
-    )
-  }
-
-  def streamConfig(properties: util.Map[String, String]): KeyValueStreamConfig = {
+  def streamConfig(properties: util.Map[String, String], couchbaseConfig: CouchbaseConfig): KeyValueStreamConfig = {
     val defaultNumPartitions = SparkSession.active.sparkContext.defaultParallelism
 
     var collections: Seq[String] = Seq()
 
-    val userCollection = conf.implicitCollectionName(properties.get(KeyValueOptions.Collection))
+    val userCollection = couchbaseConfig.implicitCollectionName(properties.get(DSConfigOptions.Collection))
     if (userCollection.isDefined) {
       collections = collections :+ userCollection.get
     }
-    val userCollections = conf.implicitCollectionName(properties.get(KeyValueOptions.Collections))
+    val userCollections = couchbaseConfig.implicitCollectionName(properties.get(DSConfigOptions.Collections))
     if (userCollections.isDefined) {
       collections = collections ++ userCollections.get.split(",")
     }
 
-    val meta = properties.get(KeyValueOptions.StreamMetaData)
-    val streamXattrs = meta != null && meta.equals(KeyValueOptions.StreamMetaDataFull)
+    val meta = properties.get(DSConfigOptions.StreamMetaData)
+    val streamXattrs = meta != null && meta.equals(DSConfigOptions.StreamMetaDataFull)
 
-    val streamFrom = properties.get(KeyValueOptions.StreamFrom) match {
-      case KeyValueOptions.StreamFromNow => StreamFromVariants.FromNow
-      case KeyValueOptions.StreamFromBeginning => StreamFromVariants.FromBeginning
+    val streamFrom = properties.get(DSConfigOptions.StreamFrom) match {
+      case DSConfigOptions.StreamFromNow => StreamFromVariants.FromNow
+      case DSConfigOptions.StreamFromBeginning => StreamFromVariants.FromBeginning
       case null => throw new IllegalArgumentException("A KeyValueOptions.StreamFrom option must be provided")
       case v => throw new IllegalArgumentException("Unknown KeyValueOptions.StreamFrom option: " + v)
     }
 
     val c = KeyValueStreamConfig(
       streamFrom,
-      Option(properties.get(KeyValueOptions.NumPartitions)).getOrElse(defaultNumPartitions.toString).toInt,
-      conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
-      conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
+      Option(properties.get(DSConfigOptions.NumPartitions)).getOrElse(defaultNumPartitions.toString).toInt,
       collections,
-      Option(properties.get(KeyValueOptions.StreamContent)).getOrElse("true").toBoolean,
+      Option(properties.get(DSConfigOptions.StreamContent)).getOrElse("true").toBoolean,
       streamXattrs,
-      Option(properties.get(KeyValueOptions.StreamFlowControlBufferSize)).map(_.toInt),
-      Option(properties.get(KeyValueOptions.StreamPersistencePollingInterval))
+      Option(properties.get(DSConfigOptions.StreamFlowControlBufferSize)).map(_.toInt),
+      Option(properties.get(DSConfigOptions.StreamPersistencePollingInterval)),
+      couchbaseConfig
     )
     logDebug(s"Using KeyValueStreamConfig of $c")
     c
   }
 
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    val always = if (options.containsKey(KeyValueOptions.StreamContent) && !options.get(KeyValueOptions.StreamContent).toBoolean) {
+    val always = if (options.containsKey(DSConfigOptions.StreamContent) && !options.get(DSConfigOptions.StreamContent).toBoolean) {
       Seq(
         StructField("id", StringType, nullable = false),
         StructField("deletion", BooleanType, nullable = false)
@@ -137,10 +124,10 @@ class KeyValueTableProvider
       StructField("xattrs", MapType(StringType, StringType), nullable = true)
     )
 
-    val fields = options.get(KeyValueOptions.StreamMetaData) match {
-      case KeyValueOptions.StreamMetaDataNone => always
-      case null | KeyValueOptions.StreamMetaDataBasic => always ++ basic
-      case KeyValueOptions.StreamMetaDataFull => always ++ basic ++ full
+    val fields = options.get(DSConfigOptions.StreamMetaData) match {
+      case DSConfigOptions.StreamMetaDataNone => always
+      case null | DSConfigOptions.StreamMetaDataBasic => always ++ basic
+      case DSConfigOptions.StreamMetaDataFull => always ++ basic ++ full
     }
 
     logDebug(s"Streaming the following fields $fields")
@@ -149,35 +136,36 @@ class KeyValueTableProvider
   }
 
   override def getTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String]): Table = {
-    new KeyValueTable(schema, streamConfig(properties))
+    new KeyValueTable(schema, streamConfig(properties,CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(properties)))
   }
 
 }
 
-class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig: CouchbaseConfig, mode: SaveMode)
+class RelationPartitionWriter(couchbaseConfig: CouchbaseConfig, mode: SaveMode)
   extends ForeachPartitionFunction[String]
     with Logging {
   override def call(t: util.Iterator[String]): Unit = {
-    val scopeName = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
-    val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+    val scopeName = couchbaseConfig.dsConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
+    val collectionName = couchbaseConfig.dsConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
     val keyValues = t.asScala.map(encoded => {
       val decoded = JsonObject.fromJson(encoded)
-      val id = decoded.str(writeConfig.idFieldName)
-      decoded.remove(writeConfig.idFieldName)
+      val id = decoded.str(couchbaseConfig.dsConfig.idFieldName)
+      decoded.remove(couchbaseConfig.dsConfig.idFieldName)
       (id, decoded.toString)
     }).toList
 
-    val coll = CouchbaseConnection()
-      .cluster(couchbaseConfig)
-      .bucket(writeConfig.bucket)
+    val coll = CouchbaseConnectionPool()
+      .getConnection(couchbaseConfig)
+      .cluster()
+      .bucket(couchbaseConfig.dsConfig.bucket)
       .scope(scopeName)
       .collection(collectionName)
 
-    val durability = writeConfig.durability match {
-      case Some(v) if v == KeyValueOptions.MajorityDurability => Durability.Majority
-      case Some(v) if v == KeyValueOptions.MajorityAndPersistToActiveDurability => Durability.MajorityAndPersistToActive
-      case Some(v) if v == KeyValueOptions.PersistToMajorityDurability => Durability.PersistToMajority
+    val durability = couchbaseConfig.dsConfig.durability match {
+      case Some(v) if v == DSConfigOptions.MajorityDurability => Durability.Majority
+      case Some(v) if v == DSConfigOptions.MajorityAndPersistToActiveDurability => Durability.MajorityAndPersistToActive
+      case Some(v) if v == DSConfigOptions.PersistToMajorityDurability => Durability.PersistToMajority
       case None => Durability.Disabled
       case d => throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
     }
@@ -207,13 +195,13 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
 
   def buildInsertOptions(durability: Durability): InsertOptions = {
     var opts = InsertOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
-    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    couchbaseConfig.dsConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 
   def buildUpsertOptions(durability: Durability): UpsertOptions = {
     var opts = UpsertOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
-    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    couchbaseConfig.dsConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 

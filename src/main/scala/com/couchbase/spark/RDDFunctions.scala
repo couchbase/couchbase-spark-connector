@@ -30,7 +30,7 @@ import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoun
  */
 class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
 
-  private val config = CouchbaseConfig(rdd.sparkContext.getConf)
+  private val config = CouchbaseConfig(rdd.sparkContext.getConf,true)
 
   /**
    * Upserts documents into couchbase.

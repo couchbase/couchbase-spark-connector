@@ -15,7 +15,7 @@
  */
 package examples
 
-import com.couchbase.spark.query.QueryOptions
+import com.couchbase.spark.config.DSConfigOptions
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
 object QuerySqlWriteExample {
@@ -32,12 +32,12 @@ object QuerySqlWriteExample {
       .getOrCreate()
 
     val airlines = spark.read.format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airline'")
+      .option(DSConfigOptions.Filter, "type = 'airline'")
       .load()
       .limit(5)
 
     airlines.write.format("couchbase.query")
-      .option(QueryOptions.Bucket, "test")
+      .option(DSConfigOptions.Bucket, "test")
       .mode(SaveMode.Overwrite)
       .save()
   }

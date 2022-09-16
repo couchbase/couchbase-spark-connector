@@ -20,7 +20,7 @@ import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoun
 import com.couchbase.client.scala.codec.JsonSerializer
 import com.couchbase.client.scala.kv.{InsertOptions, MutateInOptions, MutateInResult, MutationResult, RemoveOptions, ReplaceOptions, UpsertOptions}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.internal.Logging
 import reactor.core.scala.publisher.{SFlux, SMono}
 
@@ -28,8 +28,8 @@ object KeyValueOperationRunner extends Logging {
 
   def upsert[T](config: CouchbaseConfig, keyspace: Keyspace, upsert: Seq[Upsert[T]],
                 upsertOptions: UpsertOptions = null)(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val connection = CouchbaseConnectionPool().getConnection(config)
+    val cluster = connection.cluster()
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -59,8 +59,8 @@ object KeyValueOperationRunner extends Logging {
   def insert[T](config: CouchbaseConfig, keyspace: Keyspace, insert: Seq[Insert[T]],
                 insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false)
                (implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val connection = CouchbaseConnectionPool().getConnection(config)
+    val cluster = connection.cluster()
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -98,8 +98,8 @@ object KeyValueOperationRunner extends Logging {
 
   def replace[T](config: CouchbaseConfig, keyspace: Keyspace, replace: Seq[Replace[T]],
                  replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val connection = CouchbaseConnectionPool().getConnection(config)
+    val cluster = connection.cluster()
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -137,8 +137,8 @@ object KeyValueOperationRunner extends Logging {
 
   def remove(config: CouchbaseConfig, keyspace: Keyspace, remove: Seq[Remove],
              removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val connection = CouchbaseConnectionPool().getConnection(config)
+    val cluster = connection.cluster()
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -176,8 +176,8 @@ object KeyValueOperationRunner extends Logging {
 
   def mutateIn(config: CouchbaseConfig, keyspace: Keyspace, mutateIn: Seq[MutateIn],
                mutateInOptions: MutateInOptions = null): Seq[MutateInResult] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val connection = CouchbaseConnectionPool().getConnection(config)
+    val cluster = connection.cluster()
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)

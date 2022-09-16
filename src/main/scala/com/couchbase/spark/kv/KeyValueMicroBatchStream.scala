@@ -57,7 +57,7 @@ class KeyValueMicroBatchStream(schema: StructType, config: KeyValueStreamConfig,
         }).toMap
 
         KeyValueInputPartition(
-          schema, KeyValuePartitionOffset(startOffsets, Some(endOffsets)), conf, config
+          schema, KeyValuePartitionOffset(startOffsets, Some(endOffsets)), config
         ).asInstanceOf[InputPartition]
       })
       .toArray

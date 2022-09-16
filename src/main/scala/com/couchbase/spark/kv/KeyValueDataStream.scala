@@ -18,7 +18,7 @@ package com.couchbase.spark.kv
 import com.couchbase.client.dcp.highlevel.{SnapshotMarker, StreamOffset}
 import com.couchbase.client.dcp.message.DcpFailoverLogResponse
 import com.couchbase.client.dcp.Client
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import com.couchbase.spark.util.Version
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -36,24 +36,23 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
   implicit val defaultFormats: DefaultFormats = DefaultFormats
 
   private lazy val sparkSession = SparkSession.active
-  lazy val conf: CouchbaseConfig = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   val dcpClient: Client = Client
     .builder()
-    .seedNodes(CouchbaseConnection().dcpSeedNodes(conf))
-    .bucket(config.bucket)
-    .collectionsAware(config.scope.isDefined || config.collections.nonEmpty)
-    .scopeName(if (config.scope.isDefined && config.collections.isEmpty) config.scope.get else null)
+    .seedNodes(CouchbaseConnectionPool().getConnection(config.couchbaseConfig).dcpSeedNodes())
+    .bucket(config.couchbaseConfig.bucketName.get)
+    .collectionsAware(config.couchbaseConfig.scopeName.isDefined || config.collections.nonEmpty)
+    .scopeName(if (config.couchbaseConfig.scopeName.isDefined && config.collections.isEmpty) config.couchbaseConfig.scopeName.get else null)
     .collectionNames(config.collections.map(c => {
-      val scope = config.scope match {
+      val scope = config.couchbaseConfig.scopeName match {
         case Some(s) => s
         case None => "_default"
       }
       scope + "." + c
     }).asJava)
     .userAgent(Version.productName, Version.version, "stream")
-    .credentials(conf.credentials.username, conf.credentials.password)
-    .securityConfig(CouchbaseConnection().dcpSecurityConfig(conf))
+    .credentials(config.couchbaseConfig.credentials.username, config.couchbaseConfig.credentials.password)
+    .securityConfig(CouchbaseConnectionPool().getConnection(config.couchbaseConfig).dcpSecurityConfig())
     .build()
 
   dcpClient.connect().block()
@@ -177,5 +176,5 @@ case class KeyValueOffset(offsets: List[PartitionOffset]) extends Offset {
   }
 }
 
-case class KeyValueInputPartition(schema: StructType, partitionOffset: KeyValuePartitionOffset, conf: CouchbaseConfig, config: KeyValueStreamConfig)
+case class KeyValueInputPartition(schema: StructType, partitionOffset: KeyValuePartitionOffset, config: KeyValueStreamConfig)
   extends InputPartition

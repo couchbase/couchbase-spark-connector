@@ -33,12 +33,12 @@ class QueryTable(schema: StructType, partitioning: Array[Transform], properties:
   extends SupportsRead {
 
   override def name(): String = {
-    if (conf.queryConfig.scope.isEmpty && conf.queryConfig.collection.isEmpty) {
-      conf.queryConfig.bucket
+    if (conf.dsConfig.scope.isEmpty && conf.dsConfig.collection.isEmpty) {
+      conf.dsConfig.bucket
     } else {
-      conf.queryConfig.bucket + ":" +
-        conf.queryConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
-        conf.queryConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+      conf.dsConfig.bucket + ":" +
+        conf.dsConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
+        conf.dsConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
     }
   }
   override def schema(): StructType = schema

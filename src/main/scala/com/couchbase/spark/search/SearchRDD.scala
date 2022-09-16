@@ -19,10 +19,11 @@ import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.scala.search.SearchOptions
 import com.couchbase.client.scala.search.queries.SearchQuery
 import com.couchbase.client.scala.search.result.SearchResult
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+
 import collection.JavaConverters._
 
 class SearchPartition(id: Int, loc: Seq[String]) extends Partition {
@@ -36,11 +37,11 @@ class SearchRDD(@transient private val sc: SparkContext, val indexName: String, 
   extends RDD[SearchResult](sc, Nil)
   with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
 
   override def compute(split: Partition, context: TaskContext): Iterator[SearchResult] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val connection = CouchbaseConnectionPool().getConnection(globalConfig)
+    val cluster = connection.cluster()
 
     val options = if(this.searchOptions == null) {
       SearchOptions()
@@ -52,7 +53,7 @@ class SearchRDD(@transient private val sc: SparkContext, val indexName: String, 
   }
 
   override protected def getPartitions: Array[Partition] = {
-    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val core = CouchbaseConnectionPool().getConnection(globalConfig).cluster().async.core
     val config = core.clusterConfig()
 
     val partitions = if (config.globalConfig() != null) {

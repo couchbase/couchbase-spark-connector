@@ -17,25 +17,27 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.spark.DefaultConstants
+import com.couchbase.spark.config.CouchbaseConfig
 import org.apache.spark.sql.connector.catalog.{SupportsRead, TableCapability}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
 import scala.collection.JavaConverters._
 import java.util
 
 class AnalyticsTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String],
-                     readConfig: AnalyticsReadConfig)
+                     couchbaseConfig: CouchbaseConfig)
   extends SupportsRead {
 
   override def name(): String = {
-   if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
-     readConfig.dataset
+   if (couchbaseConfig.dsConfig.bucket.isEmpty || couchbaseConfig.dsConfig.scope.isEmpty) {
+     couchbaseConfig.dsConfig.dataset.get
    } else {
-     readConfig.bucket.get + ":" +
-       readConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
-       readConfig.dataset
+     couchbaseConfig.dsConfig.bucket + ":" +
+       couchbaseConfig.dsConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
+       couchbaseConfig.dsConfig.dataset.get
    }
   }
   override def schema(): StructType = schema
@@ -44,6 +46,6 @@ class AnalyticsTable(schema: StructType, partitioning: Array[Transform], propert
   override def capabilities(): util.Set[TableCapability] =
     Set[TableCapability](TableCapability.BATCH_READ).asJava
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
-    new AnalyticsScanBuilder(schema, readConfig)
+    new AnalyticsScanBuilder(schema, couchbaseConfig)
 
 }

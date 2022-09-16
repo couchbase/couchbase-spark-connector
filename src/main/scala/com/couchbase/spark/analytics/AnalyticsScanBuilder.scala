@@ -16,12 +16,13 @@
 
 package com.couchbase.spark.analytics
 
+import com.couchbase.spark.config.CouchbaseConfig
 import org.apache.spark.sql.connector.expressions.aggregate.{Aggregation, Count, CountStar, Max, Min, Sum}
 import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{LongType, StructField, StructType}
 
-class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
+class AnalyticsScanBuilder(schema: StructType, couchbaseConfig: CouchbaseConfig)
   extends ScanBuilder
     with SupportsPushDownFilters
     with SupportsPushDownRequiredColumns
@@ -32,7 +33,7 @@ class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
   private var aggregations: Option[Aggregation] = None
 
   override def build(): Scan = {
-    new AnalyticsScan(finalSchema, readConfig, pushedFilter, aggregations)
+    new AnalyticsScan(finalSchema, couchbaseConfig, pushedFilter, aggregations)
   }
 
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
@@ -48,7 +49,7 @@ class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
   }
 
   override def pushAggregation(agg: Aggregation): Boolean = {
-    if (!readConfig.pushDownAggregate) {
+    if (!couchbaseConfig.dsConfig.pushDownAggregate) {
       return false
     }
 

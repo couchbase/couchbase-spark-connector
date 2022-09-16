@@ -17,7 +17,7 @@ package com.couchbase.spark.query
 
 import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.scala.codec.JsonDeserializer
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.internal.Logging
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -40,11 +40,11 @@ class QueryRDD[T: ClassTag](
   val keyspace: Keyspace = null,
 )(implicit deserializer: JsonDeserializer[T]) extends RDD[T](sc, Nil) with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val connection = CouchbaseConnectionPool().getConnection(globalConfig)
+    val cluster = connection.cluster()
 
     var options = if (this.queryOptions == null) {
       CouchbaseQueryOptions()
@@ -78,7 +78,7 @@ class QueryRDD[T: ClassTag](
   }
 
   override protected def getPartitions: Array[Partition] = {
-    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val core = CouchbaseConnectionPool().getConnection(globalConfig).cluster().async.core
     val config = core.clusterConfig()
 
     val partitions = if (config.globalConfig() != null) {

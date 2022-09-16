@@ -16,7 +16,7 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.{MutateInOptions, MutateInResult, MutateInSpec}
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -27,7 +27,7 @@ class MutateInRDD(@transient private val sc: SparkContext, val docs: Seq[MutateI
   extends RDD[MutateInResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
   private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutateInResult] = {
@@ -38,7 +38,7 @@ class MutateInRDD(@transient private val sc: SparkContext, val docs: Seq[MutateI
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(docs.map(d => d.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(docs.map(d => d.id), CouchbaseConnectionPool().getConnection(globalConfig), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
     logDebug(s"Calculated KeyValuePartitions for MutateIn operation ${partitions.mkString("Array(", ", ", ")")}")

@@ -23,11 +23,9 @@ import org.apache.spark.sql.connector.read.{Batch, Scan}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 
-class AnalyticsScan(schema: StructType, readConfig: AnalyticsReadConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Scan {
-
-  private lazy val conf = CouchbaseConfig(SparkSession.active.sparkContext.getConf)
+class AnalyticsScan(schema: StructType, couchbaseConfig: CouchbaseConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Scan {
 
   override def readSchema(): StructType = schema
-  override def toBatch: Batch = new AnalyticsBatch(schema, conf, readConfig, filters, aggregations)
+  override def toBatch: Batch = new AnalyticsBatch(schema, couchbaseConfig, filters, aggregations)
 
 }

@@ -17,7 +17,7 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.LookupInSpec
 import com.couchbase.client.scala.manager.collection.CollectionSpec
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -53,7 +53,7 @@ class LookupInRDDIntegrationTest {
       .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
 
-    val bucket = CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
+    val bucket = CouchbaseConnectionPool().getConnection(CouchbaseConfig(spark.sparkContext.getConf,true)).bucket(Some(bucketName))
 
     bucket.collections.createScope(scopeName)
     bucket.collections.createCollection(CollectionSpec(airportCollectionName, scopeName))
@@ -81,8 +81,8 @@ class LookupInRDDIntegrationTest {
 
     airports.write
       .format("couchbase.kv")
-      .option(KeyValueOptions.Scope, scopeName)
-      .option(KeyValueOptions.Collection, airportCollectionName)
+      .option(DSConfigOptions.Scope, scopeName)
+      .option(DSConfigOptions.Collection, airportCollectionName)
       .save()
   }
 

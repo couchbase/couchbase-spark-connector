@@ -17,7 +17,7 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfig, DSConfigOptions}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
@@ -32,7 +32,7 @@ import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import scala.concurrent.duration.Duration
 import scala.util.matching.Regex
 
-class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig,
+class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig,
                                filters: Array[Filter], aggregations: Option[Aggregation])
   extends PartitionReader[InternalRow]
     with Logging {
@@ -48,10 +48,10 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
   }
 
   private lazy val result = {
-    if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
-      CouchbaseConnection().cluster(conf).analyticsQuery(buildAnalyticsQuery(), buildOptions())
+    if (conf.dsConfig.bucket.isEmpty || conf.dsConfig.scope.isEmpty) {
+      CouchbaseConnectionPool().getConnection(conf).cluster().analyticsQuery(buildAnalyticsQuery(), buildOptions())
     } else {
-      CouchbaseConnection().cluster(conf).bucket(readConfig.bucket.get).scope(readConfig.scope.get).analyticsQuery(buildAnalyticsQuery(), buildOptions())
+      CouchbaseConnectionPool().getConnection(conf).cluster().bucket(conf.dsConfig.bucket).scope(conf.dsConfig.scope.get).analyticsQuery(buildAnalyticsQuery(), buildOptions())
     }
   }
 
@@ -102,13 +102,13 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
     var fields = schema
       .fields
       .map(f => f.name)
-      .filter(f => !f.equals(readConfig.idFieldName))
+      .filter(f => !f.equals(conf.dsConfig.idFieldName))
       .map(f => maybeEscapeField(f))
     if (!hasAggregateFields) {
-      fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
+      fields = fields :+ s"META().id as `${conf.dsConfig.idFieldName}`"
     }
 
-    var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
+    var predicate = conf.dsConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = compileFilter(filters)
     if (compiledFilters.nonEmpty && predicate.nonEmpty) {
       predicate = predicate + " AND " + compiledFilters
@@ -123,7 +123,7 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
     }
 
     val fieldsEncoded = fields.mkString(", ")
-    val query = s"select $fieldsEncoded from `${readConfig.dataset}`$predicate$groupBy"
+    val query = s"select $fieldsEncoded from `${conf.dsConfig.dataset}`$predicate$groupBy"
 
     logDebug(s"Building and running Analytics query $query")
     query
@@ -143,12 +143,12 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
 
   def buildOptions(): CouchbaseAnalyticsOptions = {
     var opts = CouchbaseAnalyticsOptions()
-    readConfig.scanConsistency match {
-      case AnalyticsOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
-      case AnalyticsOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
+    conf.dsConfig.scanConsistency match {
+      case DSConfigOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
+      case DSConfigOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
-    readConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    conf.dsConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 

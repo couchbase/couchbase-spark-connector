@@ -15,7 +15,7 @@
  */
 package examples
 
-import com.couchbase.spark.analytics.AnalyticsOptions
+import com.couchbase.spark.config.DSConfigOptions
 import org.apache.spark.sql.SparkSession
 
 object AnalyticsSqlExample {
@@ -31,7 +31,7 @@ object AnalyticsSqlExample {
       .getOrCreate()
 
     val airlines = spark.read.format("couchbase.analytics")
-      .option(AnalyticsOptions.Dataset, "airline")
+      .option(DSConfigOptions.Dataset, "airline")
       .load()
 
     airlines.show()

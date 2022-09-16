@@ -49,7 +49,7 @@ class QueryScanBuilder(schema: StructType, conf: CouchbaseConfig)
   }
 
   override def pushAggregation(agg: Aggregation): Boolean = {
-    if (!conf.queryConfig.pushDownAggregate) {
+    if (!conf.dsConfig.pushDownAggregate) {
       return false
     }
 

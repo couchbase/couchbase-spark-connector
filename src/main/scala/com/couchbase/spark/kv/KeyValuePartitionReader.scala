@@ -19,7 +19,7 @@ import com.couchbase.client.dcp.highlevel._
 import com.couchbase.client.dcp.message.{DcpFailoverLogResponse, StreamEndReason}
 import com.couchbase.client.dcp.state.PartitionState
 import com.couchbase.client.dcp.{Client, StreamTo}
-import com.couchbase.spark.config.CouchbaseConnection
+import com.couchbase.spark.config.{CouchbaseConnection, CouchbaseConnectionPool}
 import com.couchbase.spark.util.Version
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData
@@ -43,7 +43,6 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
   extends ContinuousPartitionReader[InternalRow] {
 
   private val streamConfig = partition.config
-  private val couchbaseConfig = partition.conf
   private val currentStreamOffsets = new ConcurrentHashMap[Int, KeyValueStreamOffset](partition.partitionOffset.streamStartOffsets.asJava)
   private val streamsCompleted = new ConcurrentHashMap[Int, StreamEndReason]()
   private val changeQueue = new LinkedBlockingQueue[DocumentChange](100)
@@ -53,17 +52,17 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
 
   private val dcpClient = Client
     .builder()
-    .seedNodes(CouchbaseConnection().dcpSeedNodes(couchbaseConfig))
-    .securityConfig(CouchbaseConnection().dcpSecurityConfig(couchbaseConfig))
+    .seedNodes(CouchbaseConnectionPool().getConnection(streamConfig.couchbaseConfig).dcpSeedNodes())
+    .securityConfig(CouchbaseConnectionPool().getConnection(streamConfig.couchbaseConfig).dcpSecurityConfig())
     .flowControl(streamConfig.flowControlBufferSize.getOrElse(1024 * 1024 * 10))
     .mitigateRollbacks(Duration(streamConfig.persistencePollingInterval.getOrElse("100ms")).toMicros, TimeUnit.MICROSECONDS)
     .userAgent(Version.productName, Version.version, "reader")
-    .credentials(couchbaseConfig.credentials.username, couchbaseConfig.credentials.password)
-    .bucket(streamConfig.bucket)
-    .collectionsAware(streamConfig.scope.isDefined || streamConfig.collections.nonEmpty)
-    .scopeName(if (streamConfig.scope.isDefined && streamConfig.collections.isEmpty) streamConfig.scope.get else null)
+    .credentials(streamConfig.couchbaseConfig.credentials.username, streamConfig.couchbaseConfig.credentials.password)
+    .bucket(streamConfig.couchbaseConfig.bucketName.get)
+    .collectionsAware(streamConfig.couchbaseConfig.scopeName.isDefined || streamConfig.collections.nonEmpty)
+    .scopeName(if (streamConfig.couchbaseConfig.scopeName.isDefined && streamConfig.collections.isEmpty) streamConfig.couchbaseConfig.scopeName.get else null)
     .collectionNames(streamConfig.collections.map(c => {
-      val scope = streamConfig.scope match {
+      val scope = streamConfig.couchbaseConfig.scopeName match {
         case Some(s) => s
         case None => "_default"
       }

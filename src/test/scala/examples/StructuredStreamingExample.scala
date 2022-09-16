@@ -15,7 +15,7 @@
  */
 package examples
 
-import com.couchbase.spark.kv.KeyValueOptions
+import com.couchbase.spark.config.DSConfigOptions
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
@@ -34,9 +34,9 @@ object StructuredStreamingExample {
     val sourceDf = spark
       .readStream
       .format("couchbase.kv")
-      .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
-      .option(KeyValueOptions.Scope, "inventory")
-      .option(KeyValueOptions.Collection, "route")
+      .option(DSConfigOptions.StreamFrom, DSConfigOptions.StreamFromBeginning)
+      .option(DSConfigOptions.Scope, "inventory")
+      .option(DSConfigOptions.Collection, "route")
       .load
 
     val aggDf = sourceDf.groupBy("collection").count()

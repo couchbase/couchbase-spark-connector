@@ -17,7 +17,7 @@
 package com.couchbase.spark.query
 
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
@@ -37,8 +37,8 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, filters: A
   extends PartitionReader[InternalRow]
   with Logging {
 
-  private val scopeName = conf.queryConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
-  private val collectionName = conf.queryConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+  private val scopeName = conf.dsConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
+  private val collectionName = conf.dsConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
   private val parser = CouchbaseJsonUtils.jsonParser(schema)
   private val createParser = CouchbaseJsonUtils.createParser()
@@ -54,7 +54,7 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, filters: A
     if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
       CouchbaseConnectionPool().getConnection(conf).cluster().query(buildQuery(), buildOptions())
     } else {
-      CouchbaseConnectionPool().getConnection(conf).cluster().bucket(conf.queryConfig.bucket).scope(scopeName).query(buildQuery(), buildOptions())
+      CouchbaseConnectionPool().getConnection(conf).cluster().bucket(conf.dsConfig.bucket).scope(scopeName).query(buildQuery(), buildOptions())
     }
   }
 
@@ -93,13 +93,13 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, filters: A
     var fields = schema
       .fields
       .map(f => f.name)
-      .filter(f => !f.equals(conf.queryConfig.idFieldName))
+      .filter(f => !f.equals(conf.dsConfig.idFieldName))
       .map(f => maybeEscapeField(f))
     if (!hasAggregateFields) {
-      fields = fields :+ s"META().id as `${conf.queryConfig.idFieldName}`"
+      fields = fields :+ s"META().id as `${conf.dsConfig.idFieldName}`"
     }
 
-    var predicate = conf.queryConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
+    var predicate = conf.dsConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = N1qlFilters.compile(filters)
     if (compiledFilters.nonEmpty && predicate.nonEmpty) {
       predicate = predicate + " AND " + compiledFilters
@@ -116,7 +116,7 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, filters: A
     val fieldsEncoded = fields.mkString(", ")
 
     val query = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
-      s"select $fieldsEncoded from `${conf.queryConfig.bucket}`$predicate$groupBy"
+      s"select $fieldsEncoded from `${conf.dsConfig.bucket}`$predicate$groupBy"
     } else {
       s"select $fieldsEncoded from `$collectionName`$predicate$groupBy"
     }
@@ -153,12 +153,12 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, filters: A
 
   def buildOptions(): CouchbaseQueryOptions = {
     var opts = CouchbaseQueryOptions().metrics(true)
-    conf.queryConfig.scanConsistency match {
-      case QueryOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.NotBounded)
-      case QueryOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.RequestPlus())
+    conf.dsConfig.scanConsistency match {
+      case DSConfigOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.NotBounded)
+      case DSConfigOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.RequestPlus())
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
-    conf.queryConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    conf.dsConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 

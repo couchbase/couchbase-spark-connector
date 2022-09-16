@@ -1,5 +1,3 @@
-import com.couchbase.spark.kv.KeyValueOptions
-import com.couchbase.spark.query.QueryOptions
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 

@@ -16,8 +16,7 @@
 package com.couchbase.spark.query
 
 import com.couchbase.client.scala.manager.collection.CollectionSpec
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.kv.KeyValueOptions
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
@@ -53,7 +52,7 @@ class QueryDataFrameCollectionsIntegrationTest {
       .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
 
-    val bucket = CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
+    val bucket = CouchbaseConnectionPool().getConnection(CouchbaseConfig(spark.sparkContext.getConf,true)).bucket(Some(bucketName))
 
     bucket.collections.createScope(scopeName)
     bucket.collections.createCollection(CollectionSpec(airportCollectionName, scopeName))
@@ -65,7 +64,7 @@ class QueryDataFrameCollectionsIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
-    CouchbaseConnection().stop()
+    CouchbaseConnectionPool().getConnection(CouchbaseConfig(spark.sparkContext.getConf,true)).stop()
     container.stop()
     spark.stop()
   }
@@ -77,8 +76,8 @@ class QueryDataFrameCollectionsIntegrationTest {
 
     airports.write
       .format("couchbase.kv")
-      .option(KeyValueOptions.Scope, scopeName)
-      .option(KeyValueOptions.Collection, airportCollectionName)
+      .option(DSConfigOptions.Scope, scopeName)
+      .option(DSConfigOptions.Collection, airportCollectionName)
       .save()
   }
 
@@ -86,9 +85,9 @@ class QueryDataFrameCollectionsIntegrationTest {
   def testReadDocumentsFromCollection(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, scopeName)
-      .option(QueryOptions.Collection, airportCollectionName)
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Scope, scopeName)
+      .option(DSConfigOptions.Collection, airportCollectionName)
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     assertEquals(4, airports.count)
@@ -102,10 +101,10 @@ class QueryDataFrameCollectionsIntegrationTest {
   def testChangeIdFieldName(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.IdFieldName, "myIdFieldName")
-      .option(QueryOptions.Scope, scopeName)
-      .option(QueryOptions.Collection, airportCollectionName)
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.IdFieldName, "myIdFieldName")
+      .option(DSConfigOptions.Scope, scopeName)
+      .option(DSConfigOptions.Collection, airportCollectionName)
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.foreach(row => {
@@ -118,9 +117,9 @@ class QueryDataFrameCollectionsIntegrationTest {
   def testPushDownAggregationWithoutGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, scopeName)
-      .option(QueryOptions.Collection, airportCollectionName)
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Scope, scopeName)
+      .option(DSConfigOptions.Collection, airportCollectionName)
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.createOrReplaceTempView("airports")
@@ -141,9 +140,9 @@ class QueryDataFrameCollectionsIntegrationTest {
   def testPushDownAggregationWithGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, scopeName)
-      .option(QueryOptions.Collection, airportCollectionName)
-      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(DSConfigOptions.Scope, scopeName)
+      .option(DSConfigOptions.Collection, airportCollectionName)
+      .option(DSConfigOptions.ScanConsistency, DSConfigOptions.RequestPlusScanConsistency)
       .load()
 
     airports.createOrReplaceTempView("airports")

@@ -15,8 +15,7 @@
  */
 package examples
 
-import com.couchbase.spark.kv.KeyValueOptions
-import com.couchbase.spark.query.QueryOptions
+import com.couchbase.spark.config.DSConfigOptions
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
 object KeyValueSqlWriteExample {
@@ -33,14 +32,14 @@ object KeyValueSqlWriteExample {
       .getOrCreate()
 
     val airlines = spark.read.format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airline'")
+      .option(DSConfigOptions.Filter, "type = 'airline'")
       .load()
       .limit(5)
 
     airlines.write.format("couchbase.kv")
-      .option(KeyValueOptions.Bucket, "travel-sample")
-      .option(KeyValueOptions.Durability, KeyValueOptions.MajorityDurability)
-      .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
+      .option(DSConfigOptions.Bucket, "travel-sample")
+      .option(DSConfigOptions.Durability, DSConfigOptions.MajorityDurability)
+      .option(DSConfigOptions.StreamFrom, DSConfigOptions.StreamFromBeginning)
       //.option(KeyValueOptions.Timeout, "10s")
       .mode(SaveMode.Ignore)
       .save()

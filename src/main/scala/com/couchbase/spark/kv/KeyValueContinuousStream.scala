@@ -38,7 +38,7 @@ class KeyValueContinuousStream(schema: StructType, config: KeyValueStreamConfig,
       .map(v =>  {
         val startOffsets = v.map(x => x._1).toMap
         KeyValueInputPartition(
-          schema, KeyValuePartitionOffset(startOffsets, None), conf, config
+          schema, KeyValuePartitionOffset(startOffsets, None),config
         ).asInstanceOf[InputPartition]
       })
       .toArray

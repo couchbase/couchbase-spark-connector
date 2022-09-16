@@ -19,7 +19,7 @@ import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.scala.codec.JsonDeserializer
 import com.couchbase.client.scala.analytics.{AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
@@ -40,11 +40,11 @@ class AnalyticsRDD[T: ClassTag](
   val keyspace: Keyspace = null,
 )(implicit deserializer: JsonDeserializer[T]) extends RDD[T](sc, Nil) with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf,true)
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val connection = CouchbaseConnectionPool().getConnection(globalConfig)
+    val cluster = connection.cluster()
 
     val options = if (this.analyticsOptions == null) {
       CouchbaseAnalyticsOptions()
@@ -75,7 +75,7 @@ class AnalyticsRDD[T: ClassTag](
   }
 
   override protected def getPartitions: Array[Partition] = {
-    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val core = CouchbaseConnectionPool().getConnection(globalConfig).cluster().async.core
     val config = core.clusterConfig()
 
     val partitions = if (config.globalConfig() != null) {

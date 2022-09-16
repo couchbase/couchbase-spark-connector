@@ -15,7 +15,7 @@
  */
 package examples
 
-import com.couchbase.spark.query.QueryOptions
+import com.couchbase.spark.config.DSConfigOptions
 import org.apache.spark.sql.SparkSession
 
 object QuerySqlExample {
@@ -33,9 +33,9 @@ object QuerySqlExample {
 
     val airlines = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Filter, "type = 'airline'")
-      .option(QueryOptions.Bucket, "travel-sample")
-      .option(QueryOptions.Timeout, "10s")
+      .option(DSConfigOptions.Filter, "type = 'airline'")
+      .option(DSConfigOptions.Bucket, "travel-sample")
+      .option(DSConfigOptions.Timeout, "10s")
       .load()
 
     airlines.show()
