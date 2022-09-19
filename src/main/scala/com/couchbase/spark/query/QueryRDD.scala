@@ -28,7 +28,7 @@ import java.util.{HashMap, Map}
 import collection.JavaConverters._
 import scala.reflect.ClassTag
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 class QueryPartition(id: Int, loc: Seq[String]) extends Partition {
   override def index: Int = id
   def location: Seq[String] = loc

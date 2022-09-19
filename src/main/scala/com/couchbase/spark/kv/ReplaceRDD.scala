@@ -25,7 +25,7 @@ import org.apache.spark.rdd.RDD
 
 import java.util.{HashMap, Map}
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Replace[T]], val keyspace: Keyspace,
                 val replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false,val connectionOptions: Map[String,String] = new HashMap[String,String]())(implicit serializer: JsonSerializer[T])

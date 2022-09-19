@@ -21,7 +21,7 @@ import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.query.{QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnectionPool, DSConfigOptions, mapToSparkConf, optionsToSparkConf}
+import com.couchbase.spark.config._
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -48,7 +48,7 @@ class QueryTableProvider extends TableProvider with Logging with DataSourceRegis
    * @return the inferred schema, if possible.
    */
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(options)
+    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(options.asCaseSensitiveMap())
     if (isWrite) {
       logDebug("Not inferring schema because called from the DataFrameWriter")
       return null

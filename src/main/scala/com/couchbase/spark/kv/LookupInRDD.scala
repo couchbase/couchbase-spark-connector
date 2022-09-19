@@ -25,7 +25,7 @@ import reactor.core.scala.publisher.SFlux
 
 import java.util.{HashMap, Map}
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class LookupInRDD(@transient private val sc: SparkContext, val docs: Seq[LookupIn], val keyspace: Keyspace, lookupInOptions: LookupInOptions = null,val connectionOptions: Map[String,String] = new HashMap[String,String]())
   extends RDD[LookupInResult](sc, Nil)

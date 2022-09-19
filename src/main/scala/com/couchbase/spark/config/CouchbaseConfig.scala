@@ -18,7 +18,7 @@ package com.couchbase.spark.config
 
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.CouchbaseConfig.{CONNECTION_STRING, PASSWORD, USERNAME, extractConf}
-import org.apache.spark.SparkConf
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.security.MessageDigest
 import java.util.Locale
@@ -56,7 +56,7 @@ case class CouchbaseConfig(
                             dsConfig: DSConfig
 ) {
 
-  private var connectionKey: Option[String] = None
+  private var connectionKey: Option[Int] = None
 
   def implicitBucketNameOr(explicitName: String): String = {
     var bn = Option(explicitName)
@@ -99,8 +99,8 @@ case class CouchbaseConfig(
     }
   }
 
-  def loadDSOptions(conf: SparkConf) : CouchbaseConfig = {
-    val dsOptions = extractConf(conf)
+  def loadDSOptions(options: util.Map[String,String]) : CouchbaseConfig = {
+    val dsOptions = extractConf(options)
     val couchBaseConfig = CouchbaseConfig(
       dsOptions.connectionString.getOrElse(connectionString),
       dsOptions.credentials.getOrElse(credentials),
@@ -110,9 +110,9 @@ case class CouchbaseConfig(
       Option(dsOptions.waitUntilReadyTimeout.getOrElse(waitUntilReadyTimeout.getOrElse(null))),
       configureSSl(dsOptions),
       mergeFilteredOptions(dsOptions.filteredProperties),
-      extractDSConfig(conf)
+      extractDSConfig(options)
     )
-    validateReqProps(couchBaseConfig,conf)
+    validateReqProps(couchBaseConfig,options)
     couchBaseConfig
   }
 
@@ -131,39 +131,39 @@ case class CouchbaseConfig(
     }
   }
 
-  private def extractDSConfig(properties: util.Map[String, String]): DSConfig = {
+  private def extractDSConfig(options: util.Map[String,String]): DSConfig = {
     DSConfig(
-      implicitBucketNameOr(properties.get(DSConfigOptions.Bucket)),
-      implicitScopeNameOr(properties.get(DSConfigOptions.Scope)),
-      implicitCollectionName(properties.get(DSConfigOptions.Collection)),
-      Option(properties.get(DSConfigOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
-      Option(properties.get(DSConfigOptions.Filter)),
-      Option(properties.get(DSConfigOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultQueryScanConsistency),
-      Option(properties.get(DSConfigOptions.Timeout)),
-      Option(properties.get(DSConfigOptions.PushDownAggregate)).getOrElse("true").toBoolean,
-      Option(properties.get(DSConfigOptions.Durability)),
-      Option(properties.get(DSConfigOptions.Dataset))
+      implicitBucketNameOr(options.get(DSConfigOptions.Bucket)),
+      implicitScopeNameOr(options.get(DSConfigOptions.Scope)),
+      implicitCollectionName(options.get(DSConfigOptions.Collection)),
+      Option(options.get(DSConfigOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
+      Option(options.get(DSConfigOptions.Filter)),
+      Option(options.get(DSConfigOptions.ScanConsistency)).getOrElse(DefaultConstants.DefaultQueryScanConsistency),
+      Option(options.get(DSConfigOptions.Timeout)),
+      Option(options.get(DSConfigOptions.PushDownAggregate)).getOrElse("true").toBoolean,
+      Option(options.get(DSConfigOptions.Durability)),
+      Option(options.get(DSConfigOptions.Dataset))
     )
   }
 
-  private def validateReqProps(couchbaseConfig: CouchbaseConfig,conf: SparkConf): Unit = {
+  private def validateReqProps(couchbaseConfig: CouchbaseConfig,options: util.Map[String,String]): Unit = {
     if (couchbaseConfig.connectionString == null) {
       throw new IllegalArgumentException("Required config property " + CONNECTION_STRING + " is not present")
     }
 
     if (couchbaseConfig.credentials == null){
-      if (!conf.contains(DSConfigOptions.Username)) {
+      if (!options.contains(DSConfigOptions.Username)) {
         throw new IllegalArgumentException("Required config property " + USERNAME + " is not present")
       }
-      if (!conf.contains(DSConfigOptions.Password)) {
+      if (!options.contains(DSConfigOptions.Password)) {
         throw new IllegalArgumentException("Required config property " + PASSWORD + " is not present")
       }
     }
   }
 
-  def getKey: String = {
+  def getKey: Int = {
     if (!connectionKey.isDefined){
-      connectionKey =  Some(MessageDigest.getInstance("MD5").digest(s"${connectionString}${credentials.username}${credentials.password}".getBytes()).toString)
+      connectionKey=Some(s"${connectionString}${credentials.username}${credentials.password}".hashCode)
     }
     connectionKey.get
   }
@@ -190,25 +190,25 @@ object CouchbaseConfig {
 
   private val EXTRA_SPARK_OPTIONS = s"${USERNAME},"
 
-  def checkRequiredProperties(cfg: SparkConf): Unit = {
-    if (!cfg.contains(CONNECTION_STRING)) {
-      throw new IllegalArgumentException("Required config property " + CONNECTION_STRING + " is not present")
+  def checkRequiredProperties(options: util.Map[String,String]): Unit = {
+    if (!options.contains(CONNECTION_STRING)) {
+      throw new IllegalArgumentException("Required config property " + DSConfigOptions.ConnectionString + " is not present")
     }
-    if (!cfg.contains(USERNAME)) {
-      throw new IllegalArgumentException("Required config property " + USERNAME + " is not present")
+    if (!options.contains(USERNAME)) {
+      throw new IllegalArgumentException("Required config property " + DSConfigOptions.Username + " is not present")
     }
-    if (!cfg.contains(PASSWORD)) {
-      throw new IllegalArgumentException("Required config property " + PASSWORD + " is not present")
+    if (!options.contains(PASSWORD)) {
+      throw new IllegalArgumentException("Required config property " + DSConfigOptions.Password + " is not present")
     }
   }
 
-  def apply(cfg: SparkConf, chckReqProp: Boolean): CouchbaseConfig = {
+  def apply(options: util.Map[String,String], chckReqProp: Boolean): CouchbaseConfig = {
 
     if(chckReqProp){
-      checkRequiredProperties(cfg)
+      checkRequiredProperties(options)
     }
 
-   val sparkOptions = extractConf(cfg)
+   val sparkOptions = extractConf(options)
     CouchbaseConfig(
       sparkOptions.connectionString.orNull,
       sparkOptions.credentials.orNull,
@@ -222,38 +222,37 @@ object CouchbaseConfig {
     )
   }
 
-  private def extractConf(cfg: SparkConf): DSOptions = {
+  private def extractConf(options: util.Map[String,String]): DSOptions = {
+    val connectionString = Option(Option(options.get(CONNECTION_STRING)).getOrElse(Option(options.get(DSConfigOptions.ConnectionString)).getOrElse(null)))
 
-    val connectionString = Option(cfg.getOption(CONNECTION_STRING).getOrElse(cfg.getOption(DSConfigOptions.ConnectionString).getOrElse(null)))
-
-    val username = Option(cfg.getOption(USERNAME).getOrElse(cfg.getOption(DSConfigOptions.Username).getOrElse(null)))
-    val password = Option(cfg.getOption(PASSWORD).getOrElse(cfg.getOption(DSConfigOptions.Password).getOrElse(null)))
+    val username = Option(Option(options.get(USERNAME)).getOrElse(Option(options.get(DSConfigOptions.Username)).getOrElse(null)))
+    val password = Option(Option(options.get(PASSWORD)).getOrElse(Option(options.get(DSConfigOptions.Password)).getOrElse(null)))
     val credentials = if (username.isDefined && password.isDefined){
       Some(Credentials(username.get, password.get))
     } else{
       None
     }
 
-    val bucketName = Option(cfg.getOption(BUCKET_NAME).getOrElse(cfg.getOption(DSConfigOptions.Bucket).getOrElse(null)))
-    val scopeName = Option(cfg.getOption(SCOPE_NAME).getOrElse(cfg.getOption(DSConfigOptions.Scope).getOrElse(null)))
-    val collectionName = Option(cfg.getOption(COLLECTION_NAME).getOrElse(cfg.getOption(DSConfigOptions.Collection).getOrElse(null)))
-    val waitUntilReadyTimeout = Option(cfg.getOption(WAIT_UNTIL_READY_TIMEOUT).getOrElse(cfg.getOption(DSConfigOptions.WaitUntilReadyTimeout).getOrElse(null)))
+    val bucketName = Option(Option(options.get(BUCKET_NAME)).getOrElse(Option(options.get(DSConfigOptions.Bucket)).getOrElse(null)))
+    val scopeName = Option(Option(options.get(SCOPE_NAME)).getOrElse(Option(options.get(DSConfigOptions.Scope)).getOrElse(null)))
+    val collectionName = Option(Option(options.get(COLLECTION_NAME)).getOrElse(Option(options.get(DSConfigOptions.Collection)).getOrElse(null)))
+    val waitUntilReadyTimeout = Option(Option(options.get(WAIT_UNTIL_READY_TIMEOUT)).getOrElse(Option(options.get(DSConfigOptions.WaitUntilReadyTimeout)).getOrElse(null)))
 
     var useSsl = false
     var keyStorePath: Option[String] = None
     var keyStorePassword: Option[String] = None
 
     // check for spark-related SSL settings
-    if (cfg.get(SPARK_SSL_ENABLED, "false").toBoolean) {
+    if (Option(options.get(SPARK_SSL_ENABLED)).getOrElse("false").toBoolean) {
       useSsl = true
-      keyStorePath = cfg.getOption(SPARK_SSL_KEYSTORE)
-      keyStorePassword = cfg.getOption(SPARK_SSL_KEYSTORE_PASSWORD)
+      keyStorePath = Option(options.get(SPARK_SSL_KEYSTORE))
+      keyStorePassword = Option(options.get(SPARK_SSL_KEYSTORE_PASSWORD))
     }
 
-    val sslConfigured = cfg.contains(SPARK_SSL_INSECURE)
-    val sslInsecure = cfg.get(SPARK_SSL_INSECURE, "false").toBoolean
+    val sslConfigured = options.contains(SPARK_SSL_INSECURE)
+    val sslInsecure = Option(options.get(SPARK_SSL_INSECURE)).getOrElse("false").toBoolean
 
-    val properties = cfg.getAllWithPrefix(PREFIX).toMap
+    val properties = options.getAllWithPrefix(PREFIX).toMap
     val filteredProperties = properties.filterKeys(key => {
       val prefixedKey = PREFIX + key
       prefixedKey != USERNAME &&

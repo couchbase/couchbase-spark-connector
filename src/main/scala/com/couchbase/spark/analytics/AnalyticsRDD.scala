@@ -28,7 +28,7 @@ import scala.reflect.ClassTag
 import collection.JavaConverters._
 import java.util.{Map,HashMap}
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class AnalyticsPartition(id: Int, loc: Seq[String]) extends Partition {
   override def index: Int = id

@@ -1,15 +1,17 @@
 package com.couchbase.spark.config
 
+import org.apache.spark.internal.Logging
+
 import java.util.concurrent.ConcurrentHashMap
 
-class CouchbaseConnectionPool {
+class CouchbaseConnectionPool extends Serializable with Logging {
 
-  var connectionPool = new ConcurrentHashMap[String,CouchbaseConnection]()
+  val connectionPool = new ConcurrentHashMap[Int,CouchbaseConnection]()
 
   def getConnection(cfg: CouchbaseConfig): CouchbaseConnection = {
-    if (!connectionPool.contains(cfg.getKey)){
-      this.synchronized{
-        if (!connectionPool.contains(cfg.getKey)) {
+    if (!connectionPool.containsKey(cfg.getKey)) {
+      this.synchronized {
+        if (!connectionPool.containsKey(cfg.getKey)) {
           val connection = CouchbaseConnection(cfg)
           connectionPool.put(cfg.getKey, connection)
         }
@@ -31,6 +33,15 @@ class CouchbaseConnectionPool {
 }
 
 object CouchbaseConnectionPool{
-  lazy val connectionPool = new CouchbaseConnectionPool
-  def apply() = connectionPool
+  var couchBaseConnectionPool: Option[CouchbaseConnectionPool] = None
+  def apply() = {
+    if (!couchBaseConnectionPool.isDefined){
+      this.synchronized{
+        if (!couchBaseConnectionPool.isDefined){
+          couchBaseConnectionPool = Some(new CouchbaseConnectionPool)
+        }
+      }
+    }
+    couchBaseConnectionPool.get
+  }
 }

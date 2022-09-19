@@ -19,7 +19,7 @@ import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.scala.search.SearchOptions
 import com.couchbase.client.scala.search.queries.SearchQuery
 import com.couchbase.client.scala.search.result.SearchResult
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool}
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnectionPool}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -27,7 +27,7 @@ import org.apache.spark.rdd.RDD
 import java.util.{HashMap, Map}
 import collection.JavaConverters._
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class SearchPartition(id: Int, loc: Seq[String]) extends Partition {
   override def index: Int = id

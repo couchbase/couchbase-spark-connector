@@ -24,7 +24,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
 import java.util.{HashMap, Map}
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class InsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Insert[T]], val keyspace: Keyspace,
                 val insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false,

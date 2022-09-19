@@ -25,7 +25,7 @@ import reactor.core.scala.publisher.SFlux
 
 import java.util.{HashMap, Map}
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null,val connectionOptions: Map[String,String] = new HashMap[String,String]())
   extends RDD[GetResult](sc, Nil)

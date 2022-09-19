@@ -17,14 +17,13 @@ package com.couchbase.spark
 
 import com.couchbase.client.scala.codec.JsonSerializer
 import com.couchbase.client.scala.kv.{InsertOptions, MutateInOptions, MutateInResult, MutationResult, RemoveOptions, ReplaceOptions, UpsertOptions}
-import com.couchbase.spark.config.CouchbaseConfig
 import com.couchbase.spark.kv.{Insert, KeyValueOperationRunner, MutateIn, Remove, Replace, Upsert}
 import org.apache.spark.rdd.RDD
 import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoundException}
 
 import java.util.{HashMap, Map}
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 /**
  * Functions which can be performed on an RDD if the evidence matches.

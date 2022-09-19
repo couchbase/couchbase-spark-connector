@@ -30,7 +30,6 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoundException}
 
-import java.util
 import java.util.{HashMap, Map}
 import scala.reflect.ClassTag
 

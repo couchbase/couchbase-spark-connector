@@ -12,19 +12,17 @@ package object config {
 
   implicit def sparkConfToMap(conf: SparkConf): Map[String,String] = {
     val properties = new HashMap[String,String]()
-    conf.getAll.map(kv => properties.put(kv._1,kv._2))
+    conf.getAll.map(kv => {
+      properties.put(kv._1,kv._2)
+    })
     properties
   }
 
   implicit def mapToSparkConf(properties: Map[String,String]): SparkConf  = {
     val sparkConf = new SparkConf()
-    properties.asScala.map(kv => sparkConf.set(kv._1,kv._2))
-    sparkConf
-  }
-
-  implicit def optionsToSparkConf(options: CaseInsensitiveStringMap): SparkConf  = {
-    val sparkConf = new SparkConf()
-    options.asScala.map(kv => sparkConf.set(kv._1,kv._2))
+    properties.asScala.map(kv => {
+      sparkConf.set(kv._1,kv._2)
+    })
     sparkConf
   }
 }

@@ -16,7 +16,7 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.spark.DefaultConstants
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnectionPool, DSConfigOptions, mapToSparkConf}
+import com.couchbase.spark.config._
 import com.couchbase.client.scala.analytics.{AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import org.apache.spark.internal.Logging
@@ -36,7 +36,7 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
   private lazy val sparkSession = SparkSession.active
 
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(options)
+    val conf = CouchbaseConfig(sparkSession.sparkContext.getConf,false).loadDSOptions(options.asCaseSensitiveMap())
     val idFieldName = Option(options.get(DSConfigOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName)
     val whereClause = Option(options.get(DSConfigOptions.Filter)).map(p => s" WHERE $p").getOrElse("")
     val dataset = options.get(DSConfigOptions.Dataset)

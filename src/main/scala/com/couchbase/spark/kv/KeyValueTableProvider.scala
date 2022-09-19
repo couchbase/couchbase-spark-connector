@@ -21,7 +21,7 @@ import com.couchbase.client.scala.durability.Durability
 import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.kv.{InsertOptions, UpsertOptions}
 import com.couchbase.spark.DefaultConstants
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions, mapToSparkConf}
+import com.couchbase.spark.config._
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}

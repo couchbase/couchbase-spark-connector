@@ -25,7 +25,7 @@ import org.apache.spark.rdd.RDD
 
 import java.util.{HashMap, Map}
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class UpsertRDD[T](@transient private val sc: SparkContext, val docs: Seq[Upsert[T]], val keyspace: Keyspace,
                 val upsertOptions: UpsertOptions = null,val connectionOptions: Map[String,String] = new HashMap[String,String]())(implicit serializer: JsonSerializer[T])

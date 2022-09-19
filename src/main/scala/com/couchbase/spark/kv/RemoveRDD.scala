@@ -25,7 +25,7 @@ import reactor.core.scala.publisher.SFlux
 
 import java.util.{HashMap, Map}
 
-import com.couchbase.spark.config.mapToSparkConf
+import com.couchbase.spark.config._
 
 class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], val keyspace: Keyspace,
                 removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false,val connectionOptions: Map[String,String] = new HashMap[String,String]())
