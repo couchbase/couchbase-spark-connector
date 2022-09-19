@@ -1,7 +1,6 @@
 package com.couchbase.spark
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.util.Map
 import java.util.HashMap

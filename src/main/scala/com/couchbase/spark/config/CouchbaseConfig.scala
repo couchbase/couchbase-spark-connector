@@ -142,7 +142,7 @@ case class CouchbaseConfig(
       Option(options.get(DSConfigOptions.Timeout)),
       Option(options.get(DSConfigOptions.PushDownAggregate)).getOrElse("true").toBoolean,
       Option(options.get(DSConfigOptions.Durability)),
-      Option(options.get(DSConfigOptions.Dataset))
+      Option(options.get(DSConfigOptions.Dataset)).getOrElse(null)
     )
   }
 

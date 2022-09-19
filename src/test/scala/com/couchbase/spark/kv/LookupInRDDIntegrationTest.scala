@@ -17,7 +17,7 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.LookupInSpec
 import com.couchbase.client.scala.manager.collection.CollectionSpec
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions}
+import com.couchbase.spark.config._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -63,7 +63,7 @@ class LookupInRDDIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
-    CouchbaseConnection().stop()
+    CouchbaseConnectionPool().getConnection(CouchbaseConfig(spark.sparkContext.getConf,true)).stop()
     container.stop()
     spark.stop()
   }

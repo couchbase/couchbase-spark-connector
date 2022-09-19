@@ -33,11 +33,11 @@ class AnalyticsTable(schema: StructType, partitioning: Array[Transform], propert
 
   override def name(): String = {
    if (couchbaseConfig.dsConfig.bucket.isEmpty || couchbaseConfig.dsConfig.scope.isEmpty) {
-     couchbaseConfig.dsConfig.dataset.get
+     couchbaseConfig.dsConfig.dataset
    } else {
      couchbaseConfig.dsConfig.bucket + ":" +
        couchbaseConfig.dsConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
-       couchbaseConfig.dsConfig.dataset.get
+       couchbaseConfig.dsConfig.dataset
    }
   }
   override def schema(): StructType = schema

@@ -10,5 +10,5 @@ case class DSConfig(
                         timeout: Option[String],
                         pushDownAggregate: Boolean,
                         durability: Option[String],
-                        dataset: Option[String],
+                        dataset: String,
                       )

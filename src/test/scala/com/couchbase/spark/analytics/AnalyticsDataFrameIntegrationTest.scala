@@ -15,7 +15,7 @@
  */
 package com.couchbase.spark.analytics
 
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection, CouchbaseConnectionPool, DSConfigOptions}
+import com.couchbase.spark.config._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.apache.spark.sql.functions.lit
@@ -71,7 +71,9 @@ class AnalyticsDataFrameIntegrationTest {
       .json("src/test/resources/airports.json")
       .withColumn("type", lit("airport"))
 
-    airports.write.format("couchbase.kv").save()
+    airports.write.format("couchbase.kv")
+      .option(DSConfigOptions.StreamFrom,DSConfigOptions.StreamFromBeginning)
+      .save()
   }
 
   @Test
