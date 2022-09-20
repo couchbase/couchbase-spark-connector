@@ -66,7 +66,7 @@ class QueryDataFrameIntegrationTest {
       .json("src/test/resources/airports.json")
       .withColumn("type", lit("airport"))
 
-    airports.write.format("couchbase.kv").save()
+    airports.write.format("couchbase.kv").option(DSConfigOptions.StreamFrom,DSConfigOptions.StreamFromBeginning).save()
   }
 
   @Test

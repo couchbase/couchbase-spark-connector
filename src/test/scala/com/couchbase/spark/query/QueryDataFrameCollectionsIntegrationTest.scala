@@ -76,6 +76,7 @@ class QueryDataFrameCollectionsIntegrationTest {
 
     airports.write
       .format("couchbase.kv")
+      .option(DSConfigOptions.StreamFrom,DSConfigOptions.StreamFromBeginning)
       .option(DSConfigOptions.Scope, scopeName)
       .option(DSConfigOptions.Collection, airportCollectionName)
       .save()
