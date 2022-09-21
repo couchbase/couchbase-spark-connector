@@ -88,7 +88,7 @@ class CouchbaseConnection(cfg: CouchbaseConfig) extends Serializable with Loggin
       if (cfg.bucketName.isDefined) {
         // If an implicit bucket is defined, we proactively open the bucket also to help with pre 6.5 cluster
         // compatibility.
-        val _ = bucket(None, clusterRef)
+        val _ = bucket(cfg.bucketName, clusterRef)
       }
 
       clusterRef.get
