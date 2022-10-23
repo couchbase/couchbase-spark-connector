@@ -54,25 +54,25 @@ class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
 
     val aggregateFuncs = agg.aggregateExpressions().map({
       case min: Min =>
-        if (min.column.fieldNames.length != 1) return false
-        val fieldName = min.column.fieldNames.head
-        val original = structFieldForName(fieldName).get
+        if (min.column().references().length != 1) return false
+        val fieldName = min.column().references().head
+        val original = structFieldForName(fieldName.fieldNames().head).get
         StructField(s"MIN(`$fieldName`)", original.dataType, original.nullable, original.metadata)
       case max: Max =>
-        if (max.column.fieldNames.length != 1) return false
-        val fieldName = max.column.fieldNames.head
-        val original = structFieldForName(fieldName).get
+        if (max.column().references().length != 1) return false
+        val fieldName = max.column().references().head
+        val original = structFieldForName(fieldName.fieldNames().head).get
         StructField(s"MAX(`$fieldName`)", original.dataType, original.nullable, original.metadata)
       case count: Count =>
-        if (count.column.fieldNames.length != 1) return false
-        val fieldName = count.column.fieldNames.head
-        val original = structFieldForName(fieldName).get
+        if (count.column().references().length != 1) return false
+        val fieldName = count.column().references().head
+        val original = structFieldForName(fieldName.fieldNames().head).get
         val distinct = if (count.isDistinct) "DISTINCT " else ""
         StructField(s"COUNT($distinct`$fieldName`)", original.dataType, original.nullable, original.metadata)
       case sum: Sum =>
-        if (sum.column.fieldNames.length != 1) return false
-        val fieldName = sum.column.fieldNames.head
-        val original = structFieldForName(fieldName).get
+        if (sum.column().references().length != 1) return false
+        val fieldName = sum.column().references().head
+        val original = structFieldForName(fieldName.fieldNames().head).get
         val distinct = if (sum.isDistinct) "DISTINCT " else ""
         StructField(s"SUM($distinct`$fieldName`)", original.dataType, original.nullable, original.metadata)
       case _: CountStar =>
@@ -84,11 +84,11 @@ class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
       return false
     }
 
-    val groupByCols = agg.groupByColumns.map { col =>
-      if (col.fieldNames.length != 1) return false
-      val fieldName = col.fieldNames.head
-      val original = structFieldForName(fieldName).get
-      StructField(fieldName, original.dataType, original.nullable, original.metadata)
+    val groupByCols = agg.groupByExpressions().map { col =>
+      if (col.references().length != 1) return false
+      val fieldName = col.references().head
+      val original = structFieldForName(fieldName.fieldNames().head).get
+      StructField(fieldName.fieldNames().head, original.dataType, original.nullable, original.metadata)
     }.toSeq
 
     val allFields = groupByCols ++ aggregateFuncs

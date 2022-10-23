@@ -43,7 +43,7 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
   private var resultMetrics: Option[AnalyticsMetrics] = None
 
   private val groupByColumns = aggregations match {
-    case Some(agg) => agg.groupByColumns().map(n => n.fieldNames().head).toSeq
+    case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
     case None => Seq.empty
   }
 
@@ -117,7 +117,7 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
     }
 
     val groupBy = if (hasAggregateGroupBy) {
-      " GROUP BY " + aggregations.get.groupByColumns().map(n => s"`${n.fieldNames().head}`").mkString(", ")
+      " GROUP BY " + aggregations.get.groupByExpressions().map(n => s"`${n.references().head}`").mkString(", ")
     } else {
       ""
     }
@@ -247,7 +247,7 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
 
   def hasAggregateGroupBy: Boolean = {
     aggregations match {
-      case Some(a) => !a.groupByColumns().isEmpty
+      case Some(a) => !a.groupByExpressions().isEmpty
       case None => false
     }
   }

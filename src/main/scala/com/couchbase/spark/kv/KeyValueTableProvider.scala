@@ -91,9 +91,8 @@ class KeyValueTableProvider
     val streamXattrs = meta != null && meta.equals(KeyValueOptions.StreamMetaDataFull)
 
     val streamFrom = properties.get(KeyValueOptions.StreamFrom) match {
-      case KeyValueOptions.StreamFromNow => StreamFromVariants.FromNow
+      case null | KeyValueOptions.StreamFromNow => StreamFromVariants.FromNow
       case KeyValueOptions.StreamFromBeginning => StreamFromVariants.FromBeginning
-      case null => throw new IllegalArgumentException("A KeyValueOptions.StreamFrom option must be provided")
       case v => throw new IllegalArgumentException("Unknown KeyValueOptions.StreamFrom option: " + v)
     }
 
