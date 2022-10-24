@@ -19,7 +19,7 @@ package com.couchbase.spark.query
 import org.apache.spark.sql.connector.expressions.aggregate._
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{LongType, StructField, StructType}
+import org.apache.spark.sql.types.StructType
 
 class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
   extends ScanBuilder
@@ -52,53 +52,24 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
       return false
     }
 
-    val aggregateFuncs = agg.aggregateExpressions().map({
-       case min: Min =>
-         if (min.column().references().length != 1) return false
-         val fieldName = min.column().references().head
-         val original = structFieldForName(fieldName.fieldNames().head).get
-         StructField(s"MIN(`$fieldName`)", original.dataType, original.nullable, original.metadata)
-       case max: Max =>
-         if (max.column().references().length != 1) return false
-         val fieldName = max.column().references().head
-         val original = structFieldForName(fieldName.fieldNames().head).get
-         StructField(s"MAX(`$fieldName`)", original.dataType, original.nullable, original.metadata)
-       case count: Count =>
-         if (count.column().references().length != 1) return false
-         val fieldName = count.column().references().head
-         val original = structFieldForName(fieldName.fieldNames().head).get
-         val distinct = if (count.isDistinct) "DISTINCT " else ""
-         StructField(s"COUNT($distinct`$fieldName`)", original.dataType, original.nullable, original.metadata)
-       case sum: Sum =>
-         if (sum.column().references().length != 1) return false
-         val fieldName = sum.column().references().head
-         val original = structFieldForName(fieldName.fieldNames().head).get
-         val distinct = if (sum.isDistinct) "DISTINCT " else ""
-         StructField(s"SUM($distinct`$fieldName`)", original.dataType, original.nullable, original.metadata)
-       case _: CountStar =>
-         StructField(s"COUNT(*)", LongType)
-       case _ => return false
-    }).toSeq
-
+    val aggregateFuncs = QueryAggregations.convertAggregateExpressions(agg, schema)
     if (aggregateFuncs.isEmpty) {
       return false
     }
 
-    val groupByCols = agg.groupByExpressions().map { col =>
-      if (col.references().length != 1) return false
-      val fieldName = col.references().head
-      val original = structFieldForName(fieldName.fieldNames().head).get
-      StructField(fieldName.fieldNames().head, original.dataType, original.nullable, original.metadata)
-    }.toSeq
+    finalSchema = if (agg.groupByExpressions().isEmpty) {
+      StructType(aggregateFuncs)
+    } else {
+      val aggregations = QueryAggregations.convertGroupByExpression(agg, schema)
+      if (aggregations.isEmpty) {
+        return false
+      } else {
+        StructType(aggregations ++ aggregateFuncs)
+      }
+    }
 
-    val allFields = groupByCols ++ aggregateFuncs
-    finalSchema = StructType(allFields)
     aggregations = Some(agg)
     true
-  }
-
-  private def structFieldForName(name: String): Option[StructField] = {
-    schema.fields.find(f => f.name.equals(name))
   }
 
 }

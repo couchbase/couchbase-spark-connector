@@ -100,7 +100,7 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
     }
 
     var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
-    val compiledFilters = N1qlFilters.compile(filters)
+    val compiledFilters = QueryFilters.compile(filters)
     if (compiledFilters.nonEmpty && predicate.nonEmpty) {
       predicate = predicate + " AND " + compiledFilters
     } else if (compiledFilters.nonEmpty) {
@@ -144,6 +144,7 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
       || field.startsWith("MIN")
       || field.startsWith("COUNT")
       || field.startsWith("SUM")
+      || field.startsWith("AVG")
       || field.startsWith("`")) {
       field
     } else {

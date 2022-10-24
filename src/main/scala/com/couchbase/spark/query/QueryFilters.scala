@@ -20,7 +20,7 @@ import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe
 
 import scala.util.matching.Regex
 
-object N1qlFilters extends Logging {
+object QueryFilters extends Logging {
 
   /** Transform the filters into a N1QL where clause.
    *

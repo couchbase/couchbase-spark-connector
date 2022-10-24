@@ -134,6 +134,7 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
       || field.startsWith("MIN")
       || field.startsWith("COUNT")
       || field.startsWith("SUM")
+      || field.startsWith("AVG")
       || field.startsWith("`")) {
       field
     } else {

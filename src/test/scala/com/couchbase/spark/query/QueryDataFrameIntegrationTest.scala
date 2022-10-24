@@ -111,10 +111,13 @@ class QueryDataFrameIntegrationTest {
 
     airports.createOrReplaceTempView("airports")
 
-    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run from airports")
+    val aggregates = spark.sql(
+      "select max(elevation) as el, min(runways) as run from airports"
+    )
 
     aggregates.queryExecution.optimizedPlan.collect {
       case p: DataSourceV2ScanRelation =>
+        println(p.toString())
         assertTrue(p.toString().contains("MAX(`elevation`)"))
         assertTrue(p.toString().contains("MIN(`runways`)"))
     }

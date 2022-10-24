@@ -16,10 +16,11 @@
 
 package com.couchbase.spark.analytics
 
-import org.apache.spark.sql.connector.expressions.aggregate.{Aggregation, Count, CountStar, Max, Min, Sum}
-import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
+import com.couchbase.spark.query.QueryAggregations
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
+import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{LongType, StructField, StructType}
+import org.apache.spark.sql.types.{StructField, StructType}
 
 class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
   extends ScanBuilder
@@ -52,47 +53,22 @@ class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
       return false
     }
 
-    val aggregateFuncs = agg.aggregateExpressions().map({
-      case min: Min =>
-        if (min.column().references().length != 1) return false
-        val fieldName = min.column().references().head
-        val original = structFieldForName(fieldName.fieldNames().head).get
-        StructField(s"MIN(`$fieldName`)", original.dataType, original.nullable, original.metadata)
-      case max: Max =>
-        if (max.column().references().length != 1) return false
-        val fieldName = max.column().references().head
-        val original = structFieldForName(fieldName.fieldNames().head).get
-        StructField(s"MAX(`$fieldName`)", original.dataType, original.nullable, original.metadata)
-      case count: Count =>
-        if (count.column().references().length != 1) return false
-        val fieldName = count.column().references().head
-        val original = structFieldForName(fieldName.fieldNames().head).get
-        val distinct = if (count.isDistinct) "DISTINCT " else ""
-        StructField(s"COUNT($distinct`$fieldName`)", original.dataType, original.nullable, original.metadata)
-      case sum: Sum =>
-        if (sum.column().references().length != 1) return false
-        val fieldName = sum.column().references().head
-        val original = structFieldForName(fieldName.fieldNames().head).get
-        val distinct = if (sum.isDistinct) "DISTINCT " else ""
-        StructField(s"SUM($distinct`$fieldName`)", original.dataType, original.nullable, original.metadata)
-      case _: CountStar =>
-        StructField(s"COUNT(*)", LongType)
-      case _ => return false
-    }).toSeq
-
+    val aggregateFuncs = QueryAggregations.convertAggregateExpressions(agg, schema)
     if (aggregateFuncs.isEmpty) {
       return false
     }
 
-    val groupByCols = agg.groupByExpressions().map { col =>
-      if (col.references().length != 1) return false
-      val fieldName = col.references().head
-      val original = structFieldForName(fieldName.fieldNames().head).get
-      StructField(fieldName.fieldNames().head, original.dataType, original.nullable, original.metadata)
-    }.toSeq
+    finalSchema = if (agg.groupByExpressions().isEmpty) {
+      StructType(aggregateFuncs)
+    } else {
+      val aggregations = QueryAggregations.convertGroupByExpression(agg, schema)
+      if (aggregations.isEmpty) {
+        return false
+      } else {
+        StructType(aggregations ++ aggregateFuncs)
+      }
+    }
 
-    val allFields = groupByCols ++ aggregateFuncs
-    finalSchema = StructType(allFields)
     aggregations = Some(agg)
     true
   }
