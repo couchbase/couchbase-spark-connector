@@ -23,23 +23,26 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import reactor.core.scala.publisher.SFlux
 
-
-class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val keyspace: Keyspace, getOptions: GetOptions = null)
-  extends RDD[GetResult](sc, Nil)
+class GetRDD(
+    @transient private val sc: SparkContext,
+    val ids: Seq[Get],
+    val keyspace: Keyspace,
+    getOptions: GetOptions = null
+) extends RDD[GetResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
-  private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
+  private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
     val partition = split.asInstanceOf[KeyValuePartition]
 
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val cluster    = connection.cluster(globalConfig)
 
     val scopeName = globalConfig
-      .implicitScopeNameOr(this.keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
+      .implicitScopeNameOr(this.keyspace.scope.orNull)
+      .getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = globalConfig
       .implicitCollectionName(this.keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
@@ -66,14 +69,16 @@ class GetRDD(@transient private val sc: SparkContext, val ids: Seq[Get], val key
       .partitionsForIds(this.ids.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for Get operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(
+      s"Calculated KeyValuePartitions for Get operation ${partitions.mkString("Array(", ", ", ")")}"
+    )
     partitions
   }
 
   override protected def getPreferredLocations(split: Partition): Seq[String] = {
     split.asInstanceOf[KeyValuePartition].location match {
       case Some(l) => Seq(l)
-      case _ => Nil
+      case _       => Nil
     }
   }
 

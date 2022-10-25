@@ -40,6 +40,10 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 | 1.1.x | 1.5          | 2.5.x - 4.x      |
 | 1.0.x | 1.4          | 2.5.x - 4.x      |
 
+## Development Tasks
+
+Applying scalafmt (source code formatting) is done through `sbt scalafmtAll`.
+
 ## License
 Copyright 2015-2022 Couchbase Inc.
 

@@ -54,18 +54,31 @@ class CouchbaseConnection extends Serializable with Logging {
       if (envRef.isEmpty) {
         // The spark connector does not use any transaction functionality, so make use of the backdoor
         // to disable txn processing and save resources.
-        System.setProperty(CoreTransactionsCleanupConfig.TRANSACTIONS_CLEANUP_LOST_PROPERTY, "false")
-        System.setProperty(CoreTransactionsCleanupConfig.TRANSACTIONS_CLEANUP_REGULAR_PROPERTY, "false")
+        System.setProperty(
+          CoreTransactionsCleanupConfig.TRANSACTIONS_CLEANUP_LOST_PROPERTY,
+          "false"
+        )
+        System.setProperty(
+          CoreTransactionsCleanupConfig.TRANSACTIONS_CLEANUP_REGULAR_PROPERTY,
+          "false"
+        )
 
         var builder = ClusterEnvironment.builder
 
         val parsedConnstr = ConnectionString.create(cfg.connectionString)
-        if (cfg.sparkSslOptions.enabled || parsedConnstr.scheme() == ConnectionString.Scheme.COUCHBASES) {
+        if (
+          cfg.sparkSslOptions.enabled || parsedConnstr
+            .scheme() == ConnectionString.Scheme.COUCHBASES
+        ) {
           var securityConfig = SecurityConfig().enableTls(true)
           if (cfg.sparkSslOptions.keystorePath.isDefined) {
-            securityConfig = securityConfig.trustStore(Paths.get(cfg.sparkSslOptions.keystorePath.get), cfg.sparkSslOptions.keystorePassword.get)
+            securityConfig = securityConfig.trustStore(
+              Paths.get(cfg.sparkSslOptions.keystorePath.get),
+              cfg.sparkSslOptions.keystorePassword.get
+            )
           } else if (cfg.sparkSslOptions.insecure) {
-            securityConfig = securityConfig.trustManagerFactory(InsecureTrustManagerFactory.INSTANCE)
+            securityConfig =
+              securityConfig.trustManagerFactory(InsecureTrustManagerFactory.INSTANCE)
           }
           builder = builder.securityConfig(securityConfig)
         }
@@ -75,14 +88,19 @@ class CouchbaseConnection extends Serializable with Logging {
       }
 
       if (clusterRef.isEmpty) {
-        clusterRef = Option(Cluster.connect(
-          cfg.connectionString,
-          ClusterOptions
-            .create(cfg.credentials.username, cfg.credentials.password)
-            .environment(envRef.get)
-        ).get)
+        clusterRef = Option(
+          Cluster
+            .connect(
+              cfg.connectionString,
+              ClusterOptions
+                .create(cfg.credentials.username, cfg.credentials.password)
+                .environment(envRef.get)
+            )
+            .get
+        )
 
-        val waitUntilReadyTimeout = cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
+        val waitUntilReadyTimeout =
+          cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
         clusterRef.get.waitUntilReady(waitUntilReadyTimeout)
       }
 
@@ -100,7 +118,11 @@ class CouchbaseConnection extends Serializable with Logging {
     bucket(cfg, bucketName, None)
   }
 
-  private def bucket(cfg: CouchbaseConfig, bucketName: Option[String], c: Option[Cluster]): Bucket = {
+  private def bucket(
+      cfg: CouchbaseConfig,
+      bucketName: Option[String],
+      c: Option[Cluster]
+  ): Bucket = {
     val bname = this.bucketName(cfg, bucketName)
     this.synchronized {
       if (bucketsRef.contains(bname)) {
@@ -108,11 +130,12 @@ class CouchbaseConnection extends Serializable with Logging {
       }
       val bucket = c match {
         case Some(cl) => cl.bucket(bname)
-        case None => cluster(cfg).bucket(bname)
+        case None     => cluster(cfg).bucket(bname)
       }
       bucketsRef.put(bname, bucket)
 
-      val waitUntilReadyTimeout = cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
+      val waitUntilReadyTimeout =
+        cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
       bucket.waitUntilReady(waitUntilReadyTimeout)
       bucket
     }
@@ -128,13 +151,19 @@ class CouchbaseConnection extends Serializable with Logging {
     }
   }
 
-  def collection(cfg: CouchbaseConfig, bucketName: Option[String], scopeName: Option[String],
-                 collectionName: Option[String]): Collection = {
-    val parsedScopeName = this.scopeName(cfg, scopeName)
+  def collection(
+      cfg: CouchbaseConfig,
+      bucketName: Option[String],
+      scopeName: Option[String],
+      collectionName: Option[String]
+  ): Collection = {
+    val parsedScopeName      = this.scopeName(cfg, scopeName)
     val parsedCollectionName = this.collectionName(cfg, collectionName)
 
-    if (parsedScopeName.equals(CollectionIdentifier.DEFAULT_SCOPE)
-      && parsedCollectionName.equals(CollectionIdentifier.DEFAULT_COLLECTION)) {
+    if (
+      parsedScopeName.equals(CollectionIdentifier.DEFAULT_SCOPE)
+      && parsedCollectionName.equals(CollectionIdentifier.DEFAULT_COLLECTION)
+    ) {
       bucket(cfg, bucketName).defaultCollection
     } else {
       scope(cfg, bucketName, scopeName).collection(parsedCollectionName)
@@ -162,30 +191,38 @@ class CouchbaseConnection extends Serializable with Logging {
   def bucketName(cfg: CouchbaseConfig, name: Option[String]): String = {
     name.orElse(cfg.bucketName) match {
       case Some(name) => name
-      case None => throw InvalidArgumentException
-        .fromMessage("No bucketName provided (neither configured globally, "
-          + "nor in the per-command options)")
+      case None =>
+        throw InvalidArgumentException
+          .fromMessage(
+            "No bucketName provided (neither configured globally, "
+              + "nor in the per-command options)"
+          )
     }
   }
 
   private def scopeName(cfg: CouchbaseConfig, name: Option[String]): String = {
     name.orElse(cfg.scopeName) match {
       case Some(name) => name
-      case None => CollectionIdentifier.DEFAULT_SCOPE
+      case None       => CollectionIdentifier.DEFAULT_SCOPE
     }
   }
 
   private def collectionName(cfg: CouchbaseConfig, name: Option[String]): String = {
     name.orElse(cfg.collectionName) match {
       case Some(name) => name
-      case None => CollectionIdentifier.DEFAULT_COLLECTION
+      case None       => CollectionIdentifier.DEFAULT_COLLECTION
     }
   }
 
   def dcpSeedNodes(cfg: CouchbaseConfig): String = {
-    val allSeedNodes = CouchbaseConnection().cluster(cfg).async.core.configurationProvider()
+    val allSeedNodes = CouchbaseConnection()
+      .cluster(cfg)
+      .async
+      .core
+      .configurationProvider()
       .seedNodes()
-      .blockFirst().asScala
+      .blockFirst()
+      .asScala
       .map(_.address())
 
     allSeedNodes.mkString(",")
@@ -224,7 +261,7 @@ object CouchbaseConnection {
 }
 
 class SparkPropertyLoader(properties: Seq[(String, String)])
-  extends AbstractMapPropertyLoader[CoreEnvironment.Builder[_]]{
+    extends AbstractMapPropertyLoader[CoreEnvironment.Builder[_]] {
   override def propertyMap(): util.Map[String, String] = {
     properties.toMap.asJava
   }

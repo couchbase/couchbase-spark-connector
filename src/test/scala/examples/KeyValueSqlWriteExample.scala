@@ -32,16 +32,18 @@ object KeyValueSqlWriteExample {
       .config("spark.couchbase.implicitBucket", "travel-sample")
       .getOrCreate()
 
-    val airlines = spark.read.format("couchbase.query")
+    val airlines = spark.read
+      .format("couchbase.query")
       .option(QueryOptions.Filter, "type = 'airline'")
       .load()
       .limit(5)
 
-    airlines.write.format("couchbase.kv")
+    airlines.write
+      .format("couchbase.kv")
       .option(KeyValueOptions.Bucket, "travel-sample")
       .option(KeyValueOptions.Durability, KeyValueOptions.MajorityDurability)
       .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
-      //.option(KeyValueOptions.Timeout, "10s")
+      // .option(KeyValueOptions.Timeout, "10s")
       .mode(SaveMode.Ignore)
       .save()
   }

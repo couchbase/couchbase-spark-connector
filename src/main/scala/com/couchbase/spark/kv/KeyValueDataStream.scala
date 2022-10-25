@@ -31,11 +31,13 @@ import org.json4s.{DefaultFormats, NoTypeHints}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: String) extends SparkDataStream with Logging {
+class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: String)
+    extends SparkDataStream
+    with Logging {
 
   implicit val defaultFormats: DefaultFormats = DefaultFormats
 
-  private lazy val sparkSession = SparkSession.active
+  private lazy val sparkSession  = SparkSession.active
   lazy val conf: CouchbaseConfig = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   val dcpClient: Client = Client
@@ -44,13 +46,17 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
     .bucket(config.bucket)
     .collectionsAware(config.scope.isDefined || config.collections.nonEmpty)
     .scopeName(if (config.scope.isDefined && config.collections.isEmpty) config.scope.get else null)
-    .collectionNames(config.collections.map(c => {
-      val scope = config.scope match {
-        case Some(s) => s
-        case None => "_default"
-      }
-      scope + "." + c
-    }).asJava)
+    .collectionNames(
+      config.collections
+        .map(c => {
+          val scope = config.scope match {
+            case Some(s) => s
+            case None    => "_default"
+          }
+          scope + "." + c
+        })
+        .asJava
+    )
     .userAgent(Version.productName, Version.version, "stream")
     .credentials(conf.credentials.username, conf.credentials.password)
     .securityConfig(CouchbaseConnection().dcpSecurityConfig(conf))
@@ -61,14 +67,15 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
   override def initialOffset(): Offset = {
     val inputPartitions = config.numInputPartitions
 
-    logInfo(s"Constructing initial offset for $inputPartitions input partitions " +
-      s"over $numKvPartitions kv partitions (vbuckets)")
+    logInfo(
+      s"Constructing initial offset for $inputPartitions input partitions " +
+        s"over $numKvPartitions kv partitions (vbuckets)"
+    )
 
-    val groupedOffsets = reloadStartOffsetCheckpoints()
-      .zipWithIndex
+    val groupedOffsets = reloadStartOffsetCheckpoints().zipWithIndex
       .groupBy(v => Math.floor(v._2 % inputPartitions))
       .values
-      .map(v =>  {
+      .map(v => {
         val offsets = v.keys.toMap
         KeyValuePartitionOffset(offsets, None).asInstanceOf[PartitionOffset]
       })
@@ -108,7 +115,7 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
       .failoverLogs(partitionsAndSeqnos.map(pas => Integer.valueOf(pas.partition())).asJava)
       .map[(Int, Long)](event => {
         val partition = DcpFailoverLogResponse.vbucket(event)
-        val entries = DcpFailoverLogResponse.entries(event)
+        val entries   = DcpFailoverLogResponse.entries(event)
         val vbUuid = if (entries.size() > 0) {
           entries.get(0).getUuid
         } else {
@@ -121,17 +128,21 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
       .asScala
       .toMap
 
-    partitionsAndSeqnos.map(pas => {
-      val vbUuid = failoverLogs(pas.partition())
-      (pas.partition(), KeyValueStreamOffset(vbUuid, pas.seqno(), pas.seqno(), pas.seqno(), 0))
-    }).toMap
+    partitionsAndSeqnos
+      .map(pas => {
+        val vbUuid = failoverLogs(pas.partition())
+        (pas.partition(), KeyValueStreamOffset(vbUuid, pas.seqno(), pas.seqno(), pas.seqno(), 0))
+      })
+      .toMap
   }
 
   /** Returns the number of KV partitions the connected cluster has. */
   def numKvPartitions: Int = dcpClient.numPartitions()
 
   override def deserializeOffset(json: String): Offset = {
-    val offsets = Serialization.read[List[Map[String, Map[Int, KeyValueStreamOffset]]]](json).map(so => KeyValuePartitionOffset(so("start"), so.get("end")))
+    val offsets = Serialization
+      .read[List[Map[String, Map[Int, KeyValueStreamOffset]]]](json)
+      .map(so => KeyValuePartitionOffset(so("start"), so.get("end")))
     val o = KeyValueOffset(offsets)
     logTrace(s"Deserializing offset $json into $o")
     o
@@ -145,25 +156,41 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
 
 }
 
-/**
- * Holds the offset information for an individual vbucket.
- */
-case class KeyValuePartitionOffset(streamStartOffsets: Map[Int, KeyValueStreamOffset],
-                                   streamEndOffsets: Option[Map[Int, KeyValueStreamOffset]]) extends PartitionOffset
+/** Holds the offset information for an individual vbucket.
+  */
+case class KeyValuePartitionOffset(
+    streamStartOffsets: Map[Int, KeyValueStreamOffset],
+    streamEndOffsets: Option[Map[Int, KeyValueStreamOffset]]
+) extends PartitionOffset
 
-case class KeyValueStreamOffset(vbuuid: Long, seqno: Long, snapshotStartSeqno: Long,
-                                snapshotEndSeqno: Long, collectionsManifestUid: Long) {
+case class KeyValueStreamOffset(
+    vbuuid: Long,
+    seqno: Long,
+    snapshotStartSeqno: Long,
+    snapshotEndSeqno: Long,
+    collectionsManifestUid: Long
+) {
 
   def toStreamOffset: StreamOffset = {
-    new StreamOffset(vbuuid, seqno, new SnapshotMarker(snapshotStartSeqno, snapshotEndSeqno), collectionsManifestUid)
+    new StreamOffset(
+      vbuuid,
+      seqno,
+      new SnapshotMarker(snapshotStartSeqno, snapshotEndSeqno),
+      collectionsManifestUid
+    )
   }
 
 }
 
 object KeyValueStreamOffset {
   def apply(so: StreamOffset): KeyValueStreamOffset = {
-    KeyValueStreamOffset(so.getVbuuid, so.getSeqno, so.getSnapshot.getStartSeqno,
-      so.getSnapshot.getEndSeqno, so.getCollectionsManifestUid)
+    KeyValueStreamOffset(
+      so.getVbuuid,
+      so.getSeqno,
+      so.getSnapshot.getStartSeqno,
+      so.getSnapshot.getEndSeqno,
+      so.getCollectionsManifestUid
+    )
   }
 }
 
@@ -177,5 +204,9 @@ case class KeyValueOffset(offsets: List[PartitionOffset]) extends Offset {
   }
 }
 
-case class KeyValueInputPartition(schema: StructType, partitionOffset: KeyValuePartitionOffset, conf: CouchbaseConfig, config: KeyValueStreamConfig)
-  extends InputPartition
+case class KeyValueInputPartition(
+    schema: StructType,
+    partitionOffset: KeyValuePartitionOffset,
+    conf: CouchbaseConfig,
+    config: KeyValueStreamConfig
+) extends InputPartition

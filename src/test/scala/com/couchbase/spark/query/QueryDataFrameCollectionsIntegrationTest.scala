@@ -31,10 +31,10 @@ import java.util.UUID
 class QueryDataFrameCollectionsIntegrationTest {
 
   var container: CouchbaseContainer = _
-  var spark: SparkSession = _
+  var spark: SparkSession           = _
 
-  private val bucketName = UUID.randomUUID().toString
-  private val scopeName = UUID.randomUUID().toString
+  private val bucketName            = UUID.randomUUID().toString
+  private val scopeName             = UUID.randomUUID().toString
   private val airportCollectionName = UUID.randomUUID().toString
 
   @BeforeAll
@@ -53,7 +53,8 @@ class QueryDataFrameCollectionsIntegrationTest {
       .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
 
-    val bucket = CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
+    val bucket =
+      CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
 
     bucket.collections.createScope(scopeName)
     bucket.collections.createCollection(CollectionSpec(airportCollectionName, scopeName))
@@ -71,8 +72,7 @@ class QueryDataFrameCollectionsIntegrationTest {
   }
 
   private def prepareSampleData(): Unit = {
-    val airports = spark
-      .read
+    val airports = spark.read
       .json("src/test/resources/airports.json")
 
     airports.write
@@ -127,10 +127,9 @@ class QueryDataFrameCollectionsIntegrationTest {
 
     val aggregates = spark.sql("select max(elevation) as el, min(runways) as run from airports")
 
-    aggregates.queryExecution.optimizedPlan.collect {
-      case p: DataSourceV2ScanRelation =>
-        assertTrue(p.toString().contains("MAX(`elevation`)"))
-        assertTrue(p.toString().contains("MIN(`runways`)"))
+    aggregates.queryExecution.optimizedPlan.collect { case p: DataSourceV2ScanRelation =>
+      assertTrue(p.toString().contains("MAX(`elevation`)"))
+      assertTrue(p.toString().contains("MIN(`runways`)"))
     }
 
     assertEquals(204, aggregates.first().getAs[Long]("el"))
@@ -148,19 +147,19 @@ class QueryDataFrameCollectionsIntegrationTest {
 
     airports.createOrReplaceTempView("airports")
 
-    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run, country from airports group by country")
+    val aggregates = spark.sql(
+      "select max(elevation) as el, min(runways) as run, country from airports group by country"
+    )
 
-    aggregates.queryExecution.optimizedPlan.collect {
-      case p: DataSourceV2ScanRelation =>
-        assertTrue(p.toString().contains("country"))
-        assertTrue(p.toString().contains("MAX(`elevation`)"))
-        assertTrue(p.toString().contains("MIN(`runways`)"))
+    aggregates.queryExecution.optimizedPlan.collect { case p: DataSourceV2ScanRelation =>
+      assertTrue(p.toString().contains("country"))
+      assertTrue(p.toString().contains("MAX(`elevation`)"))
+      assertTrue(p.toString().contains("MIN(`runways`)"))
     }
 
     assertEquals(3, aggregates.count())
     assertEquals(183, aggregates.where("country = 'Austria'").first().getAs[Long]("el"))
     assertEquals(4, aggregates.where("country = 'Germany'").first().getAs[Long]("run"))
   }
-
 
 }

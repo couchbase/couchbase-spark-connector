@@ -33,8 +33,7 @@ object ReplaceRDDExample {
 
     import com.couchbase.spark._
 
-    spark
-      .sparkContext
+    spark.sparkContext
       .couchbaseGet(Seq(Get("airline_10642"), Get("airline_10748")))
       .map(getResult => Insert(getResult.id, getResult.contentAs[JsonObject].get))
       .couchbaseInsert(keyspace = Keyspace(bucket = Some("foo")), ignoreIfExists = true)

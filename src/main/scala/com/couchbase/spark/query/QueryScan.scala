@@ -24,7 +24,12 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-class QueryScan(schema: StructType, readConfig: QueryReadConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Scan {
+class QueryScan(
+    schema: StructType,
+    readConfig: QueryReadConfig,
+    filters: Array[Filter],
+    aggregations: Option[Aggregation]
+) extends Scan {
 
   private lazy val conf = CouchbaseConfig(SparkSession.active.sparkContext.getConf)
 

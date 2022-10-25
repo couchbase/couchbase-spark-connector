@@ -33,9 +33,11 @@ object QueryRDDExample {
 
     import com.couchbase.spark._
 
-    spark
-      .sparkContext
-      .couchbaseQuery[JsonObject]("select count(*) as count from airport", keyspace = Keyspace(scope = Some("inventory")))
+    spark.sparkContext
+      .couchbaseQuery[JsonObject](
+        "select count(*) as count from airport",
+        keyspace = Keyspace(scope = Some("inventory"))
+      )
       .collect()
       .foreach(println)
   }

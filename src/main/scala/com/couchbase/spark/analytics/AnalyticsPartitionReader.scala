@@ -21,10 +21,33 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
-import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.sources.{
+  AlwaysFalse,
+  AlwaysTrue,
+  And,
+  EqualNullSafe,
+  EqualTo,
+  Filter,
+  GreaterThan,
+  GreaterThanOrEqual,
+  In,
+  IsNotNull,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  Not,
+  Or,
+  StringContains,
+  StringEndsWith,
+  StringStartsWith
+}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
-import com.couchbase.client.scala.analytics.{AnalyticsMetrics, AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
+import com.couchbase.client.scala.analytics.{
+  AnalyticsMetrics,
+  AnalyticsScanConsistency,
+  AnalyticsOptions => CouchbaseAnalyticsOptions
+}
 import com.couchbase.spark.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
@@ -32,26 +55,34 @@ import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import scala.concurrent.duration.Duration
 import scala.util.matching.Regex
 
-class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig,
-                               filters: Array[Filter], aggregations: Option[Aggregation])
-  extends PartitionReader[InternalRow]
+class AnalyticsPartitionReader(
+    schema: StructType,
+    conf: CouchbaseConfig,
+    readConfig: AnalyticsReadConfig,
+    filters: Array[Filter],
+    aggregations: Option[Aggregation]
+) extends PartitionReader[InternalRow]
     with Logging {
 
-  private val parser = CouchbaseJsonUtils.jsonParser(schema)
+  private val parser       = CouchbaseJsonUtils.jsonParser(schema)
   private val createParser = CouchbaseJsonUtils.createParser()
 
   private var resultMetrics: Option[AnalyticsMetrics] = None
 
   private val groupByColumns = aggregations match {
     case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
-    case None => Seq.empty
+    case None      => Seq.empty
   }
 
   private lazy val result = {
     if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
       CouchbaseConnection().cluster(conf).analyticsQuery(buildAnalyticsQuery(), buildOptions())
     } else {
-      CouchbaseConnection().cluster(conf).bucket(readConfig.bucket.get).scope(readConfig.scope.get).analyticsQuery(buildAnalyticsQuery(), buildOptions())
+      CouchbaseConnection()
+        .cluster(conf)
+        .bucket(readConfig.bucket.get)
+        .scope(readConfig.scope.get)
+        .analyticsQuery(buildAnalyticsQuery(), buildOptions())
     }
   }
 
@@ -81,11 +112,14 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
         parser.parse(row, createParser, UTF8String.fromString)
       } catch {
         case e: Exception =>
-          throw new IllegalStateException(s"Could not parse row $row based on provided schema $schema.", e)
+          throw new IllegalStateException(
+            s"Could not parse row $row based on provided schema $schema.",
+            e
+          )
       }
     })
 
-  private lazy val rowIterator = rows.iterator
+  private lazy val rowIterator       = rows.iterator
   protected var lastRow: InternalRow = InternalRow()
 
   override def next(): Boolean = if (rowIterator.hasNext) {
@@ -96,11 +130,10 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
   }
 
   override def get(): InternalRow = lastRow
-  override def close(): Unit = {}
+  override def close(): Unit      = {}
 
   def buildAnalyticsQuery(): String = {
-    var fields = schema
-      .fields
+    var fields = schema.fields
       .map(f => f.name)
       .filter(f => !f.equals(readConfig.idFieldName))
       .map(f => maybeEscapeField(f))
@@ -108,7 +141,7 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
       fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
     }
 
-    var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
+    var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = compileFilter(filters)
     if (compiledFilters.nonEmpty && predicate.nonEmpty) {
       predicate = predicate + " AND " + compiledFilters
@@ -117,25 +150,30 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
     }
 
     val groupBy = if (hasAggregateGroupBy) {
-      " GROUP BY " + aggregations.get.groupByExpressions().map(n => s"`${n.references().head}`").mkString(", ")
+      " GROUP BY " + aggregations.get
+        .groupByExpressions()
+        .map(n => s"`${n.references().head}`")
+        .mkString(", ")
     } else {
       ""
     }
 
     val fieldsEncoded = fields.mkString(", ")
-    val query = s"select $fieldsEncoded from `${readConfig.dataset}`$predicate$groupBy"
+    val query         = s"select $fieldsEncoded from `${readConfig.dataset}`$predicate$groupBy"
 
     logDebug(s"Building and running Analytics query $query")
     query
   }
 
   def maybeEscapeField(field: String): String = {
-    if (field.startsWith("MAX")
+    if (
+      field.startsWith("MAX")
       || field.startsWith("MIN")
       || field.startsWith("COUNT")
       || field.startsWith("SUM")
       || field.startsWith("AVG")
-      || field.startsWith("`")) {
+      || field.startsWith("`")
+    ) {
       field
     } else {
       s"`$field`"
@@ -145,28 +183,32 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
   def buildOptions(): CouchbaseAnalyticsOptions = {
     var opts = CouchbaseAnalyticsOptions()
     readConfig.scanConsistency match {
-      case AnalyticsOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
-      case AnalyticsOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
+      case AnalyticsOptions.NotBoundedScanConsistency =>
+        opts = opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
+      case AnalyticsOptions.RequestPlusScanConsistency =>
+        opts = opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
     readConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
 
-
   /** Transform the filters into a analytics sql++ where clause.
-   *
-   * @todo In, And, Or, Not filters including recursion
-   * @param filters the filters to transform
-   * @return the transformed raw analytics sql++ clause
-   */
+    *
+    * @todo
+    *   In, And, Or, Not filters including recursion
+    * @param filters
+    *   the filters to transform
+    * @return
+    *   the transformed raw analytics sql++ clause
+    */
   def compileFilter(filters: Array[Filter]): String = {
     if (filters.isEmpty) {
       return ""
     }
 
     val filter = new StringBuilder()
-    var i = 0
+    var i      = 0
 
     filters.foreach(f => {
       try {
@@ -184,30 +226,36 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
     filter.toString()
   }
 
-  /**
-   * Turns a filter into a sql++ expression.
-   *
-   * @param filter the filter to convert
-   * @return the resulting expression
-   */
+  /** Turns a filter into a sql++ expression.
+    *
+    * @param filter
+    *   the filter to convert
+    * @return
+    *   the resulting expression
+    */
   def filterToExpression(filter: Filter): String = {
     filter match {
       case AlwaysFalse() => " FALSE"
-      case AlwaysTrue() => " TRUE"
+      case AlwaysTrue()  => " TRUE"
       case And(left, right) =>
         val l = filterToExpression(left)
         val r = filterToExpression(right)
         s" ($l AND $r)"
-      case EqualNullSafe(attr, value) => s" (NOT (${attrToFilter(attr)} != "+valueToFilter(value)+s" OR ${attrToFilter(attr)} IS NULL OR "+valueToFilter(value)+s" IS NULL) OR (${attrToFilter(attr)} IS NULL AND " + valueToFilter(value) + " IS NULL))"
-      case EqualTo(attr, value) => s" ${attrToFilter(attr)} = " + valueToFilter(value)
-      case GreaterThan(attr, value) => s" ${attrToFilter(attr)} > " + valueToFilter(value)
+      case EqualNullSafe(attr, value) =>
+        s" (NOT (${attrToFilter(attr)} != " + valueToFilter(value) + s" OR ${attrToFilter(attr)} IS NULL OR " + valueToFilter(
+          value
+        ) + s" IS NULL) OR (${attrToFilter(attr)} IS NULL AND " + valueToFilter(
+          value
+        ) + " IS NULL))"
+      case EqualTo(attr, value)            => s" ${attrToFilter(attr)} = " + valueToFilter(value)
+      case GreaterThan(attr, value)        => s" ${attrToFilter(attr)} > " + valueToFilter(value)
       case GreaterThanOrEqual(attr, value) => s" ${attrToFilter(attr)} >= " + valueToFilter(value)
       case In(attr, values) =>
         val encoded = values.map(valueToFilter).mkString(",")
         s" `$attr` IN [$encoded]"
-      case IsNotNull(attr) => s" ${attrToFilter(attr)} IS NOT NULL"
-      case IsNull(attr) => s" ${attrToFilter(attr)} IS NULL"
-      case LessThan(attr, value) => s" ${attrToFilter(attr)} < " + valueToFilter(value)
+      case IsNotNull(attr)              => s" ${attrToFilter(attr)} IS NOT NULL"
+      case IsNull(attr)                 => s" ${attrToFilter(attr)} IS NULL"
+      case LessThan(attr, value)        => s" ${attrToFilter(attr)} < " + valueToFilter(value)
       case LessThanOrEqual(attr, value) => s" ${attrToFilter(attr)} <= " + valueToFilter(value)
       case Not(f) =>
         val v = filterToExpression(f)
@@ -229,27 +277,27 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
 
   def valueToFilter(value: Any): String = value match {
     case v: String => s"'$v'"
-    case v => s"$v"
+    case v         => s"$v"
   }
 
   val VerbatimRegex: Regex = """'(.*)'""".r
 
   def attrToFilter(attr: String): String = attr match {
     case VerbatimRegex(innerAttr) => innerAttr
-    case v => v.split('.').map(elem => s"`$elem`").mkString(".")
+    case v                        => v.split('.').map(elem => s"`$elem`").mkString(".")
   }
 
   def hasAggregateFields: Boolean = {
     aggregations match {
       case Some(a) => !a.aggregateExpressions().isEmpty
-      case None => false
+      case None    => false
     }
   }
 
   def hasAggregateGroupBy: Boolean = {
     aggregations match {
       case Some(a) => !a.groupByExpressions().isEmpty
-      case None => false
+      case None    => false
     }
   }
 
@@ -259,32 +307,32 @@ class AnalyticsPartitionReader(schema: StructType, conf: CouchbaseConfig, readCo
         Array(
           new CustomTaskMetric {
             override def name(): String = "elapsedTimeMs"
-            override def value(): Long = m.elapsedTime.toMillis
+            override def value(): Long  = m.elapsedTime.toMillis
           },
           new CustomTaskMetric {
             override def name(): String = "executionTimeMs"
-            override def value(): Long = m.executionTime.toMillis
+            override def value(): Long  = m.executionTime.toMillis
           },
           new CustomTaskMetric {
             override def name(): String = "errorCount"
-            override def value(): Long = m.errorCount
+            override def value(): Long  = m.errorCount
           },
           new CustomTaskMetric {
             override def name(): String = "resultSize"
-            override def value(): Long = m.resultSize
+            override def value(): Long  = m.resultSize
           },
           new CustomTaskMetric {
             override def name(): String = "processedObjects"
-            override def value(): Long = m.processedObjects
+            override def value(): Long  = m.processedObjects
           },
           new CustomTaskMetric {
             override def name(): String = "resultCount"
-            override def value(): Long = m.resultCount
+            override def value(): Long  = m.resultCount
           },
           new CustomTaskMetric {
             override def name(): String = "warningCount"
-            override def value(): Long = m.warningCount
-          },
+            override def value(): Long  = m.warningCount
+          }
         )
       case None => Array()
     }

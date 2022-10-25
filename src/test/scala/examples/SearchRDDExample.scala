@@ -31,6 +31,9 @@ object SearchRDDExample {
 
     import com.couchbase.spark._
 
-    spark.sparkContext.couchbaseSearchQuery("airports", SearchQuery.queryString("a*")).collect().foreach(println)
+    spark.sparkContext
+      .couchbaseSearchQuery("airports", SearchQuery.queryString("a*"))
+      .collect()
+      .foreach(println)
   }
 }

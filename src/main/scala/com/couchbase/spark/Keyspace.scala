@@ -15,17 +15,23 @@
  */
 package com.couchbase.spark
 
-/**
- * The keyspace reflects a triple/coordinate of bucket, scope and collection.
- *
- * Note that not all APIs need all three values to be set. Depending on the context where the keyspace is used or
- * the type of service (i.e. kv vs. query) it might be sufficient to only provide a subset. See the individual semantics
- * for each operation if in doubt.
- *
- * @param bucket the bucket name, if present.
- * @param scope the scope name, if present.
- * @param collection the collection name, if present.
- */
-case class Keyspace(bucket: Option[String] = None, scope: Option[String] = None, collection: Option[String] = None) {
+/** The keyspace reflects a triple/coordinate of bucket, scope and collection.
+  *
+  * Note that not all APIs need all three values to be set. Depending on the context where the
+  * keyspace is used or the type of service (i.e. kv vs. query) it might be sufficient to only
+  * provide a subset. See the individual semantics for each operation if in doubt.
+  *
+  * @param bucket
+  *   the bucket name, if present.
+  * @param scope
+  *   the scope name, if present.
+  * @param collection
+  *   the collection name, if present.
+  */
+case class Keyspace(
+    bucket: Option[String] = None,
+    scope: Option[String] = None,
+    collection: Option[String] = None
+) {
   def isEmpty: Boolean = bucket.isEmpty && scope.isEmpty && collection.isEmpty
 }

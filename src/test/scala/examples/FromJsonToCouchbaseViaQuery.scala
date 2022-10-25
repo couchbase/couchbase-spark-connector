@@ -32,9 +32,10 @@ object FromJsonToCouchbaseViaQuery {
 
     import spark.implicits._
     val jsonStr1 = """{"__META_ID": "foo", "bla": "baz"}"""
-    val df = spark.read.json(Seq(jsonStr1).toDS)
+    val df       = spark.read.json(Seq(jsonStr1).toDS)
 
-    df.write.format("couchbase.query")
+    df.write
+      .format("couchbase.query")
       .mode(SaveMode.Overwrite)
       .save()
 

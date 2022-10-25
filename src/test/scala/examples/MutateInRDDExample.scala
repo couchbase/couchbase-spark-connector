@@ -33,9 +33,10 @@ object MutateInRDDExample {
 
     import com.couchbase.spark._
 
-    spark
-      .sparkContext
-      .couchbaseMutateIn(Seq(MutateIn("airline_10", Seq(MutateInSpec.replace("name", "modifiedName")))))
+    spark.sparkContext
+      .couchbaseMutateIn(
+        Seq(MutateIn("airline_10", Seq(MutateInSpec.replace("name", "modifiedName"))))
+      )
       .collect()
       .foreach(println)
   }

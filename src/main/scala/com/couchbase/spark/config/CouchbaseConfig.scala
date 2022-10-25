@@ -22,24 +22,31 @@ import java.util.Locale
 
 case class Credentials(username: String, password: String)
 
-case class SparkSslOptions(enabled: Boolean, keystorePath: Option[String], keystorePassword: Option[String], insecure: Boolean)
+case class SparkSslOptions(
+    enabled: Boolean,
+    keystorePath: Option[String],
+    keystorePassword: Option[String],
+    insecure: Boolean
+)
 
 case class CouchbaseConfig(
-  connectionString: String,
-  credentials: Credentials,
-  bucketName: Option[String],
-  scopeName: Option[String],
-  collectionName: Option[String],
-  waitUntilReadyTimeout: Option[String],
-  sparkSslOptions: SparkSslOptions,
-  properties: Seq[(String, String)]
+    connectionString: String,
+    credentials: Credentials,
+    bucketName: Option[String],
+    scopeName: Option[String],
+    collectionName: Option[String],
+    waitUntilReadyTimeout: Option[String],
+    sparkSslOptions: SparkSslOptions,
+    properties: Seq[(String, String)]
 ) {
 
   def implicitBucketNameOr(explicitName: String): String = {
     var bn = Option(explicitName)
     if (bn.isEmpty && bucketName.isEmpty) {
-      throw new IllegalArgumentException("Either a implicitBucket needs to be configured, " +
-        "or a bucket name needs to be provided as part of the options!")
+      throw new IllegalArgumentException(
+        "Either a implicitBucket needs to be configured, " +
+          "or a bucket name needs to be provided as part of the options!"
+      )
     } else if (bn.isEmpty) {
       bn = bucketName
     }
@@ -65,7 +72,9 @@ case class CouchbaseConfig(
   def dcpConnectionString(): String = {
     val lowerCasedConnstr = connectionString.toLowerCase(Locale.ROOT)
 
-    if (lowerCasedConnstr.startsWith("couchbase://") || lowerCasedConnstr.startsWith("couchbases://")) {
+    if (
+      lowerCasedConnstr.startsWith("couchbase://") || lowerCasedConnstr.startsWith("couchbases://")
+    ) {
       connectionString
     } else {
       if (sparkSslOptions.enabled) {
@@ -82,24 +91,26 @@ object CouchbaseConfig {
 
   private val SPARK_PREFIX = "spark."
 
-  private val PREFIX = SPARK_PREFIX + "couchbase."
-  private val USERNAME = PREFIX + "username"
-  private val PASSWORD = PREFIX + "password"
-  private val CONNECTION_STRING = PREFIX + "connectionString"
-  private val BUCKET_NAME = PREFIX + "implicitBucket"
-  private val SCOPE_NAME = PREFIX + "implicitScope"
-  private val COLLECTION_NAME = PREFIX + "implicitCollection"
+  private val PREFIX                   = SPARK_PREFIX + "couchbase."
+  private val USERNAME                 = PREFIX + "username"
+  private val PASSWORD                 = PREFIX + "password"
+  private val CONNECTION_STRING        = PREFIX + "connectionString"
+  private val BUCKET_NAME              = PREFIX + "implicitBucket"
+  private val SCOPE_NAME               = PREFIX + "implicitScope"
+  private val COLLECTION_NAME          = PREFIX + "implicitCollection"
   private val WAIT_UNTIL_READY_TIMEOUT = PREFIX + "waitUntilReadyTimeout"
 
-  private val SPARK_SSL_PREFIX = SPARK_PREFIX + "ssl."
-  private val SPARK_SSL_ENABLED = SPARK_SSL_PREFIX + "enabled"
-  private val SPARK_SSL_KEYSTORE = SPARK_SSL_PREFIX + "keyStore"
+  private val SPARK_SSL_PREFIX            = SPARK_PREFIX + "ssl."
+  private val SPARK_SSL_ENABLED           = SPARK_SSL_PREFIX + "enabled"
+  private val SPARK_SSL_KEYSTORE          = SPARK_SSL_PREFIX + "keyStore"
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
-  private val SPARK_SSL_INSECURE = SPARK_SSL_PREFIX + "insecure"
+  private val SPARK_SSL_INSECURE          = SPARK_SSL_PREFIX + "insecure"
 
   def checkRequiredProperties(cfg: SparkConf): Unit = {
     if (!cfg.contains(CONNECTION_STRING)) {
-      throw new IllegalArgumentException("Required config property " + CONNECTION_STRING + " is not present")
+      throw new IllegalArgumentException(
+        "Required config property " + CONNECTION_STRING + " is not present"
+      )
     }
     if (!cfg.contains(USERNAME)) {
       throw new IllegalArgumentException("Required config property " + USERNAME + " is not present")
@@ -114,17 +125,17 @@ object CouchbaseConfig {
 
     val connectionString = cfg.get(CONNECTION_STRING)
 
-    val username = cfg.get(USERNAME)
-    val password = cfg.get(PASSWORD)
+    val username    = cfg.get(USERNAME)
+    val password    = cfg.get(PASSWORD)
     val credentials = Credentials(username, password)
 
-    val bucketName = cfg.getOption(BUCKET_NAME)
-    val scopeName = cfg.getOption(SCOPE_NAME)
-    val collectionName = cfg.getOption(COLLECTION_NAME)
+    val bucketName            = cfg.getOption(BUCKET_NAME)
+    val scopeName             = cfg.getOption(SCOPE_NAME)
+    val collectionName        = cfg.getOption(COLLECTION_NAME)
     val waitUntilReadyTimeout = cfg.getOption(WAIT_UNTIL_READY_TIMEOUT)
 
-    var useSsl = false
-    var keyStorePath: Option[String] = None
+    var useSsl                           = false
+    var keyStorePath: Option[String]     = None
     var keyStorePassword: Option[String] = None
 
     // check for spark-related SSL settings
@@ -137,9 +148,10 @@ object CouchbaseConfig {
     val sslInsecure = cfg.get(SPARK_SSL_INSECURE, "false").toBoolean
 
     val properties = cfg.getAllWithPrefix(PREFIX).toMap
-    val filteredProperties = properties.filterKeys(key => {
-      val prefixedKey = PREFIX + key
-      prefixedKey != USERNAME &&
+    val filteredProperties = properties
+      .filterKeys(key => {
+        val prefixedKey = PREFIX + key
+        prefixedKey != USERNAME &&
         prefixedKey != PASSWORD &&
         prefixedKey != CONNECTION_STRING &&
         prefixedKey != BUCKET_NAME &&
@@ -149,7 +161,8 @@ object CouchbaseConfig {
         prefixedKey != SPARK_SSL_ENABLED &&
         prefixedKey != SPARK_SSL_KEYSTORE &&
         prefixedKey != SPARK_SSL_KEYSTORE_PASSWORD
-    }).toSeq
+      })
+      .toSeq
 
     CouchbaseConfig(
       connectionString,

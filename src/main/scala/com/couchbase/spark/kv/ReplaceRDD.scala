@@ -23,18 +23,25 @@ import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
-class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Replace[T]], val keyspace: Keyspace,
-                val replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)(implicit serializer: JsonSerializer[T])
-  extends RDD[MutationResult](sc, Nil)
+class ReplaceRDD[T](
+    @transient private val sc: SparkContext,
+    val docs: Seq[Replace[T]],
+    val keyspace: Keyspace,
+    val replaceOptions: ReplaceOptions = null,
+    ignoreIfNotFound: Boolean = false
+)(implicit serializer: JsonSerializer[T])
+    extends RDD[MutationResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
-  private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
+  private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
-    val splitIds = split.asInstanceOf[KeyValuePartition].ids
+    val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
-    KeyValueOperationRunner.replace(globalConfig, keyspace, docsToWrite, replaceOptions, ignoreIfNotFound).iterator
+    KeyValueOperationRunner
+      .replace(globalConfig, keyspace, docsToWrite, replaceOptions, ignoreIfNotFound)
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
@@ -42,14 +49,16 @@ class ReplaceRDD[T](@transient private val sc: SparkContext, val docs: Seq[Repla
       .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for Replace operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(
+      s"Calculated KeyValuePartitions for Replace operation ${partitions.mkString("Array(", ", ", ")")}"
+    )
     partitions
   }
 
   override protected def getPreferredLocations(split: Partition): Seq[String] = {
     split.asInstanceOf[KeyValuePartition].location match {
       case Some(l) => Seq(l)
-      case _ => Nil
+      case _       => Nil
     }
   }
 

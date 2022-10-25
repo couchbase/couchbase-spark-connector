@@ -16,29 +16,43 @@
 package com.couchbase.spark.kv
 
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.connector.read.streaming.{ContinuousPartitionReaderFactory, ContinuousStream, Offset, PartitionOffset}
+import org.apache.spark.sql.connector.read.streaming.{
+  ContinuousPartitionReaderFactory,
+  ContinuousStream,
+  Offset,
+  PartitionOffset
+}
 import org.apache.spark.sql.types.StructType
 
-class KeyValueContinuousStream(schema: StructType, config: KeyValueStreamConfig, checkpointLocation: String)
-  extends KeyValueDataStream(config, checkpointLocation)
+class KeyValueContinuousStream(
+    schema: StructType,
+    config: KeyValueStreamConfig,
+    checkpointLocation: String
+) extends KeyValueDataStream(config, checkpointLocation)
     with ContinuousStream {
 
   override def planInputPartitions(start: Offset): Array[InputPartition] = {
     val inputPartitions = config.numInputPartitions
-    val keyValueOffset = start.asInstanceOf[KeyValueOffset]
-    val streamOffsets = keyValueOffset.offsets.flatMap(po => po.asInstanceOf[KeyValuePartitionOffset].streamStartOffsets)
+    val keyValueOffset  = start.asInstanceOf[KeyValueOffset]
+    val streamOffsets = keyValueOffset.offsets.flatMap(po =>
+      po.asInstanceOf[KeyValuePartitionOffset].streamStartOffsets
+    )
 
-    logInfo(s"(Re)planning $inputPartitions input partitions " +
-      s"over $numKvPartitions kv partitions (vbuckets)")
+    logInfo(
+      s"(Re)planning $inputPartitions input partitions " +
+        s"over $numKvPartitions kv partitions (vbuckets)"
+    )
 
-    val groupedOffsets = streamOffsets
-      .zipWithIndex
+    val groupedOffsets = streamOffsets.zipWithIndex
       .groupBy(v => Math.floor(v._2 % inputPartitions))
       .values
-      .map(v =>  {
+      .map(v => {
         val startOffsets = v.map(x => x._1).toMap
         KeyValueInputPartition(
-          schema, KeyValuePartitionOffset(startOffsets, None), conf, config
+          schema,
+          KeyValuePartitionOffset(startOffsets, None),
+          conf,
+          config
         ).asInstanceOf[InputPartition]
       })
       .toArray
@@ -49,11 +63,14 @@ class KeyValueContinuousStream(schema: StructType, config: KeyValueStreamConfig,
   }
 
   override def createContinuousReaderFactory(): ContinuousPartitionReaderFactory = {
-    (partition: InputPartition) => {
-      new KeyValuePartitionReader(partition.asInstanceOf[KeyValueInputPartition], true)
-    }
+    (partition: InputPartition) =>
+      {
+        new KeyValuePartitionReader(partition.asInstanceOf[KeyValueInputPartition], true)
+      }
   }
 
-  override def mergeOffsets(offsets: Array[PartitionOffset]): Offset = KeyValueOffset(offsets.toList)
+  override def mergeOffsets(offsets: Array[PartitionOffset]): Offset = KeyValueOffset(
+    offsets.toList
+  )
 
 }

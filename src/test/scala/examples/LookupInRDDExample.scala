@@ -33,8 +33,7 @@ object LookupInRDDExample {
 
     import com.couchbase.spark._
 
-    spark
-      .sparkContext
+    spark.sparkContext
       .couchbaseLookupIn(Seq(LookupIn("airline_10", Seq(LookupInSpec.get("name")))))
       .collect()
       .foreach(println)

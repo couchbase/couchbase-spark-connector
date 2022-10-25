@@ -34,14 +34,15 @@ object UpsertRDDExample {
 
     import com.couchbase.spark._
 
-    spark
-      .sparkContext
-      .couchbaseUpsert(Seq(Upsert("foo", JsonObject.create.put("foo", "bar"))), keyspace = Keyspace(bucket = Some("foo")))
+    spark.sparkContext
+      .couchbaseUpsert(
+        Seq(Upsert("foo", JsonObject.create.put("foo", "bar"))),
+        keyspace = Keyspace(bucket = Some("foo"))
+      )
       .collect()
       .foreach(println)
 
-    spark
-      .sparkContext
+    spark.sparkContext
       .couchbaseGet(Seq(Get("airline_10"), Get("airline_10642"), Get("airline_10748")))
       .map(getResult => Upsert(getResult.id, getResult.contentAs[JsonObject].get))
       .couchbaseUpsert(keyspace = Keyspace(bucket = Some("foo")))

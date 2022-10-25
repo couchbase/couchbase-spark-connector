@@ -17,39 +17,32 @@ package com.couchbase.spark
 
 import com.couchbase.client.core.io.CollectionIdentifier
 
-/**
- * Default constants used across the whole spark connector project.
- */
+/** Default constants used across the whole spark connector project.
+  */
 object DefaultConstants {
 
-  /**
-   * The default field name used for the document ID when used in queries.
-   */
+  /** The default field name used for the document ID when used in queries.
+    */
   val DefaultIdFieldName = "__META_ID"
 
-  /**
-   * The default query scan consistency to use if not provided by the user.
-   */
+  /** The default query scan consistency to use if not provided by the user.
+    */
   val DefaultQueryScanConsistency = "notBounded"
 
-  /**
-   * The default analytics scan consistency to use if not provided by the user.
-   */
+  /** The default analytics scan consistency to use if not provided by the user.
+    */
   val DefaultAnalyticsScanConsistency = "notBounded"
 
-  /**
-   * The default number of records applied as a limit when infering the schema.
-   */
+  /** The default number of records applied as a limit when infering the schema.
+    */
   val DefaultInferLimit = "1000"
 
-  /**
-   * The default scope name, if not provided.
-   */
+  /** The default scope name, if not provided.
+    */
   val DefaultScopeName: String = CollectionIdentifier.DEFAULT_SCOPE
 
-  /**
-   * The default collection name, if not provided.
-   */
+  /** The default collection name, if not provided.
+    */
   val DefaultCollectionName: String = CollectionIdentifier.DEFAULT_COLLECTION
 
 }

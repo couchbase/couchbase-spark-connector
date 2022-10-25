@@ -25,12 +25,15 @@ import java.io.{BufferedWriter, InputStream, InputStreamReader, OutputStream, Ou
 import java.nio.charset.StandardCharsets
 
 class KeyValueSourceInitialOffsetWriter(sparkSession: SparkSession, metadataPath: String)
- extends HDFSMetadataLog[Map[Int, KeyValueStreamOffset]](sparkSession, metadataPath) {
+    extends HDFSMetadataLog[Map[Int, KeyValueStreamOffset]](sparkSession, metadataPath) {
   implicit val defaultFormats: DefaultFormats = DefaultFormats
 
-  override protected def serialize(metadata: Map[Int, KeyValueStreamOffset], out: OutputStream): Unit = {
+  override protected def serialize(
+      metadata: Map[Int, KeyValueStreamOffset],
+      out: OutputStream
+  ): Unit = {
     implicit val formats = Serialization.formats(NoTypeHints)
-    val serialized = Serialization.write(metadata)
+    val serialized       = Serialization.write(metadata)
 
     val writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))
     writer.write(serialized)

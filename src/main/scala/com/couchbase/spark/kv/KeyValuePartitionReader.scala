@@ -33,42 +33,56 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.Duration
 
-/**
- * The KeyValuePartitionReader is responsible for actually streaming the mutations from a number of vbuckets.
- *
- * @param partition the partition that contains info about what to stream.
- * @param continuous if this is a continuous stream or microbatch.
- */
+/** The KeyValuePartitionReader is responsible for actually streaming the mutations from a number of
+  * vbuckets.
+  *
+  * @param partition
+  *   the partition that contains info about what to stream.
+  * @param continuous
+  *   if this is a continuous stream or microbatch.
+  */
 class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boolean)
-  extends ContinuousPartitionReader[InternalRow] {
+    extends ContinuousPartitionReader[InternalRow] {
 
-  private val streamConfig = partition.config
+  private val streamConfig    = partition.config
   private val couchbaseConfig = partition.conf
-  private val currentStreamOffsets = new ConcurrentHashMap[Int, KeyValueStreamOffset](partition.partitionOffset.streamStartOffsets.asJava)
-  private val streamsCompleted = new ConcurrentHashMap[Int, StreamEndReason]()
-  private val changeQueue = new LinkedBlockingQueue[DocumentChange](100)
-  private val errorQueue = new LinkedBlockingQueue[Throwable](1)
+  private val currentStreamOffsets = new ConcurrentHashMap[Int, KeyValueStreamOffset](
+    partition.partitionOffset.streamStartOffsets.asJava
+  )
+  private val streamsCompleted             = new ConcurrentHashMap[Int, StreamEndReason]()
+  private val changeQueue                  = new LinkedBlockingQueue[DocumentChange](100)
+  private val errorQueue                   = new LinkedBlockingQueue[Throwable](1)
   private var currentEntry: DocumentChange = _
-  private val ownedVbuckets = partition.partitionOffset.streamStartOffsets.keys
+  private val ownedVbuckets                = partition.partitionOffset.streamStartOffsets.keys
 
   private val dcpClient = Client
     .builder()
     .seedNodes(CouchbaseConnection().dcpSeedNodes(couchbaseConfig))
     .securityConfig(CouchbaseConnection().dcpSecurityConfig(couchbaseConfig))
     .flowControl(streamConfig.flowControlBufferSize.getOrElse(1024 * 1024 * 10))
-    .mitigateRollbacks(Duration(streamConfig.persistencePollingInterval.getOrElse("100ms")).toMicros, TimeUnit.MICROSECONDS)
+    .mitigateRollbacks(
+      Duration(streamConfig.persistencePollingInterval.getOrElse("100ms")).toMicros,
+      TimeUnit.MICROSECONDS
+    )
     .userAgent(Version.productName, Version.version, "reader")
     .credentials(couchbaseConfig.credentials.username, couchbaseConfig.credentials.password)
     .bucket(streamConfig.bucket)
     .collectionsAware(streamConfig.scope.isDefined || streamConfig.collections.nonEmpty)
-    .scopeName(if (streamConfig.scope.isDefined && streamConfig.collections.isEmpty) streamConfig.scope.get else null)
-    .collectionNames(streamConfig.collections.map(c => {
-      val scope = streamConfig.scope match {
-        case Some(s) => s
-        case None => "_default"
-      }
-      scope + "." + c
-    }).asJava)
+    .scopeName(
+      if (streamConfig.scope.isDefined && streamConfig.collections.isEmpty) streamConfig.scope.get
+      else null
+    )
+    .collectionNames(
+      streamConfig.collections
+        .map(c => {
+          val scope = streamConfig.scope match {
+            case Some(s) => s
+            case None    => "_default"
+          }
+          scope + "." + c
+        })
+        .asJava
+    )
     .noValue(!streamConfig.streamContent)
     .xattrs(streamConfig.streamXattrs)
     .build()
@@ -76,53 +90,59 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
   attachAndConnectDcpListener()
   initAndStartDcpStream()
 
-  /**
-   * Attaches the change and error queues to the high-level DCP API.
-   *
-   * After the listener is attached, the DCP client is instructed to connect.
-   */
+  /** Attaches the change and error queues to the high-level DCP API.
+    *
+    * After the listener is attached, the DCP client is instructed to connect.
+    */
   private def attachAndConnectDcpListener(): Unit = {
-    dcpClient.listener(new DatabaseChangeListener {
-      override def onMutation(mutation: Mutation): Unit = changeQueue.put(mutation)
+    dcpClient.listener(
+      new DatabaseChangeListener {
+        override def onMutation(mutation: Mutation): Unit = changeQueue.put(mutation)
 
-      override def onDeletion(deletion: Deletion): Unit = changeQueue.put(deletion)
+        override def onDeletion(deletion: Deletion): Unit = changeQueue.put(deletion)
 
-      override def onFailure(streamFailure: StreamFailure): Unit = errorQueue.offer(streamFailure.getCause)
+        override def onFailure(streamFailure: StreamFailure): Unit =
+          errorQueue.offer(streamFailure.getCause)
 
-      override def onStreamEnd(streamEnd: StreamEnd): Unit = {
-        streamsCompleted.put(streamEnd.getVbucket, streamEnd.getReason)
-      }
-    }, FlowControlMode.AUTOMATIC)
+        override def onStreamEnd(streamEnd: StreamEnd): Unit = {
+          streamsCompleted.put(streamEnd.getVbucket, streamEnd.getReason)
+        }
+      },
+      FlowControlMode.AUTOMATIC
+    )
 
     dcpClient.connect().block()
   }
 
-  /**
-   * Initializes the DCP stream state and starts vbucket streaming.
-   *
-   * The code first initializes the state for all vbuckets, since that also loads the current failover logs. Then it
-   * applies the start (and optional end) sequence numbers for each partition which are then subsequently started. If
-   * no explicit end offset is defined, -1 will be used implicitly (which indicates no end).
-   */
+  /** Initializes the DCP stream state and starts vbucket streaming.
+    *
+    * The code first initializes the state for all vbuckets, since that also loads the current
+    * failover logs. Then it applies the start (and optional end) sequence numbers for each
+    * partition which are then subsequently started. If no explicit end offset is defined, -1 will
+    * be used implicitly (which indicates no end).
+    */
   private def initAndStartDcpStream(): Unit = {
     val partitionOffset = partition.partitionOffset
-    val startOffsets = partitionOffset.streamStartOffsets
-    val vbIds = ownedVbuckets.map(Integer.valueOf).toSeq.sorted.asJava
+    val startOffsets    = partitionOffset.streamStartOffsets
+    val vbIds           = ownedVbuckets.map(Integer.valueOf).toSeq.sorted.asJava
 
     dcpClient.initializeState(streamConfig.streamFrom.asDcpStreamFrom, StreamTo.INFINITY).block()
 
     if (streamConfig.streamFrom.fromBeginning()) {
       // The DCP client does not initialize the failover log when starting from the beginning, so do that.
-      dcpClient.failoverLogs(vbIds).doOnNext(event => {
-        val partition = DcpFailoverLogResponse.vbucket(event)
-        val ps = dcpClient.sessionState().get(partition)
-        ps.setFailoverLog(DcpFailoverLogResponse.entries(event))
-        dcpClient.sessionState().set(partition, ps)
-      }).blockLast()
+      dcpClient
+        .failoverLogs(vbIds)
+        .doOnNext(event => {
+          val partition = DcpFailoverLogResponse.vbucket(event)
+          val ps        = dcpClient.sessionState().get(partition)
+          ps.setFailoverLog(DcpFailoverLogResponse.entries(event))
+          dcpClient.sessionState().set(partition, ps)
+        })
+        .blockLast()
     }
 
     startOffsets.foreach(startOffset => {
-      val vbId = startOffset._1
+      val vbId           = startOffset._1
       val partitionState = PartitionState.fromOffset(startOffset._2.toStreamOffset)
 
       partitionState.setFailoverLog(dcpClient.sessionState().get(vbId).getFailoverLog)
@@ -134,7 +154,8 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
     dcpClient.startStreaming(vbIds).block()
   }
 
-  override def getOffset: PartitionOffset = KeyValuePartitionOffset(currentStreamOffsets.asScala.toMap, None)
+  override def getOffset: PartitionOffset =
+    KeyValuePartitionOffset(currentStreamOffsets.asScala.toMap, None)
 
   override def next(): Boolean = next(0)
 
@@ -143,13 +164,19 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
     checkErrorQueue()
     if (continuous) {
       currentEntry = changeQueue.take()
-      currentStreamOffsets.put(currentEntry.getVbucket, KeyValueStreamOffset.apply(currentEntry.getOffset))
+      currentStreamOffsets.put(
+        currentEntry.getVbucket,
+        KeyValueStreamOffset.apply(currentEntry.getOffset)
+      )
       true
     } else {
       currentEntry = changeQueue.poll()
 
       if (currentEntry != null) {
-        currentStreamOffsets.put(currentEntry.getVbucket, KeyValueStreamOffset.apply(currentEntry.getOffset))
+        currentStreamOffsets.put(
+          currentEntry.getVbucket,
+          KeyValueStreamOffset.apply(currentEntry.getOffset)
+        )
         true
       } else if (batchStreamComplete) {
         false
@@ -164,11 +191,11 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
     }
   }
 
-  /**
-   * Checks if the current batch to stream is complete.
-   *
-   * @return true if it is complete (all owned vbuckets are complete).
-   */
+  /** Checks if the current batch to stream is complete.
+    *
+    * @return
+    *   true if it is complete (all owned vbuckets are complete).
+    */
   private def batchStreamComplete: Boolean = {
     streamsCompleted.size() >= ownedVbuckets.size
   }
@@ -182,16 +209,17 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
 
   override def get(): InternalRow = {
     InternalRow.fromSeq(partition.schema.fieldNames.map {
-      case "id" => UTF8String.fromString(currentEntry.getKey)
-      case "content" => currentEntry.getContent
-      case "deletion" => !currentEntry.isMutation
-      case "cas" => currentEntry.getCas
-      case "scope" => UTF8String.fromString(currentEntry.getCollection.scope().name())
+      case "id"         => UTF8String.fromString(currentEntry.getKey)
+      case "content"    => currentEntry.getContent
+      case "deletion"   => !currentEntry.isMutation
+      case "cas"        => currentEntry.getCas
+      case "scope"      => UTF8String.fromString(currentEntry.getCollection.scope().name())
       case "collection" => UTF8String.fromString(currentEntry.getCollection.name())
-      case "timestamp" => ChronoUnit.MICROS.between(Instant.EPOCH, currentEntry.getTimestamp)
-      case "vbucket" => currentEntry.getVbucket
+      case "timestamp"  => ChronoUnit.MICROS.between(Instant.EPOCH, currentEntry.getTimestamp)
+      case "vbucket"    => currentEntry.getVbucket
       case "xattrs" => ArrayBasedMapData(currentEntry.getXattrs, k => k.toString, v => v.toString)
-      case name => throw new UnsupportedOperationException("Unsupported field name in schema " + name)
+      case name =>
+        throw new UnsupportedOperationException("Unsupported field name in schema " + name)
     }.toSeq)
   }
 

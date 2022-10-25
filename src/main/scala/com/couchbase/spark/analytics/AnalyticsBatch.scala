@@ -25,10 +25,16 @@ import org.apache.spark.sql.types.StructType
 
 import collection.JavaConverters._
 
-class AnalyticsBatch(schema: StructType, conf: CouchbaseConfig, readConfig: AnalyticsReadConfig, filters: Array[Filter], aggregations: Option[Aggregation]) extends Batch {
+class AnalyticsBatch(
+    schema: StructType,
+    conf: CouchbaseConfig,
+    readConfig: AnalyticsReadConfig,
+    filters: Array[Filter],
+    aggregations: Option[Aggregation]
+) extends Batch {
 
   override def planInputPartitions(): Array[InputPartition] = {
-    val core = CouchbaseConnection().cluster(conf).async.core
+    val core   = CouchbaseConnection().cluster(conf).async.core
     val config = core.clusterConfig()
 
     val locations = if (config.globalConfig() != null) {
@@ -44,7 +50,8 @@ class AnalyticsBatch(schema: StructType, conf: CouchbaseConfig, readConfig: Anal
           } else {
             p.hostname()
           }
-        }).toArray
+        })
+        .toArray
     } else {
       Array[String]()
     }
@@ -52,5 +59,6 @@ class AnalyticsBatch(schema: StructType, conf: CouchbaseConfig, readConfig: Anal
     Array(new AnalyticsInputPartition(schema, filters, locations, aggregations))
   }
 
-  override def createReaderFactory(): PartitionReaderFactory = new AnalyticsPartitionReaderFactory(conf, readConfig)
+  override def createReaderFactory(): PartitionReaderFactory =
+    new AnalyticsPartitionReaderFactory(conf, readConfig)
 }

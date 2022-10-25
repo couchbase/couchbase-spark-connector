@@ -23,18 +23,24 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import reactor.core.scala.publisher.SFlux
 
-class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], val keyspace: Keyspace,
-                removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false)
-  extends RDD[MutationResult](sc, Nil)
+class RemoveRDD(
+    @transient private val sc: SparkContext,
+    val docs: Seq[Remove],
+    val keyspace: Keyspace,
+    removeOptions: RemoveOptions = null,
+    ignoreIfNotFound: Boolean = false
+) extends RDD[MutationResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
-  private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
+  private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
-    val splitIds = split.asInstanceOf[KeyValuePartition].ids
+    val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
-    KeyValueOperationRunner.remove(globalConfig, keyspace, docsToWrite, removeOptions, ignoreIfNotFound).iterator
+    KeyValueOperationRunner
+      .remove(globalConfig, keyspace, docsToWrite, removeOptions, ignoreIfNotFound)
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
@@ -42,14 +48,16 @@ class RemoveRDD(@transient private val sc: SparkContext, val docs: Seq[Remove], 
       .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for Remove operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(
+      s"Calculated KeyValuePartitions for Remove operation ${partitions.mkString("Array(", ", ", ")")}"
+    )
     partitions
   }
 
   override protected def getPreferredLocations(split: Partition): Seq[String] = {
     split.asInstanceOf[KeyValuePartition].location match {
       case Some(l) => Seq(l)
-      case _ => Nil
+      case _       => Nil
     }
   }
 

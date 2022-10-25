@@ -20,10 +20,10 @@ import com.couchbase.client.scala.kv.{LookupInSpec, MutateInSpec}
 
 sealed abstract class KeyValueOperation
 
-case class Get(id: String) extends KeyValueOperation
-case class Insert[T](id: String, content: T) extends KeyValueOperation
-case class Upsert[T](id: String, content: T) extends KeyValueOperation
-case class Replace[T](id: String, content: T, cas: Long = 0) extends KeyValueOperation
-case class Remove(id: String, cas: Long = 0) extends KeyValueOperation
+case class Get(id: String)                                               extends KeyValueOperation
+case class Insert[T](id: String, content: T)                             extends KeyValueOperation
+case class Upsert[T](id: String, content: T)                             extends KeyValueOperation
+case class Replace[T](id: String, content: T, cas: Long = 0)             extends KeyValueOperation
+case class Remove(id: String, cas: Long = 0)                             extends KeyValueOperation
 case class MutateIn(id: String, specs: Seq[MutateInSpec], cas: Long = 0) extends KeyValueOperation
-case class LookupIn(id: String, specs: Seq[LookupInSpec]) extends KeyValueOperation
+case class LookupIn(id: String, specs: Seq[LookupInSpec])                extends KeyValueOperation

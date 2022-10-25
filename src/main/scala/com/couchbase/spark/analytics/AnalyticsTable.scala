@@ -25,21 +25,24 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import scala.collection.JavaConverters._
 import java.util
 
-class AnalyticsTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String],
-                     readConfig: AnalyticsReadConfig)
-  extends SupportsRead {
+class AnalyticsTable(
+    schema: StructType,
+    partitioning: Array[Transform],
+    properties: util.Map[String, String],
+    readConfig: AnalyticsReadConfig
+) extends SupportsRead {
 
   override def name(): String = {
-   if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
-     readConfig.dataset
-   } else {
-     readConfig.bucket.get + ":" +
-       readConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
-       readConfig.dataset
-   }
+    if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
+      readConfig.dataset
+    } else {
+      readConfig.bucket.get + ":" +
+        readConfig.scope.getOrElse(DefaultConstants.DefaultScopeName) + ":" +
+        readConfig.dataset
+    }
   }
-  override def schema(): StructType = schema
-  override def partitioning(): Array[Transform] = partitioning
+  override def schema(): StructType                   = schema
+  override def partitioning(): Array[Transform]       = partitioning
   override def properties(): util.Map[String, String] = properties
   override def capabilities(): util.Set[TableCapability] =
     Set[TableCapability](TableCapability.BATCH_READ).asJava

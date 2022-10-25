@@ -30,7 +30,7 @@ import java.util.UUID
 class QueryDataFrameIntegrationTest {
 
   var container: CouchbaseContainer = _
-  var spark: SparkSession = _
+  var spark: SparkSession           = _
 
   @BeforeAll
   def setup(): Unit = {
@@ -61,8 +61,7 @@ class QueryDataFrameIntegrationTest {
   }
 
   private def prepareSampleData(): Unit = {
-    val airports = spark
-      .read
+    val airports = spark.read
       .json("src/test/resources/airports.json")
       .withColumn("type", lit("airport"))
 
@@ -115,11 +114,10 @@ class QueryDataFrameIntegrationTest {
       "select max(elevation) as el, min(runways) as run from airports"
     )
 
-    aggregates.queryExecution.optimizedPlan.collect {
-      case p: DataSourceV2ScanRelation =>
-        println(p.toString())
-        assertTrue(p.toString().contains("MAX(`elevation`)"))
-        assertTrue(p.toString().contains("MIN(`runways`)"))
+    aggregates.queryExecution.optimizedPlan.collect { case p: DataSourceV2ScanRelation =>
+      println(p.toString())
+      assertTrue(p.toString().contains("MAX(`elevation`)"))
+      assertTrue(p.toString().contains("MIN(`runways`)"))
     }
 
     assertEquals(204, aggregates.first().getAs[Long]("el"))
@@ -136,13 +134,14 @@ class QueryDataFrameIntegrationTest {
 
     airports.createOrReplaceTempView("airports")
 
-    val aggregates = spark.sql("select max(elevation) as el, min(runways) as run, country from airports group by country")
+    val aggregates = spark.sql(
+      "select max(elevation) as el, min(runways) as run, country from airports group by country"
+    )
 
-    aggregates.queryExecution.optimizedPlan.collect {
-      case p: DataSourceV2ScanRelation =>
-        assertTrue(p.toString().contains("country"))
-        assertTrue(p.toString().contains("MAX(`elevation`)"))
-        assertTrue(p.toString().contains("MIN(`runways`)"))
+    aggregates.queryExecution.optimizedPlan.collect { case p: DataSourceV2ScanRelation =>
+      assertTrue(p.toString().contains("country"))
+      assertTrue(p.toString().contains("MAX(`elevation`)"))
+      assertTrue(p.toString().contains("MIN(`runways`)"))
     }
 
     assertEquals(3, aggregates.count())

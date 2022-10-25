@@ -16,9 +16,9 @@
 package com.couchbase.spark.query
 
 case class QueryWriteConfig(
- bucket: String,
- scope: Option[String],
- collection: Option[String],
- idFieldName: String,
- timeout: Option[String],
+    bucket: String,
+    scope: Option[String],
+    collection: Option[String],
+    idFieldName: String,
+    timeout: Option[String]
 )

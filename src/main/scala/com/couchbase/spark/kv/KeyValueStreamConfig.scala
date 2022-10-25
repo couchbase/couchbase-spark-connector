@@ -18,15 +18,15 @@ package com.couchbase.spark.kv
 import com.couchbase.spark.kv.StreamFromVariants.StreamFrom
 
 case class KeyValueStreamConfig(
-  streamFrom: StreamFrom,
-  numInputPartitions: Int,
-  bucket: String,
-  scope: Option[String],
-  collections: Seq[String],
-  streamContent: Boolean,
-  streamXattrs: Boolean,
-  flowControlBufferSize: Option[Int],
-  persistencePollingInterval: Option[String]
+    streamFrom: StreamFrom,
+    numInputPartitions: Int,
+    bucket: String,
+    scope: Option[String],
+    collections: Seq[String],
+    streamContent: Boolean,
+    streamXattrs: Boolean,
+    flowControlBufferSize: Option[Int],
+    persistencePollingInterval: Option[String]
 )
 
 object StreamFromVariants extends Enumeration {
@@ -38,7 +38,7 @@ object StreamFromVariants extends Enumeration {
     def fromBeginning(): Boolean = {
       from match {
         case FromBeginning => true
-        case _ => false
+        case _             => false
       }
     }
     def asDcpStreamFrom: com.couchbase.client.dcp.StreamFrom = {

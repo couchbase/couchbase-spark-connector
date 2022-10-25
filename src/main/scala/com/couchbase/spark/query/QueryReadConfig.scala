@@ -17,12 +17,12 @@
 package com.couchbase.spark.query
 
 case class QueryReadConfig(
-  bucket: String,
-  scope: Option[String],
-  collection: Option[String],
-  idFieldName: String,
-  userFilter: Option[String],
-  scanConsistency: String,
-  timeout: Option[String],
-  pushDownAggregate: Boolean
+    bucket: String,
+    scope: Option[String],
+    collection: Option[String],
+    idFieldName: String,
+    userFilter: Option[String],
+    scanConsistency: String,
+    timeout: Option[String],
+    pushDownAggregate: Boolean
 )

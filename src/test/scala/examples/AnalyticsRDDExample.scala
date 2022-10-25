@@ -34,9 +34,12 @@ object AnalyticsRDDExample {
     import com.couchbase.spark._
 
     val options = AnalyticsOptions()
-    spark
-      .sparkContext
-      .couchbaseAnalyticsQuery[JsonObject]("select count(*) as count from airport", options, keyspace = Keyspace(scope = Some("inventory")))
+    spark.sparkContext
+      .couchbaseAnalyticsQuery[JsonObject](
+        "select count(*) as count from airport",
+        options,
+        keyspace = Keyspace(scope = Some("inventory"))
+      )
       .collect()
       .foreach(println)
   }

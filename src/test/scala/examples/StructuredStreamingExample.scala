@@ -31,8 +31,7 @@ object StructuredStreamingExample {
       .config("spark.couchbase.implicitBucket", "travel-sample")
       .getOrCreate()
 
-    val sourceDf = spark
-      .readStream
+    val sourceDf = spark.readStream
       .format("couchbase.kv")
       .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
       .option(KeyValueOptions.Scope, "inventory")

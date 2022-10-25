@@ -23,15 +23,19 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import reactor.core.scala.publisher.SFlux
 
-class MutateInRDD(@transient private val sc: SparkContext, val docs: Seq[MutateIn], val keyspace: Keyspace, mutateInOptions: MutateInOptions = null)
-  extends RDD[MutateInResult](sc, Nil)
+class MutateInRDD(
+    @transient private val sc: SparkContext,
+    val docs: Seq[MutateIn],
+    val keyspace: Keyspace,
+    mutateInOptions: MutateInOptions = null
+) extends RDD[MutateInResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
-  private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
+  private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutateInResult] = {
-    val splitIds = split.asInstanceOf[KeyValuePartition].ids
+    val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
     KeyValueOperationRunner.mutateIn(globalConfig, keyspace, docsToWrite, mutateInOptions).iterator
   }
@@ -41,14 +45,16 @@ class MutateInRDD(@transient private val sc: SparkContext, val docs: Seq[MutateI
       .partitionsForIds(docs.map(d => d.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for MutateIn operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(
+      s"Calculated KeyValuePartitions for MutateIn operation ${partitions.mkString("Array(", ", ", ")")}"
+    )
     partitions
   }
 
   override protected def getPreferredLocations(split: Partition): Seq[String] = {
     split.asInstanceOf[KeyValuePartition].location match {
       case Some(l) => Seq(l)
-      case _ => Nil
+      case _       => Nil
     }
   }
 

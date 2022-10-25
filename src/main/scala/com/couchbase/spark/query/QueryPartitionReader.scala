@@ -24,7 +24,11 @@ import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
-import com.couchbase.client.scala.query.{QueryMetrics, QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
+import com.couchbase.client.scala.query.{
+  QueryMetrics,
+  QueryScanConsistency,
+  QueryOptions => CouchbaseQueryOptions
+}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
@@ -32,29 +36,42 @@ import org.apache.spark.sql.connector.metric.CustomTaskMetric
 
 import scala.concurrent.duration.Duration
 
-class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig: QueryReadConfig, filters: Array[Filter],
-                           aggregations: Option[Aggregation])
-  extends PartitionReader[InternalRow]
-  with Logging {
+class QueryPartitionReader(
+    schema: StructType,
+    conf: CouchbaseConfig,
+    readConfig: QueryReadConfig,
+    filters: Array[Filter],
+    aggregations: Option[Aggregation]
+) extends PartitionReader[InternalRow]
+    with Logging {
 
   private val scopeName = readConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
-  private val collectionName = readConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+  private val collectionName =
+    readConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
-  private val parser = CouchbaseJsonUtils.jsonParser(schema)
+  private val parser       = CouchbaseJsonUtils.jsonParser(schema)
   private val createParser = CouchbaseJsonUtils.createParser()
 
   private var resultMetrics: Option[QueryMetrics] = None
 
   private val groupByColumns = aggregations match {
     case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
-    case None => Seq.empty
+    case None      => Seq.empty
   }
 
   private lazy val result = {
-    if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
+    if (
+      scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(
+        DefaultConstants.DefaultCollectionName
+      )
+    ) {
       CouchbaseConnection().cluster(conf).query(buildQuery(), buildOptions())
     } else {
-      CouchbaseConnection().cluster(conf).bucket(readConfig.bucket).scope(scopeName).query(buildQuery(), buildOptions())
+      CouchbaseConnection()
+        .cluster(conf)
+        .bucket(readConfig.bucket)
+        .scope(scopeName)
+        .query(buildQuery(), buildOptions())
     }
   }
 
@@ -82,16 +99,18 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
         parser.parse(row, createParser, UTF8String.fromString)
       } catch {
         case e: Exception =>
-          throw new IllegalStateException(s"Could not parse row $row based on provided schema $schema.", e)
+          throw new IllegalStateException(
+            s"Could not parse row $row based on provided schema $schema.",
+            e
+          )
       }
     })
 
-  private lazy val rowIterator = rows.iterator
+  private lazy val rowIterator       = rows.iterator
   protected var lastRow: InternalRow = InternalRow()
 
   def buildQuery(): String = {
-    var fields = schema
-      .fields
+    var fields = schema.fields
       .map(f => f.name)
       .filter(f => !f.equals(readConfig.idFieldName))
       .map(f => maybeEscapeField(f))
@@ -99,7 +118,7 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
       fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
     }
 
-    var predicate = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
+    var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = QueryFilters.compile(filters)
     if (compiledFilters.nonEmpty && predicate.nonEmpty) {
       predicate = predicate + " AND " + compiledFilters
@@ -108,18 +127,26 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
     }
 
     val groupBy = if (hasAggregateGroupBy) {
-      " GROUP BY " + aggregations.get.groupByExpressions().map(n => s"`${n.references().head}`").mkString(", ")
+      " GROUP BY " + aggregations.get
+        .groupByExpressions()
+        .map(n => s"`${n.references().head}`")
+        .mkString(", ")
     } else {
       ""
     }
 
     val fieldsEncoded = fields.mkString(", ")
 
-    val query = if (scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(DefaultConstants.DefaultCollectionName)) {
-      s"select $fieldsEncoded from `${readConfig.bucket}`$predicate$groupBy"
-    } else {
-      s"select $fieldsEncoded from `$collectionName`$predicate$groupBy"
-    }
+    val query =
+      if (
+        scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(
+          DefaultConstants.DefaultCollectionName
+        )
+      ) {
+        s"select $fieldsEncoded from `${readConfig.bucket}`$predicate$groupBy"
+      } else {
+        s"select $fieldsEncoded from `$collectionName`$predicate$groupBy"
+      }
 
     logDebug(s"Building and running N1QL query $query")
     query
@@ -128,24 +155,26 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
   def hasAggregateFields: Boolean = {
     aggregations match {
       case Some(a) => !a.aggregateExpressions().isEmpty
-      case None => false
+      case None    => false
     }
   }
 
   def hasAggregateGroupBy: Boolean = {
     aggregations match {
       case Some(a) => !a.groupByExpressions().isEmpty
-      case None => false
+      case None    => false
     }
   }
 
   def maybeEscapeField(field: String): String = {
-    if (field.startsWith("MAX")
+    if (
+      field.startsWith("MAX")
       || field.startsWith("MIN")
       || field.startsWith("COUNT")
       || field.startsWith("SUM")
       || field.startsWith("AVG")
-      || field.startsWith("`")) {
+      || field.startsWith("`")
+    ) {
       field
     } else {
       s"`$field`"
@@ -155,8 +184,10 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
   def buildOptions(): CouchbaseQueryOptions = {
     var opts = CouchbaseQueryOptions().metrics(true)
     readConfig.scanConsistency match {
-      case QueryOptions.NotBoundedScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.NotBounded)
-      case QueryOptions.RequestPlusScanConsistency => opts = opts.scanConsistency(QueryScanConsistency.RequestPlus())
+      case QueryOptions.NotBoundedScanConsistency =>
+        opts = opts.scanConsistency(QueryScanConsistency.NotBounded)
+      case QueryOptions.RequestPlusScanConsistency =>
+        opts = opts.scanConsistency(QueryScanConsistency.RequestPlus())
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
     readConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
@@ -173,7 +204,7 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
   }
 
   override def get(): InternalRow = lastRow
-  override def close(): Unit = {}
+  override def close(): Unit      = {}
 
   override def currentMetricsValues(): Array[CustomTaskMetric] = {
     resultMetrics match {
@@ -181,36 +212,36 @@ class QueryPartitionReader(schema: StructType, conf: CouchbaseConfig, readConfig
         Array(
           new CustomTaskMetric {
             override def name(): String = "elapsedTimeMs"
-            override def value(): Long = m.elapsedTime.toMillis
+            override def value(): Long  = m.elapsedTime.toMillis
           },
           new CustomTaskMetric {
             override def name(): String = "executionTimeMs"
-            override def value(): Long = m.executionTime.toMillis
+            override def value(): Long  = m.executionTime.toMillis
           },
           new CustomTaskMetric {
             override def name(): String = "sortCount"
-            override def value(): Long = m.sortCount
+            override def value(): Long  = m.sortCount
           },
           new CustomTaskMetric {
             override def name(): String = "errorCount"
-            override def value(): Long = m.errorCount
+            override def value(): Long  = m.errorCount
           },
           new CustomTaskMetric {
             override def name(): String = "resultSize"
-            override def value(): Long = m.resultSize
+            override def value(): Long  = m.resultSize
           },
           new CustomTaskMetric {
             override def name(): String = "mutationCount"
-            override def value(): Long = m.mutationCount
+            override def value(): Long  = m.mutationCount
           },
           new CustomTaskMetric {
             override def name(): String = "resultCount"
-            override def value(): Long = m.resultCount
+            override def value(): Long  = m.resultCount
           },
           new CustomTaskMetric {
             override def name(): String = "warningCount"
-            override def value(): Long = m.warningCount
-          },
+            override def value(): Long  = m.warningCount
+          }
         )
       case None => Array()
     }

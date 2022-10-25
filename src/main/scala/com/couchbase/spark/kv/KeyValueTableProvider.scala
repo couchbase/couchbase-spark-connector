@@ -28,7 +28,17 @@ import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, DataSourceRegister}
-import org.apache.spark.sql.types.{BinaryType, BooleanType, IntegerType, LongType, MapType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.types.{
+  BinaryType,
+  BooleanType,
+  IntegerType,
+  LongType,
+  MapType,
+  StringType,
+  StructField,
+  StructType,
+  TimestampType
+}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import reactor.core.scala.publisher.{SFlux, SMono}
 
@@ -37,28 +47,36 @@ import java.util
 import scala.concurrent.duration.Duration
 
 class KeyValueTableProvider
-  extends Logging
-  with TableProvider
-  with DataSourceRegister
-  with CreatableRelationProvider {
+    extends Logging
+    with TableProvider
+    with DataSourceRegister
+    with CreatableRelationProvider {
 
   private lazy val sparkSession = SparkSession.active
-  private lazy val conf = CouchbaseConfig(sparkSession.sparkContext.getConf)
+  private lazy val conf         = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   override def shortName(): String = "couchbase.kv"
 
-  override def createRelation(ctx: SQLContext, mode: SaveMode, parameters: Map[String, String],
-                              data: DataFrame): BaseRelation = {
+  override def createRelation(
+      ctx: SQLContext,
+      mode: SaveMode,
+      parameters: Map[String, String],
+      data: DataFrame
+  ): BaseRelation = {
     val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf)
-    data.toJSON.foreachPartition(new RelationPartitionWriter(writeConfig(parameters.asJava), couchbaseConfig, mode))
+    data.toJSON.foreachPartition(
+      new RelationPartitionWriter(writeConfig(parameters.asJava), couchbaseConfig, mode)
+    )
 
     if (mode == SaveMode.Append) {
-      throw new IllegalArgumentException("SaveMode.Append is not supported - please use the other SaveMode types.")
+      throw new IllegalArgumentException(
+        "SaveMode.Append is not supported - please use the other SaveMode types."
+      )
     }
 
     new BaseRelation {
       override def sqlContext: SQLContext = ctx
-      override def schema: StructType = data.schema
+      override def schema: StructType     = data.schema
     }
   }
 
@@ -67,7 +85,8 @@ class KeyValueTableProvider
       conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
       conf.implicitCollectionName(properties.get(KeyValueOptions.Collection)),
-      Option(properties.get(KeyValueOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName),
+      Option(properties.get(KeyValueOptions.IdFieldName))
+        .getOrElse(DefaultConstants.DefaultIdFieldName),
       Option(properties.get(KeyValueOptions.Durability)),
       Option(properties.get(KeyValueOptions.Timeout))
     )
@@ -87,18 +106,21 @@ class KeyValueTableProvider
       collections = collections ++ userCollections.get.split(",")
     }
 
-    val meta = properties.get(KeyValueOptions.StreamMetaData)
+    val meta         = properties.get(KeyValueOptions.StreamMetaData)
     val streamXattrs = meta != null && meta.equals(KeyValueOptions.StreamMetaDataFull)
 
     val streamFrom = properties.get(KeyValueOptions.StreamFrom) match {
       case null | KeyValueOptions.StreamFromNow => StreamFromVariants.FromNow
-      case KeyValueOptions.StreamFromBeginning => StreamFromVariants.FromBeginning
-      case v => throw new IllegalArgumentException("Unknown KeyValueOptions.StreamFrom option: " + v)
+      case KeyValueOptions.StreamFromBeginning  => StreamFromVariants.FromBeginning
+      case v =>
+        throw new IllegalArgumentException("Unknown KeyValueOptions.StreamFrom option: " + v)
     }
 
     val c = KeyValueStreamConfig(
       streamFrom,
-      Option(properties.get(KeyValueOptions.NumPartitions)).getOrElse(defaultNumPartitions.toString).toInt,
+      Option(properties.get(KeyValueOptions.NumPartitions))
+        .getOrElse(defaultNumPartitions.toString)
+        .toInt,
       conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
       collections,
@@ -112,23 +134,28 @@ class KeyValueTableProvider
   }
 
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
-    val always = if (options.containsKey(KeyValueOptions.StreamContent) && !options.get(KeyValueOptions.StreamContent).toBoolean) {
-      Seq(
-        StructField("id", StringType, nullable = false),
-        StructField("deletion", BooleanType, nullable = false)
-      )
-    } else {
-      Seq(
-        StructField("id", StringType, nullable = false),
-        StructField("content", BinaryType, nullable = true),
-        StructField("deletion", BooleanType, nullable = false)
-      )
-    }
+    val always =
+      if (
+        options.containsKey(KeyValueOptions.StreamContent) && !options
+          .get(KeyValueOptions.StreamContent)
+          .toBoolean
+      ) {
+        Seq(
+          StructField("id", StringType, nullable = false),
+          StructField("deletion", BooleanType, nullable = false)
+        )
+      } else {
+        Seq(
+          StructField("id", StringType, nullable = false),
+          StructField("content", BinaryType, nullable = true),
+          StructField("deletion", BooleanType, nullable = false)
+        )
+      }
 
     val basic = Seq(
       StructField("cas", LongType, nullable = false),
       StructField("scope", StringType, nullable = true),
-      StructField("collection", StringType, nullable = true),
+      StructField("collection", StringType, nullable = true)
     )
     val full = Seq(
       StructField("timestamp", TimestampType, nullable = false),
@@ -137,9 +164,9 @@ class KeyValueTableProvider
     )
 
     val fields = options.get(KeyValueOptions.StreamMetaData) match {
-      case KeyValueOptions.StreamMetaDataNone => always
+      case KeyValueOptions.StreamMetaDataNone         => always
       case null | KeyValueOptions.StreamMetaDataBasic => always ++ basic
-      case KeyValueOptions.StreamMetaDataFull => always ++ basic ++ full
+      case KeyValueOptions.StreamMetaDataFull         => always ++ basic ++ full
     }
 
     logDebug(s"Streaming the following fields $fields")
@@ -147,25 +174,34 @@ class KeyValueTableProvider
     StructType(fields)
   }
 
-  override def getTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String]): Table = {
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]
+  ): Table = {
     new KeyValueTable(schema, streamConfig(properties))
   }
 
 }
 
-class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig: CouchbaseConfig, mode: SaveMode)
-  extends ForeachPartitionFunction[String]
+class RelationPartitionWriter(
+    writeConfig: KeyValueWriteConfig,
+    couchbaseConfig: CouchbaseConfig,
+    mode: SaveMode
+) extends ForeachPartitionFunction[String]
     with Logging {
   override def call(t: util.Iterator[String]): Unit = {
-    val scopeName = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
+    val scopeName      = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
-    val keyValues = t.asScala.map(encoded => {
-      val decoded = JsonObject.fromJson(encoded)
-      val id = decoded.str(writeConfig.idFieldName)
-      decoded.remove(writeConfig.idFieldName)
-      (id, decoded.toString)
-    }).toList
+    val keyValues = t.asScala
+      .map(encoded => {
+        val decoded = JsonObject.fromJson(encoded)
+        val id      = decoded.str(writeConfig.idFieldName)
+        decoded.remove(writeConfig.idFieldName)
+        (id, decoded.toString)
+      })
+      .toList
 
     val coll = CouchbaseConnection()
       .cluster(couchbaseConfig)
@@ -175,8 +211,10 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
 
     val durability = writeConfig.durability match {
       case Some(v) if v == KeyValueOptions.MajorityDurability => Durability.Majority
-      case Some(v) if v == KeyValueOptions.MajorityAndPersistToActiveDurability => Durability.MajorityAndPersistToActive
-      case Some(v) if v == KeyValueOptions.PersistToMajorityDurability => Durability.PersistToMajority
+      case Some(v) if v == KeyValueOptions.MajorityAndPersistToActiveDurability =>
+        Durability.MajorityAndPersistToActive
+      case Some(v) if v == KeyValueOptions.PersistToMajorityDurability =>
+        Durability.PersistToMajority
       case None => Durability.Disabled
       case d => throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
     }
@@ -190,13 +228,15 @@ class RelationPartitionWriter(writeConfig: KeyValueWriteConfig, couchbaseConfig:
           case SaveMode.ErrorIfExists =>
             coll.reactive.insert(v._1, v._2, buildInsertOptions(durability))
           case SaveMode.Ignore =>
-            coll.reactive.insert(v._1, v._2, buildInsertOptions(durability)).onErrorResume(t => {
-              if (t.isInstanceOf[DocumentExistsException]) {
-                SMono.empty
-              } else {
-                SMono.error(t)
-              }
-            })
+            coll.reactive
+              .insert(v._1, v._2, buildInsertOptions(durability))
+              .onErrorResume(t => {
+                if (t.isInstanceOf[DocumentExistsException]) {
+                  SMono.empty
+                } else {
+                  SMono.error(t)
+                }
+              })
           case m =>
             throw new IllegalStateException("Unsupported SaveMode: " + m)
         }

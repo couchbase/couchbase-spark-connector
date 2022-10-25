@@ -19,8 +19,11 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFacto
 import org.apache.spark.sql.connector.read.streaming.{MicroBatchStream, Offset}
 import org.apache.spark.sql.types.StructType
 
-class KeyValueMicroBatchStream(schema: StructType, config: KeyValueStreamConfig, checkpointLocation: String)
-  extends KeyValueDataStream(config, checkpointLocation)
+class KeyValueMicroBatchStream(
+    schema: StructType,
+    config: KeyValueStreamConfig,
+    checkpointLocation: String
+) extends KeyValueDataStream(config, checkpointLocation)
     with MicroBatchStream {
 
   override def latestOffset(): Offset = {
@@ -29,35 +32,40 @@ class KeyValueMicroBatchStream(schema: StructType, config: KeyValueStreamConfig,
   }
 
   override def planInputPartitions(start: Offset, end: Offset): Array[InputPartition] = {
-    val inputPartitions = config.numInputPartitions
+    val inputPartitions     = config.numInputPartitions
     val keyValueStartOffset = start.asInstanceOf[KeyValueOffset]
-    val keyValueEndOffset = end.asInstanceOf[KeyValueOffset]
+    val keyValueEndOffset   = end.asInstanceOf[KeyValueOffset]
     val streamStartOffsets = keyValueStartOffset.offsets.flatMap(po => {
       val kvPo = po.asInstanceOf[KeyValuePartitionOffset]
       // If the end is present we are 1+ iterations in, only the first ever actually uses the start
       // offset (since the last end is the new start).
       kvPo.streamEndOffsets.getOrElse(kvPo.streamStartOffsets)
     })
-    val streamEndOffsets = keyValueEndOffset
-      .offsets
+    val streamEndOffsets = keyValueEndOffset.offsets
       .flatMap(po => po.asInstanceOf[KeyValuePartitionOffset].streamEndOffsets.get)
 
-    logInfo(s"(Re)planning $inputPartitions input partitions " +
-      s"over $numKvPartitions kv partitions (vbuckets)")
+    logInfo(
+      s"(Re)planning $inputPartitions input partitions " +
+        s"over $numKvPartitions kv partitions (vbuckets)"
+    )
 
-    val groupedOffsets = streamStartOffsets
-      .zipWithIndex
+    val groupedOffsets = streamStartOffsets.zipWithIndex
       .groupBy(v => Math.floor(v._2 % inputPartitions))
       .values
-      .map(v =>  {
+      .map(v => {
         val startOffsets = v.map(x => x._1).toMap
-        val endOffsets = startOffsets.keys.map(vbid => {
-          val so = streamEndOffsets.find(v => v._1 == vbid).get
-          so
-        }).toMap
+        val endOffsets = startOffsets.keys
+          .map(vbid => {
+            val so = streamEndOffsets.find(v => v._1 == vbid).get
+            so
+          })
+          .toMap
 
         KeyValueInputPartition(
-          schema, KeyValuePartitionOffset(startOffsets, Some(endOffsets)), conf, config
+          schema,
+          KeyValuePartitionOffset(startOffsets, Some(endOffsets)),
+          conf,
+          config
         ).asInstanceOf[InputPartition]
       })
       .toArray
@@ -67,8 +75,8 @@ class KeyValueMicroBatchStream(schema: StructType, config: KeyValueStreamConfig,
     groupedOffsets
   }
 
-  override def createReaderFactory(): PartitionReaderFactory = {
-    (partition: InputPartition) => {
+  override def createReaderFactory(): PartitionReaderFactory = { (partition: InputPartition) =>
+    {
       new KeyValuePartitionReader(partition.asInstanceOf[KeyValueInputPartition], false)
     }
   }

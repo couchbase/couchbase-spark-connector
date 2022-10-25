@@ -31,12 +31,14 @@ object QuerySqlWriteExample {
       .config("spark.couchbase.implicitBucket", "travel-sample")
       .getOrCreate()
 
-    val airlines = spark.read.format("couchbase.query")
+    val airlines = spark.read
+      .format("couchbase.query")
       .option(QueryOptions.Filter, "type = 'airline'")
       .load()
       .limit(5)
 
-    airlines.write.format("couchbase.query")
+    airlines.write
+      .format("couchbase.query")
       .option(QueryOptions.Bucket, "test")
       .mode(SaveMode.Overwrite)
       .save()

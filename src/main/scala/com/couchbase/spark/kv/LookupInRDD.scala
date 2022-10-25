@@ -23,21 +23,25 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import reactor.core.scala.publisher.SFlux
 
-class LookupInRDD(@transient private val sc: SparkContext, val docs: Seq[LookupIn], val keyspace: Keyspace, lookupInOptions: LookupInOptions = null)
-  extends RDD[LookupInResult](sc, Nil)
+class LookupInRDD(
+    @transient private val sc: SparkContext,
+    val docs: Seq[LookupIn],
+    val keyspace: Keyspace,
+    lookupInOptions: LookupInOptions = null
+) extends RDD[LookupInResult](sc, Nil)
     with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
-  private val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
+  private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[LookupInResult] = {
-    val partition = split.asInstanceOf[KeyValuePartition]
+    val partition  = split.asInstanceOf[KeyValuePartition]
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val cluster    = connection.cluster(globalConfig)
 
     val scopeName = globalConfig
-      .implicitScopeNameOr(this.keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
+      .implicitScopeNameOr(this.keyspace.scope.orNull)
+      .getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = globalConfig
       .implicitCollectionName(this.keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
@@ -65,14 +69,16 @@ class LookupInRDD(@transient private val sc: SparkContext, val docs: Seq[LookupI
       .partitionsForIds(docs.map(d => d.id), CouchbaseConnection(), globalConfig, bucketName)
       .asInstanceOf[Array[Partition]]
 
-    logDebug(s"Calculated KeyValuePartitions for LookupIn operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(
+      s"Calculated KeyValuePartitions for LookupIn operation ${partitions.mkString("Array(", ", ", ")")}"
+    )
     partitions
   }
 
   override protected def getPreferredLocations(split: Partition): Seq[String] = {
     split.asInstanceOf[KeyValuePartition].location match {
       case Some(l) => Seq(l)
-      case _ => Nil
+      case _       => Nil
     }
   }
 

@@ -30,7 +30,8 @@ object AnalyticsSqlExample {
       .config("spark.couchbase.password", "password")
       .getOrCreate()
 
-    val airlines = spark.read.format("couchbase.analytics")
+    val airlines = spark.read
+      .format("couchbase.analytics")
       .option(AnalyticsOptions.Dataset, "airline")
       .load()
 

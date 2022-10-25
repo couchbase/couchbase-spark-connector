@@ -17,12 +17,12 @@
 package com.couchbase.spark.analytics
 
 case class AnalyticsReadConfig(
-  dataset: String,
-  bucket: Option[String],
-  scope: Option[String],
-  idFieldName: String,
-  userFilter: Option[String],
-  scanConsistency: String,
-  timeout: Option[String],
-  pushDownAggregate: Boolean
+    dataset: String,
+    bucket: Option[String],
+    scope: Option[String],
+    idFieldName: String,
+    userFilter: Option[String],
+    scanConsistency: String,
+    timeout: Option[String],
+    pushDownAggregate: Boolean
 )

@@ -31,10 +31,10 @@ import java.util.UUID
 class LookupInRDDIntegrationTest {
 
   var container: CouchbaseContainer = _
-  var spark: SparkSession = _
+  var spark: SparkSession           = _
 
-  private val bucketName = UUID.randomUUID().toString
-  private val scopeName = UUID.randomUUID().toString
+  private val bucketName            = UUID.randomUUID().toString
+  private val scopeName             = UUID.randomUUID().toString
   private val airportCollectionName = UUID.randomUUID().toString
 
   @BeforeAll
@@ -53,7 +53,8 @@ class LookupInRDDIntegrationTest {
       .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
 
-    val bucket = CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
+    val bucket =
+      CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
 
     bucket.collections.createScope(scopeName)
     bucket.collections.createCollection(CollectionSpec(airportCollectionName, scopeName))
@@ -69,8 +70,7 @@ class LookupInRDDIntegrationTest {
   }
 
   private def prepareSampleData(): Unit = {
-    val airports = spark
-      .read
+    val airports = spark.read
       .json("src/test/resources/airports.json")
 
     airports
@@ -90,8 +90,7 @@ class LookupInRDDIntegrationTest {
   def testLookupFromDefaultCollection(): Unit = {
     import com.couchbase.spark._
 
-    val result = spark
-      .sparkContext
+    val result = spark.sparkContext
       .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))))
       .collect()
 
@@ -103,8 +102,7 @@ class LookupInRDDIntegrationTest {
   def testLookupFromCustomCollection(): Unit = {
     import com.couchbase.spark._
 
-    val result = spark
-      .sparkContext
+    val result = spark.sparkContext
       .couchbaseLookupIn(
         Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))),
         Keyspace(scope = Some(scopeName), collection = Some(airportCollectionName))

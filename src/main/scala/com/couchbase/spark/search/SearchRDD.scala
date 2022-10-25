@@ -26,23 +26,26 @@ import org.apache.spark.rdd.RDD
 import collection.JavaConverters._
 
 class SearchPartition(id: Int, loc: Seq[String]) extends Partition {
-  override def index: Int = id
+  override def index: Int   = id
   def location: Seq[String] = loc
-  override def toString = s"SearchPartition($id, $loc)"
+  override def toString     = s"SearchPartition($id, $loc)"
 }
 
-class SearchRDD(@transient private val sc: SparkContext, val indexName: String, val query: SearchQuery,
-                val searchOptions: SearchOptions = null)
-  extends RDD[SearchResult](sc, Nil)
-  with Logging {
+class SearchRDD(
+    @transient private val sc: SparkContext,
+    val indexName: String,
+    val query: SearchQuery,
+    val searchOptions: SearchOptions = null
+) extends RDD[SearchResult](sc, Nil)
+    with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[SearchResult] = {
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val cluster    = connection.cluster(globalConfig)
 
-    val options = if(this.searchOptions == null) {
+    val options = if (this.searchOptions == null) {
       SearchOptions()
     } else {
       this.searchOptions
@@ -52,26 +55,30 @@ class SearchRDD(@transient private val sc: SparkContext, val indexName: String, 
   }
 
   override protected def getPartitions: Array[Partition] = {
-    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val core   = CouchbaseConnection().cluster(globalConfig).async.core
     val config = core.clusterConfig()
 
     val partitions = if (config.globalConfig() != null) {
-      Array(new SearchPartition(0, config
-        .globalConfig()
-        .portInfos()
-        .asScala
-        .filter(p => p.ports().containsKey(ServiceType.SEARCH))
-        .map(p => {
-          val aa = core.context().alternateAddress()
-          if (aa != null && aa.isPresent) {
-            p.alternateAddresses().get(aa.get()).hostname()
-          } else {
-            p.hostname()
-          }
-        })))
-    } else {
-      Array(new SearchPartition(0, Seq())
+      Array(
+        new SearchPartition(
+          0,
+          config
+            .globalConfig()
+            .portInfos()
+            .asScala
+            .filter(p => p.ports().containsKey(ServiceType.SEARCH))
+            .map(p => {
+              val aa = core.context().alternateAddress()
+              if (aa != null && aa.isPresent) {
+                p.alternateAddresses().get(aa.get()).hostname()
+              } else {
+                p.hostname()
+              }
+            })
+        )
       )
+    } else {
+      Array(new SearchPartition(0, Seq()))
     }
 
     logDebug(s"Calculated SearchPartitions operation ${partitions.mkString("Array(", ", ", ")")}")

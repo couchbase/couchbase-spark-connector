@@ -33,8 +33,7 @@ object GetRDDExample {
 
     import com.couchbase.spark._
 
-    spark
-      .sparkContext
+    spark.sparkContext
       .couchbaseGet(Seq(Get("airline_10"), Get("airline_10642")))
       .collect()
       .foreach(result => println(result.contentAs[JsonObject]))

@@ -20,9 +20,8 @@ import org.apache.spark.rdd.RDD
 
 import scala.language.implicitConversions
 
-/**
- * Available imports for the spark and RDD contexts.
- */
+/** Available imports for the spark and RDD contexts.
+  */
 package object spark {
 
   implicit def toSparkContextFunctions(sc: SparkContext): SparkContextFunctions =

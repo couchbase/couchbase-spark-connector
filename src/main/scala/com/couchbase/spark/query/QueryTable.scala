@@ -27,9 +27,12 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import java.util
 import scala.collection.JavaConverters._
 
-class QueryTable(schema: StructType, partitioning: Array[Transform], properties: util.Map[String, String],
-                 readConfig: QueryReadConfig)
-  extends SupportsRead {
+class QueryTable(
+    schema: StructType,
+    partitioning: Array[Transform],
+    properties: util.Map[String, String],
+    readConfig: QueryReadConfig
+) extends SupportsRead {
 
   override def name(): String = {
     if (readConfig.scope.isEmpty && readConfig.collection.isEmpty) {
@@ -40,8 +43,8 @@ class QueryTable(schema: StructType, partitioning: Array[Transform], properties:
         readConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
     }
   }
-  override def schema(): StructType = schema
-  override def partitioning(): Array[Transform] = partitioning
+  override def schema(): StructType                   = schema
+  override def partitioning(): Array[Transform]       = partitioning
   override def properties(): util.Map[String, String] = properties
   override def capabilities(): util.Set[TableCapability] =
     Set[TableCapability](

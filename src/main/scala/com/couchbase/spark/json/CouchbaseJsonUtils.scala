@@ -20,9 +20,8 @@ import com.fasterxml.jackson.core.{JsonFactory, JsonParser}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 
-/**
- * Internal utilities to access the JSON spark functionality.
- */
+/** Internal utilities to access the JSON spark functionality.
+  */
 object CouchbaseJsonUtils {
 
   def jsonParser(schema: DataType): JacksonParser = {

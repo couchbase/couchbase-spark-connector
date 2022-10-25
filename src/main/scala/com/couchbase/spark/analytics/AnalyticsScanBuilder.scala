@@ -23,13 +23,13 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{StructField, StructType}
 
 class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
-  extends ScanBuilder
+    extends ScanBuilder
     with SupportsPushDownFilters
     with SupportsPushDownRequiredColumns
     with SupportsPushDownAggregates {
 
-  private var finalSchema = schema
-  private var pushedFilter = Array.empty[Filter]
+  private var finalSchema                       = schema
+  private var pushedFilter                      = Array.empty[Filter]
   private var aggregations: Option[Aggregation] = None
 
   override def build(): Scan = {

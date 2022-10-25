@@ -18,7 +18,15 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoundException}
 import com.couchbase.client.scala.codec.JsonSerializer
-import com.couchbase.client.scala.kv.{InsertOptions, MutateInOptions, MutateInResult, MutationResult, RemoveOptions, ReplaceOptions, UpsertOptions}
+import com.couchbase.client.scala.kv.{
+  InsertOptions,
+  MutateInOptions,
+  MutateInResult,
+  MutationResult,
+  RemoveOptions,
+  ReplaceOptions,
+  UpsertOptions
+}
 import com.couchbase.spark.{DefaultConstants, Keyspace}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
@@ -26,16 +34,20 @@ import reactor.core.scala.publisher.{SFlux, SMono}
 
 object KeyValueOperationRunner extends Logging {
 
-  def upsert[T](config: CouchbaseConfig, keyspace: Keyspace, upsert: Seq[Upsert[T]],
-                upsertOptions: UpsertOptions = null)(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
+  def upsert[T](
+      config: CouchbaseConfig,
+      keyspace: Keyspace,
+      upsert: Seq[Upsert[T]],
+      upsertOptions: UpsertOptions = null
+  )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val cluster    = connection.cluster(config)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
     val scopeName = config
-      .implicitScopeNameOr(keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
+      .implicitScopeNameOr(keyspace.scope.orNull)
+      .getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = config
       .implicitCollectionName(keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
@@ -56,17 +68,21 @@ object KeyValueOperationRunner extends Logging {
       .block()
   }
 
-  def insert[T](config: CouchbaseConfig, keyspace: Keyspace, insert: Seq[Insert[T]],
-                insertOptions: InsertOptions = null, ignoreIfExists: Boolean = false)
-               (implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
+  def insert[T](
+      config: CouchbaseConfig,
+      keyspace: Keyspace,
+      insert: Seq[Insert[T]],
+      insertOptions: InsertOptions = null,
+      ignoreIfExists: Boolean = false
+  )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val cluster    = connection.cluster(config)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
     val scopeName = config
-      .implicitScopeNameOr(keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
+      .implicitScopeNameOr(keyspace.scope.orNull)
+      .getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = config
       .implicitCollectionName(keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
@@ -78,34 +94,43 @@ object KeyValueOperationRunner extends Logging {
       insertOptions
     }
 
-    logDebug(s"Performing bulk insert against ids ${insert.map(_.id)} with options $options and " +
-      s"ignoreIfExists $ignoreIfExists")
+    logDebug(
+      s"Performing bulk insert against ids ${insert.map(_.id)} with options $options and " +
+        s"ignoreIfExists $ignoreIfExists"
+    )
 
     SFlux
       .fromIterable(insert)
       .flatMap(doc => {
-        collection.insert(doc.id, doc.content, options).onErrorResume(t => {
-          if (ignoreIfExists && t.isInstanceOf[DocumentExistsException]) {
-            SMono.empty
-          } else {
-            SMono.error(t)
-          }
-        })
+        collection
+          .insert(doc.id, doc.content, options)
+          .onErrorResume(t => {
+            if (ignoreIfExists && t.isInstanceOf[DocumentExistsException]) {
+              SMono.empty
+            } else {
+              SMono.error(t)
+            }
+          })
       })
       .collectSeq()
       .block()
   }
 
-  def replace[T](config: CouchbaseConfig, keyspace: Keyspace, replace: Seq[Replace[T]],
-                 replaceOptions: ReplaceOptions = null, ignoreIfNotFound: Boolean = false)(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
+  def replace[T](
+      config: CouchbaseConfig,
+      keyspace: Keyspace,
+      replace: Seq[Replace[T]],
+      replaceOptions: ReplaceOptions = null,
+      ignoreIfNotFound: Boolean = false
+  )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val cluster    = connection.cluster(config)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
     val scopeName = config
-      .implicitScopeNameOr(keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
+      .implicitScopeNameOr(keyspace.scope.orNull)
+      .getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = config
       .implicitCollectionName(keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
@@ -117,34 +142,43 @@ object KeyValueOperationRunner extends Logging {
       replaceOptions
     }
 
-    logDebug(s"Performing bulk replace against ids ${replace.map(_.id)} with options $options and " +
-      s"ignoreIfNotFound $ignoreIfNotFound")
+    logDebug(
+      s"Performing bulk replace against ids ${replace.map(_.id)} with options $options and " +
+        s"ignoreIfNotFound $ignoreIfNotFound"
+    )
 
     SFlux
       .fromIterable(replace)
       .flatMap(doc => {
-        collection.replace(doc.id, doc.content, options.cas(doc.cas)).onErrorResume(t => {
-          if (ignoreIfNotFound && t.isInstanceOf[DocumentNotFoundException]) {
-            SMono.empty
-          } else {
-            SMono.error(t)
-          }
-        })
+        collection
+          .replace(doc.id, doc.content, options.cas(doc.cas))
+          .onErrorResume(t => {
+            if (ignoreIfNotFound && t.isInstanceOf[DocumentNotFoundException]) {
+              SMono.empty
+            } else {
+              SMono.error(t)
+            }
+          })
       })
       .collectSeq()
       .block()
   }
 
-  def remove(config: CouchbaseConfig, keyspace: Keyspace, remove: Seq[Remove],
-             removeOptions: RemoveOptions = null, ignoreIfNotFound: Boolean = false): Seq[MutationResult] = {
+  def remove(
+      config: CouchbaseConfig,
+      keyspace: Keyspace,
+      remove: Seq[Remove],
+      removeOptions: RemoveOptions = null,
+      ignoreIfNotFound: Boolean = false
+  ): Seq[MutationResult] = {
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val cluster    = connection.cluster(config)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
     val scopeName = config
-      .implicitScopeNameOr(keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
+      .implicitScopeNameOr(keyspace.scope.orNull)
+      .getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = config
       .implicitCollectionName(keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)
@@ -156,34 +190,42 @@ object KeyValueOperationRunner extends Logging {
       removeOptions
     }
 
-    logDebug(s"Performing bulk remove against ids ${remove.map(_.id)} with options $options " +
-      s"and ignoreIfNotFound $ignoreIfNotFound")
+    logDebug(
+      s"Performing bulk remove against ids ${remove.map(_.id)} with options $options " +
+        s"and ignoreIfNotFound $ignoreIfNotFound"
+    )
 
     SFlux
       .fromIterable(remove)
       .flatMap(doc => {
-        collection.remove(doc.id, options.cas(doc.cas)).onErrorResume(t => {
-          if (ignoreIfNotFound && t.isInstanceOf[DocumentNotFoundException]) {
-            SMono.empty
-          } else {
-            SMono.error(t)
-          }
-        })
+        collection
+          .remove(doc.id, options.cas(doc.cas))
+          .onErrorResume(t => {
+            if (ignoreIfNotFound && t.isInstanceOf[DocumentNotFoundException]) {
+              SMono.empty
+            } else {
+              SMono.error(t)
+            }
+          })
       })
       .collectSeq()
       .block()
   }
 
-  def mutateIn(config: CouchbaseConfig, keyspace: Keyspace, mutateIn: Seq[MutateIn],
-               mutateInOptions: MutateInOptions = null): Seq[MutateInResult] = {
+  def mutateIn(
+      config: CouchbaseConfig,
+      keyspace: Keyspace,
+      mutateIn: Seq[MutateIn],
+      mutateInOptions: MutateInOptions = null
+  ): Seq[MutateInResult] = {
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(config)
+    val cluster    = connection.cluster(config)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
     val scopeName = config
-      .implicitScopeNameOr(keyspace.scope.orNull).
-      getOrElse(DefaultConstants.DefaultScopeName)
+      .implicitScopeNameOr(keyspace.scope.orNull)
+      .getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = config
       .implicitCollectionName(keyspace.collection.orNull)
       .getOrElse(DefaultConstants.DefaultCollectionName)

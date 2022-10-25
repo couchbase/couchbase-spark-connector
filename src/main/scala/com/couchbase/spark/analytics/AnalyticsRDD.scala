@@ -28,23 +28,25 @@ import scala.reflect.ClassTag
 import collection.JavaConverters._
 
 class AnalyticsPartition(id: Int, loc: Seq[String]) extends Partition {
-  override def index: Int = id
+  override def index: Int   = id
   def location: Seq[String] = loc
-  override def toString = s"AnalyticsPartition($id, $loc)"
+  override def toString     = s"AnalyticsPartition($id, $loc)"
 }
 
 class AnalyticsRDD[T: ClassTag](
-  @transient private val sc: SparkContext,
-  val statement: String,
-  val analyticsOptions: CouchbaseAnalyticsOptions = null,
-  val keyspace: Keyspace = null,
-)(implicit deserializer: JsonDeserializer[T]) extends RDD[T](sc, Nil) with Logging {
+    @transient private val sc: SparkContext,
+    val statement: String,
+    val analyticsOptions: CouchbaseAnalyticsOptions = null,
+    val keyspace: Keyspace = null
+)(implicit deserializer: JsonDeserializer[T])
+    extends RDD[T](sc, Nil)
+    with Logging {
 
   private val globalConfig = CouchbaseConfig(sparkContext.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val connection = CouchbaseConnection()
-    val cluster = connection.cluster(globalConfig)
+    val cluster    = connection.cluster(globalConfig)
 
     val options = if (this.analyticsOptions == null) {
       CouchbaseAnalyticsOptions()
@@ -56,16 +58,17 @@ class AnalyticsRDD[T: ClassTag](
       cluster.analyticsQuery(statement, options).get
     } else {
       if (keyspace.collection.isDefined) {
-        throw new IllegalArgumentException("A Collection must not be provided on an Analytics Query inside the Keyspace, " +
-          "only Bucket and/or Scope are allowed. The collection itself is provided as part of the statement itself!")
+        throw new IllegalArgumentException(
+          "A Collection must not be provided on an Analytics Query inside the Keyspace, " +
+            "only Bucket and/or Scope are allowed. The collection itself is provided as part of the statement itself!"
+        )
       }
 
-      val bucketName = globalConfig.
-        implicitBucketNameOr(this.keyspace.bucket.orNull)
+      val bucketName = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
       val scopeName = globalConfig
-        .implicitScopeNameOr(this.keyspace.scope.orNull).
-        getOrElse(DefaultConstants.DefaultScopeName)
+        .implicitScopeNameOr(this.keyspace.scope.orNull)
+        .getOrElse(DefaultConstants.DefaultScopeName)
 
       cluster.bucket(bucketName).scope(scopeName).analyticsQuery(statement, options).get
     }
@@ -75,29 +78,35 @@ class AnalyticsRDD[T: ClassTag](
   }
 
   override protected def getPartitions: Array[Partition] = {
-    val core = CouchbaseConnection().cluster(globalConfig).async.core
+    val core   = CouchbaseConnection().cluster(globalConfig).async.core
     val config = core.clusterConfig()
 
     val partitions = if (config.globalConfig() != null) {
-      Array(new AnalyticsPartition(0, config
-        .globalConfig()
-        .portInfos()
-        .asScala
-        .filter(p => p.ports().containsKey(ServiceType.ANALYTICS))
-        .map(p => {
-          val aa = core.context().alternateAddress()
-          if (aa != null && aa.isPresent) {
-            p.alternateAddresses().get(aa.get()).hostname()
-          } else {
-            p.hostname()
-          }
-        })))
-    } else {
-      Array(new AnalyticsPartition(0, Seq())
+      Array(
+        new AnalyticsPartition(
+          0,
+          config
+            .globalConfig()
+            .portInfos()
+            .asScala
+            .filter(p => p.ports().containsKey(ServiceType.ANALYTICS))
+            .map(p => {
+              val aa = core.context().alternateAddress()
+              if (aa != null && aa.isPresent) {
+                p.alternateAddresses().get(aa.get()).hostname()
+              } else {
+                p.hostname()
+              }
+            })
+        )
       )
+    } else {
+      Array(new AnalyticsPartition(0, Seq()))
     }
 
-    logDebug(s"Calculated AnalyticsPartitions operation ${partitions.mkString("Array(", ", ", ")")}")
+    logDebug(
+      s"Calculated AnalyticsPartitions operation ${partitions.mkString("Array(", ", ", ")")}"
+    )
 
     partitions.asInstanceOf[Array[Partition]]
   }
