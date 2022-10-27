@@ -149,4 +149,24 @@ class AnalyticsDataFrameIntegrationTest {
     assertEquals(4, aggregates.where("country = 'Germany'").first().getAs[Long]("run"))
   }
 
+  @Test
+  def testPushDownAvgAggregate(): Unit = {
+    val airports = spark.read
+      .format("couchbase.analytics")
+      .option(AnalyticsOptions.Dataset, "airports")
+      .option(AnalyticsOptions.ScanConsistency, AnalyticsOptions.RequestPlusScanConsistency)
+      .load()
+
+    airports.createOrReplaceTempView("airports")
+
+    val aggregates = spark.sql(
+      "select avg(runways) as avg_run from airports"
+    )
+
+    aggregates.queryExecution.optimizedPlan.collect { case p: DataSourceV2ScanRelation =>
+      assertTrue(p.toString().contains("AVG(`runways`)"))
+    }
+
+    assertEquals(4.5, aggregates.first().getAs[Double]("avg_run"))
+  }
 }

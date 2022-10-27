@@ -1,4 +1,4 @@
-{"__META_ID": "airport::ord", "name": "O'Hare International Airport", "iata": "ORD", "country": "United States", "elevation": 204, "runways": 8, "helipads": 1}
-{"__META_ID": "airport::sfo", "name": "San Francisco International Airport", "iata": "SFO", "country": "United States", "elevation": 4, "runways": 4}
-{"__META_ID": "airport::vie", "name": "Vienna International Airport", "iata": "VIE", "country": "Austria", "elevation": 183, "runways": 2}
-{"__META_ID": "airport::fra", "name": "Vienna International Airport", "iata": "FRA", "country": "Germany", "elevation": 111, "runways": 4}
+{"__META_ID": "airport::ord", "name": "O'Hare International Airport", "iata": "ORD", "country": "United States", "elevation": 204, "runways": 8, "helipads": 1, "lat": 41.976, "lon": -87.912}
+{"__META_ID": "airport::sfo", "name": "San Francisco International Airport", "iata": "SFO", "country": "United States", "elevation": 4, "runways": 4, "lat": 37.622, "lon": -122.382}
+{"__META_ID": "airport::vie", "name": "Vienna International Airport", "iata": "VIE", "country": "Austria", "elevation": 183, "runways": 2, "lat": 48.111, "lon": 16.574 }
+{"__META_ID": "airport::fra", "name": "Frankfurt Airport", "iata": "FRA", "country": "Germany", "elevation": 111, "runways": 4, "lat":  50.037, "lon": 8.551 }

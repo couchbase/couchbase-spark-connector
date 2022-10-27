@@ -72,4 +72,6 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
     true
   }
 
+  override def supportCompletePushDown(aggregation: Aggregation): Boolean =
+    QueryAggregations.supportsCompleteAggPushdown(aggregation)
 }

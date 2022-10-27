@@ -18,7 +18,15 @@ package com.couchbase.spark.query
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.expressions.aggregate._
-import org.apache.spark.sql.types.{LongType, StructField, StructType}
+import org.apache.spark.sql.types.{
+  DataType,
+  DecimalType,
+  DoubleType,
+  FloatType,
+  LongType,
+  StructField,
+  StructType
+}
 
 /** Helper object to deal with aggregations in N1QL/SQL++. */
 object QueryAggregations extends Logging {
@@ -38,20 +46,23 @@ object QueryAggregations extends Logging {
           if (min.column.references.length != 1) return Seq.empty
           val fieldName = min.column.references.head
           val original  = structFieldForName(fieldName.fieldNames.head, schema).get
+          // MIN uses the original input type as the output type
           StructField(s"MIN(`$fieldName`)", original.dataType, original.nullable, original.metadata)
         case max: Max =>
           if (max.column.references.length != 1) return Seq.empty
           val fieldName = max.column.references.head
           val original  = structFieldForName(fieldName.fieldNames.head, schema).get
+          // MAX uses the original input type as the output type
           StructField(s"MAX(`$fieldName`)", original.dataType, original.nullable, original.metadata)
         case count: Count =>
           if (count.column.references.length != 1) return Seq.empty
           val fieldName = count.column.references.head
           val original  = structFieldForName(fieldName.fieldNames.head, schema).get
           val distinct  = if (count.isDistinct) "DISTINCT " else ""
+          // COUNT always returns the LongType, regardless of the input type
           StructField(
             s"COUNT($distinct`$fieldName`)",
-            original.dataType,
+            LongType,
             original.nullable,
             original.metadata
           )
@@ -60,9 +71,16 @@ object QueryAggregations extends Logging {
           val fieldName = sum.column.references.head
           val original  = structFieldForName(fieldName.fieldNames.head, schema).get
           val distinct  = if (sum.isDistinct) "DISTINCT " else ""
+          // If the original input type is fractional use a big fractional type, otherwise use a big integer
+          // type to fit in as much as possible on the sum.
+          val dataType = if (isFractional(original.dataType)) {
+            DoubleType
+          } else {
+            LongType
+          }
           StructField(
             s"SUM($distinct`$fieldName`)",
-            original.dataType,
+            dataType,
             original.nullable,
             original.metadata
           )
@@ -71,9 +89,10 @@ object QueryAggregations extends Logging {
           val fieldName = avg.column.references.head
           val original  = structFieldForName(fieldName.fieldNames.head, schema).get
           val distinct  = if (avg.isDistinct) "DISTINCT " else ""
+          // AVG is always of FloatType, even if the original field is an int/long type
           StructField(
             s"AVG($distinct`$fieldName`)",
-            original.dataType,
+            FloatType,
             original.nullable,
             original.metadata
           )
@@ -82,6 +101,16 @@ object QueryAggregations extends Logging {
         case _ => return Seq.empty
       })
       .toSeq
+  }
+
+  def supportsCompleteAggPushdown(agg: Aggregation): Boolean = {
+    agg.aggregateExpressions().foreach {
+      // These are all fine and supported...
+      case _: Min | _: Max | _: Avg | _: Sum | _: Count | _: CountStar =>
+      // For all the others report back to spark that complete agg pushdown is not supported
+      case _ => return false
+    }
+    true
   }
 
   def convertGroupByExpression(agg: Aggregation, schema: StructType): Seq[StructField] = {
@@ -100,6 +129,13 @@ object QueryAggregations extends Logging {
 
   private def structFieldForName(name: String, schema: StructType): Option[StructField] = {
     schema.fields.find(f => f.name.equals(name))
+  }
+
+  private def isFractional(dataType: DataType): Boolean = {
+    dataType match {
+      case _: DecimalType | FloatType | DoubleType => true
+      case _                                       => false
+    }
   }
 
 }

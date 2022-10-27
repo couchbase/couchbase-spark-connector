@@ -20,7 +20,7 @@ import com.couchbase.spark.query.QueryAggregations
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.StructType
 
 class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
     extends ScanBuilder
@@ -73,7 +73,6 @@ class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
     true
   }
 
-  private def structFieldForName(name: String): Option[StructField] = {
-    schema.fields.find(f => f.name.equals(name))
-  }
+  override def supportCompletePushDown(aggregation: Aggregation): Boolean =
+    QueryAggregations.supportsCompleteAggPushdown(aggregation)
 }
