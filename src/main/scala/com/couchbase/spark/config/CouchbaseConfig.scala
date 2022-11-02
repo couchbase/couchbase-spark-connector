@@ -106,61 +106,75 @@ object CouchbaseConfig {
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
   private val SPARK_SSL_INSECURE          = SPARK_SSL_PREFIX + "insecure"
 
-  def checkRequiredProperties(cfg: SparkConf): Unit = {
-    if (!cfg.contains(CONNECTION_STRING)) {
+  def checkRequiredProperties(
+      cfg: SparkConf,
+      connectionIdentifier: Option[String] = None
+  ): Unit = {
+    if (!cfg.contains(ident(CONNECTION_STRING, connectionIdentifier))) {
       throw new IllegalArgumentException(
-        "Required config property " + CONNECTION_STRING + " is not present"
+        "Required config property " + ident(
+          CONNECTION_STRING,
+          connectionIdentifier
+        ) + " is not present"
       )
     }
-    if (!cfg.contains(USERNAME)) {
-      throw new IllegalArgumentException("Required config property " + USERNAME + " is not present")
+    if (!cfg.contains(ident(USERNAME, connectionIdentifier))) {
+      throw new IllegalArgumentException(
+        "Required config property " + ident(USERNAME, connectionIdentifier) + " is not present"
+      )
     }
-    if (!cfg.contains(PASSWORD)) {
-      throw new IllegalArgumentException("Required config property " + PASSWORD + " is not present")
+    if (!cfg.contains(ident(PASSWORD, connectionIdentifier))) {
+      throw new IllegalArgumentException(
+        "Required config property " + ident(PASSWORD, connectionIdentifier) + " is not present"
+      )
     }
   }
 
-  def apply(cfg: SparkConf): CouchbaseConfig = {
-    checkRequiredProperties(cfg)
+  def apply(cfg: SparkConf, connectionIdentifier: Option[String] = None): CouchbaseConfig = {
+    checkRequiredProperties(cfg, connectionIdentifier)
 
-    val connectionString = cfg.get(CONNECTION_STRING)
+    val connectionString = cfg.get(ident(CONNECTION_STRING, connectionIdentifier))
 
-    val username    = cfg.get(USERNAME)
-    val password    = cfg.get(PASSWORD)
+    val username    = cfg.get(ident(USERNAME, connectionIdentifier))
+    val password    = cfg.get(ident(PASSWORD, connectionIdentifier))
     val credentials = Credentials(username, password)
 
-    val bucketName            = cfg.getOption(BUCKET_NAME)
-    val scopeName             = cfg.getOption(SCOPE_NAME)
-    val collectionName        = cfg.getOption(COLLECTION_NAME)
-    val waitUntilReadyTimeout = cfg.getOption(WAIT_UNTIL_READY_TIMEOUT)
+    val bucketName     = cfg.getOption(ident(BUCKET_NAME, connectionIdentifier))
+    val scopeName      = cfg.getOption(ident(SCOPE_NAME, connectionIdentifier))
+    val collectionName = cfg.getOption(ident(COLLECTION_NAME, connectionIdentifier))
+    val waitUntilReadyTimeout =
+      cfg.getOption(ident(WAIT_UNTIL_READY_TIMEOUT, connectionIdentifier))
 
     var useSsl                           = false
     var keyStorePath: Option[String]     = None
     var keyStorePassword: Option[String] = None
 
     // check for spark-related SSL settings
-    if (cfg.get(SPARK_SSL_ENABLED, "false").toBoolean) {
+    if (cfg.get(ident(SPARK_SSL_ENABLED, connectionIdentifier), "false").toBoolean) {
       useSsl = true
-      keyStorePath = cfg.getOption(SPARK_SSL_KEYSTORE)
-      keyStorePassword = cfg.getOption(SPARK_SSL_KEYSTORE_PASSWORD)
+      keyStorePath = cfg.getOption(ident(SPARK_SSL_KEYSTORE, connectionIdentifier))
+      keyStorePassword = cfg.getOption(ident(SPARK_SSL_KEYSTORE_PASSWORD, connectionIdentifier))
     }
 
-    val sslInsecure = cfg.get(SPARK_SSL_INSECURE, "false").toBoolean
+    val sslInsecure = cfg.get(ident(SPARK_SSL_INSECURE, connectionIdentifier), "false").toBoolean
 
     val properties = cfg.getAllWithPrefix(PREFIX).toMap
     val filteredProperties = properties
       .filterKeys(key => {
         val prefixedKey = PREFIX + key
-        prefixedKey != USERNAME &&
-        prefixedKey != PASSWORD &&
-        prefixedKey != CONNECTION_STRING &&
-        prefixedKey != BUCKET_NAME &&
-        prefixedKey != SCOPE_NAME &&
-        prefixedKey != COLLECTION_NAME &&
-        prefixedKey != WAIT_UNTIL_READY_TIMEOUT &&
-        prefixedKey != SPARK_SSL_ENABLED &&
-        prefixedKey != SPARK_SSL_KEYSTORE &&
-        prefixedKey != SPARK_SSL_KEYSTORE_PASSWORD
+        prefixedKey != ident(USERNAME, connectionIdentifier) &&
+        prefixedKey != ident(PASSWORD, connectionIdentifier) &&
+        prefixedKey != ident(CONNECTION_STRING, connectionIdentifier) &&
+        prefixedKey != ident(BUCKET_NAME, connectionIdentifier) &&
+        prefixedKey != ident(SCOPE_NAME, connectionIdentifier) &&
+        prefixedKey != ident(COLLECTION_NAME, connectionIdentifier) &&
+        prefixedKey != ident(WAIT_UNTIL_READY_TIMEOUT, connectionIdentifier) &&
+        prefixedKey != ident(SPARK_SSL_ENABLED, connectionIdentifier) &&
+        prefixedKey != ident(SPARK_SSL_KEYSTORE, connectionIdentifier) &&
+        prefixedKey != ident(SPARK_SSL_KEYSTORE_PASSWORD, connectionIdentifier)
+      })
+      .map(kv => {
+        (kv._1, kv._2)
       })
       .toSeq
 
@@ -174,5 +188,21 @@ object CouchbaseConfig {
       SparkSslOptions(useSsl, keyStorePath, keyStorePassword, sslInsecure),
       filteredProperties
     )
+  }
+
+  /** Adds the connection identifier suffix if present.
+    *
+    * @param property
+    *   the property to suffix potentially.
+    * @param identifier
+    *   the connection identifier.
+    * @return
+    *   the suffixed property.
+    */
+  private def ident(property: String, identifier: Option[String]): String = {
+    identifier match {
+      case Some(i) => property + ":" + i
+      case None    => property
+    }
   }
 }

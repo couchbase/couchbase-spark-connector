@@ -38,9 +38,10 @@ object KeyValueOperationRunner extends Logging {
       config: CouchbaseConfig,
       keyspace: Keyspace,
       upsert: Seq[Upsert[T]],
-      upsertOptions: UpsertOptions = null
+      upsertOptions: UpsertOptions = null,
+      connectionIdentifier: Option[String]
   )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
+    val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
 
     val bucketName = config
@@ -73,9 +74,10 @@ object KeyValueOperationRunner extends Logging {
       keyspace: Keyspace,
       insert: Seq[Insert[T]],
       insertOptions: InsertOptions = null,
-      ignoreIfExists: Boolean = false
+      ignoreIfExists: Boolean = false,
+      connectionIdentifier: Option[String]
   )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
+    val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
 
     val bucketName = config
@@ -121,9 +123,10 @@ object KeyValueOperationRunner extends Logging {
       keyspace: Keyspace,
       replace: Seq[Replace[T]],
       replaceOptions: ReplaceOptions = null,
-      ignoreIfNotFound: Boolean = false
+      ignoreIfNotFound: Boolean = false,
+      connectionIdentifier: Option[String]
   )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
+    val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
 
     val bucketName = config
@@ -169,9 +172,10 @@ object KeyValueOperationRunner extends Logging {
       keyspace: Keyspace,
       remove: Seq[Remove],
       removeOptions: RemoveOptions = null,
-      ignoreIfNotFound: Boolean = false
+      ignoreIfNotFound: Boolean = false,
+      connectionIdentifier: Option[String]
   ): Seq[MutationResult] = {
-    val connection = CouchbaseConnection()
+    val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
 
     val bucketName = config
@@ -216,9 +220,10 @@ object KeyValueOperationRunner extends Logging {
       config: CouchbaseConfig,
       keyspace: Keyspace,
       mutateIn: Seq[MutateIn],
-      mutateInOptions: MutateInOptions = null
+      mutateInOptions: MutateInOptions = null,
+      connectionIdentifier: Option[String]
   ): Seq[MutateInResult] = {
-    val connection = CouchbaseConnection()
+    val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
 
     val bucketName = config

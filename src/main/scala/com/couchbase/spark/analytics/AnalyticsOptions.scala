@@ -21,6 +21,11 @@ import com.couchbase.spark.DefaultConstants
   */
 object AnalyticsOptions {
 
+  /** Option Key: Instead of using the "default" connection, allows to connect to a different
+    * cluster.
+    */
+  val ConnectionIdentifier = "connectionIdentifier"
+
   /** Option Key: The name of the bucket, which overrides the implicit bucket configured.
     *
     * Note: only works against Couchbase Server 7.0 or later, since it used in conjunction with

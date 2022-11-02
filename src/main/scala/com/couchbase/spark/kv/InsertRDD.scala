@@ -17,7 +17,7 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.codec.JsonSerializer
 import com.couchbase.client.scala.kv.{InsertOptions, MutationResult}
-import com.couchbase.spark.{Keyspace}
+import com.couchbase.spark.Keyspace
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
@@ -28,25 +28,38 @@ class InsertRDD[T](
     val docs: Seq[Insert[T]],
     val keyspace: Keyspace,
     val insertOptions: InsertOptions = null,
-    ignoreIfExists: Boolean = false
+    ignoreIfExists: Boolean = false,
+    connectionIdentifier: Option[String] = None
 )(implicit serializer: JsonSerializer[T])
     extends RDD[MutationResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf, connectionIdentifier)
   private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
     KeyValueOperationRunner
-      .insert(globalConfig, keyspace, docsToWrite, insertOptions, ignoreIfExists)
+      .insert(
+        globalConfig,
+        keyspace,
+        docsToWrite,
+        insertOptions,
+        ignoreIfExists,
+        connectionIdentifier
+      )
       .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(
+        this.docs.map(_.id),
+        CouchbaseConnection(connectionIdentifier),
+        globalConfig,
+        bucketName
+      )
       .asInstanceOf[Array[Partition]]
 
     logDebug(

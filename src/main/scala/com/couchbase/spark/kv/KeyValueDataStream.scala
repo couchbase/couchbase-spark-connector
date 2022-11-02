@@ -37,12 +37,18 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
 
   implicit val defaultFormats: DefaultFormats = DefaultFormats
 
-  private lazy val sparkSession  = SparkSession.active
-  lazy val conf: CouchbaseConfig = CouchbaseConfig(sparkSession.sparkContext.getConf)
+  private lazy val sparkSession = SparkSession.active
+  lazy val conf: CouchbaseConfig =
+    CouchbaseConfig(sparkSession.sparkContext.getConf, config.connectionIdentifier)
 
   val dcpClient: Client = Client
     .builder()
-    .seedNodes(CouchbaseConnection().dcpSeedNodes(conf))
+    .seedNodes(
+      CouchbaseConnection(config.connectionIdentifier).dcpSeedNodes(
+        conf,
+        config.connectionIdentifier
+      )
+    )
     .bucket(config.bucket)
     .collectionsAware(config.scope.isDefined || config.collections.nonEmpty)
     .scopeName(if (config.scope.isDefined && config.collections.isEmpty) config.scope.get else null)
@@ -59,7 +65,10 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
     )
     .userAgent(Version.productName, Version.version, "stream")
     .credentials(conf.credentials.username, conf.credentials.password)
-    .securityConfig(CouchbaseConnection().dcpSecurityConfig(conf))
+    .securityConfig(
+      CouchbaseConnection(config.connectionIdentifier)
+        .dcpSecurityConfig(conf, config.connectionIdentifier)
+    )
     .build()
 
   dcpClient.connect().block()

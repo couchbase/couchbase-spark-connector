@@ -39,8 +39,6 @@ import com.couchbase.client.core.error.{DocumentExistsException, DocumentNotFoun
   */
 class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
 
-  private val config = CouchbaseConfig(rdd.sparkContext.getConf)
-
   /** Upserts documents into couchbase.
     *
     * @param keyspace
@@ -56,18 +54,26 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
     * @return
     *   the RDD result.
     */
-  def couchbaseUpsert[V](keyspace: Keyspace = Keyspace(), upsertOptions: UpsertOptions = null)(
-      implicit
+  def couchbaseUpsert[V](
+      keyspace: Keyspace = Keyspace(),
+      upsertOptions: UpsertOptions = null,
+      connectionIdentifier: String = null
+  )(implicit
       evidence: RDD[T] <:< RDD[Upsert[V]],
       serializer: JsonSerializer[V]
   ): RDD[MutationResult] = {
     val rdd: RDD[Upsert[V]] = this.rdd
 
+    val ci     = Option(connectionIdentifier)
+    val config = CouchbaseConfig(rdd.sparkContext.getConf, ci)
+
     rdd.mapPartitions { iterator =>
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
-        KeyValueOperationRunner.upsert(config, keyspace, iterator.toSeq, upsertOptions).iterator
+        KeyValueOperationRunner
+          .upsert(config, keyspace, iterator.toSeq, upsertOptions, ci)
+          .iterator
       }
     }
   }
@@ -92,19 +98,23 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
   def couchbaseInsert[V](
       keyspace: Keyspace = Keyspace(),
       insertOptions: InsertOptions = null,
-      ignoreIfExists: Boolean = false
+      ignoreIfExists: Boolean = false,
+      connectionIdentifier: String = null
   )(implicit
       evidence: RDD[T] <:< RDD[Insert[V]],
       serializer: JsonSerializer[V]
   ): RDD[MutationResult] = {
     val rdd: RDD[Insert[V]] = this.rdd
 
+    val ci     = Option(connectionIdentifier)
+    val config = CouchbaseConfig(rdd.sparkContext.getConf, ci)
+
     rdd.mapPartitions { iterator =>
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
         KeyValueOperationRunner
-          .insert(config, keyspace, iterator.toSeq, insertOptions, ignoreIfExists)
+          .insert(config, keyspace, iterator.toSeq, insertOptions, ignoreIfExists, ci)
           .iterator
       }
     }
@@ -130,19 +140,23 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
   def couchbaseReplace[V](
       keyspace: Keyspace = Keyspace(),
       replaceOptions: ReplaceOptions = null,
-      ignoreIfNotFound: Boolean = false
+      ignoreIfNotFound: Boolean = false,
+      connectionIdentifier: String = null
   )(implicit
       evidence: RDD[T] <:< RDD[Replace[V]],
       serializer: JsonSerializer[V]
   ): RDD[MutationResult] = {
     val rdd: RDD[Replace[V]] = this.rdd
 
+    val ci     = Option(connectionIdentifier)
+    val config = CouchbaseConfig(rdd.sparkContext.getConf, ci)
+
     rdd.mapPartitions { iterator =>
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
         KeyValueOperationRunner
-          .replace(config, keyspace, iterator.toSeq, replaceOptions, ignoreIfNotFound)
+          .replace(config, keyspace, iterator.toSeq, replaceOptions, ignoreIfNotFound, ci)
           .iterator
       }
     }
@@ -164,16 +178,20 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
   def couchbaseRemove(
       keyspace: Keyspace = Keyspace(),
       removeOptions: RemoveOptions = null,
-      ignoreIfNotFound: Boolean = false
+      ignoreIfNotFound: Boolean = false,
+      connectionIdentifier: String = null
   )(implicit evidence: RDD[T] <:< RDD[Remove]): RDD[MutationResult] = {
     val rdd: RDD[Remove] = this.rdd
+
+    val ci     = Option(connectionIdentifier)
+    val config = CouchbaseConfig(rdd.sparkContext.getConf, ci)
 
     rdd.mapPartitions { iterator =>
       if (iterator.isEmpty) {
         Iterator[MutationResult]()
       } else {
         KeyValueOperationRunner
-          .remove(config, keyspace, iterator.toSeq, removeOptions, ignoreIfNotFound)
+          .remove(config, keyspace, iterator.toSeq, removeOptions, ignoreIfNotFound, ci)
           .iterator
       }
     }
@@ -190,16 +208,25 @@ class RDDFunctions[T](rdd: RDD[T]) extends Serializable {
     * @return
     *   the RDD result.
     */
-  def couchbaseMutateIn(keyspace: Keyspace = Keyspace(), mutateInOptions: MutateInOptions = null)(
-      implicit evidence: RDD[T] <:< RDD[MutateIn]
+  def couchbaseMutateIn(
+      keyspace: Keyspace = Keyspace(),
+      mutateInOptions: MutateInOptions = null,
+      connectionIdentifier: String = null
+  )(implicit
+      evidence: RDD[T] <:< RDD[MutateIn]
   ): RDD[MutateInResult] = {
     val rdd: RDD[MutateIn] = this.rdd
+
+    val ci     = Option(connectionIdentifier)
+    val config = CouchbaseConfig(rdd.sparkContext.getConf, ci)
 
     rdd.mapPartitions { iterator =>
       if (iterator.isEmpty) {
         Iterator[MutateInResult]()
       } else {
-        KeyValueOperationRunner.mutateIn(config, keyspace, iterator.toSeq, mutateInOptions).iterator
+        KeyValueOperationRunner
+          .mutateIn(config, keyspace, iterator.toSeq, mutateInOptions, ci)
+          .iterator
       }
     }
   }

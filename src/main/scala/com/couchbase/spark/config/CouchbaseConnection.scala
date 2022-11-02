@@ -16,24 +16,24 @@
 
 package com.couchbase.spark.config
 
-import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment, PropertyLoader}
+import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment}
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
 import com.couchbase.client.core.transaction.config.CoreTransactionsCleanupConfig
 import com.couchbase.client.core.util.ConnectionString
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
-import com.couchbase.spark.config.CouchbaseConnection.connection
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
 
 import java.nio.file.Paths
 import java.util
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.collection.JavaConverters._
 
-class CouchbaseConnection extends Serializable with Logging {
+class CouchbaseConnection(val identifier: String) extends Serializable with Logging {
 
   @transient var envRef: Option[ClusterEnvironment] = None
 
@@ -43,9 +43,9 @@ class CouchbaseConnection extends Serializable with Logging {
 
   Runtime.getRuntime.addShutdownHook(new Thread {
     override def run(): Unit = {
-      Thread.currentThread().setName("couchbase-shutdown-in-progress")
-      CouchbaseConnection().stop()
-      Thread.currentThread().setName("couchbase-shutdown-complete")
+      Thread.currentThread().setName(s"couchbase-shutdown-in-progress-$identifier")
+      CouchbaseConnection(Some(identifier)).stop()
+      Thread.currentThread().setName(s"couchbase-shutdown-complete-$identifier")
     }
   })
 
@@ -173,6 +173,7 @@ class CouchbaseConnection extends Serializable with Logging {
 
   def stop(): Unit = {
     this.synchronized {
+      logInfo(s"Stopping CouchbaseConnection $identifier")
       try {
         if (clusterRef.isDefined) {
           clusterRef.get.disconnect()
@@ -214,8 +215,8 @@ class CouchbaseConnection extends Serializable with Logging {
     }
   }
 
-  def dcpSeedNodes(cfg: CouchbaseConfig): String = {
-    val allSeedNodes = CouchbaseConnection()
+  def dcpSeedNodes(cfg: CouchbaseConfig, connectionIdentifier: Option[String]): String = {
+    val allSeedNodes = CouchbaseConnection(connectionIdentifier)
       .cluster(cfg)
       .async
       .core
@@ -228,9 +229,12 @@ class CouchbaseConnection extends Serializable with Logging {
     allSeedNodes.mkString(",")
   }
 
-  def dcpSecurityConfig(cfg: CouchbaseConfig): com.couchbase.client.dcp.SecurityConfig = {
+  def dcpSecurityConfig(
+      cfg: CouchbaseConfig,
+      connectionIdentifier: Option[String]
+  ): com.couchbase.client.dcp.SecurityConfig = {
     // Make sure we are bootstrapped.
-    val _ = CouchbaseConnection().cluster(cfg)
+    val _ = CouchbaseConnection(connectionIdentifier).cluster(cfg)
 
     val coreSecurityConfig = envRef.get.core.securityConfig()
 
@@ -254,9 +258,17 @@ class CouchbaseConnection extends Serializable with Logging {
 
 object CouchbaseConnection {
 
-  lazy val connection = new CouchbaseConnection()
+  private val connections = new ConcurrentHashMap[String, CouchbaseConnection]()
 
-  def apply() = connection
+  def apply(connectionIdentifier: Option[String] = None): CouchbaseConnection = {
+    val i = connectionIdentifier.getOrElse("default")
+    connections.computeIfAbsent(
+      i,
+      i => {
+        new CouchbaseConnection(i)
+      }
+    )
+  }
 
 }
 

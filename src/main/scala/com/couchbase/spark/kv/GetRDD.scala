@@ -27,17 +27,18 @@ class GetRDD(
     @transient private val sc: SparkContext,
     val ids: Seq[Get],
     val keyspace: Keyspace,
-    getOptions: GetOptions = null
+    getOptions: GetOptions = null,
+    connectionIdentifier: Option[String] = None
 ) extends RDD[GetResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf, connectionIdentifier)
   private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[GetResult] = {
     val partition = split.asInstanceOf[KeyValuePartition]
 
-    val connection = CouchbaseConnection()
+    val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(globalConfig)
 
     val scopeName = globalConfig
@@ -66,7 +67,12 @@ class GetRDD(
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.ids.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(
+        this.ids.map(_.id),
+        CouchbaseConnection(connectionIdentifier),
+        globalConfig,
+        bucketName
+      )
       .asInstanceOf[Array[Partition]]
 
     logDebug(

@@ -80,9 +80,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseGet(
       ids: Seq[Get],
       keyspace: Keyspace = Keyspace(),
-      getOptions: GetOptions = null
+      getOptions: GetOptions = null,
+      connectionIdentifier: String = null
   ): RDD[GetResult] =
-    new GetRDD(sc, ids, keyspace, getOptions)
+    new GetRDD(sc, ids, keyspace, getOptions, Option(connectionIdentifier))
 
   /** Upserts a seq of documents.
     *
@@ -102,9 +103,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseUpsert[T](
       docs: Seq[Upsert[T]],
       keyspace: Keyspace = Keyspace(),
-      upsertOptions: UpsertOptions = null
+      upsertOptions: UpsertOptions = null,
+      connectionIdentifier: String = null
   )(implicit serializer: JsonSerializer[T]): RDD[MutationResult] =
-    new UpsertRDD[T](sc, docs, keyspace, upsertOptions)
+    new UpsertRDD[T](sc, docs, keyspace, upsertOptions, Option(connectionIdentifier))
 
   /** Replaces a seq documents.
     *
@@ -127,9 +129,17 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
       docs: Seq[Replace[T]],
       keyspace: Keyspace = Keyspace(),
       replaceOptions: ReplaceOptions = null,
-      ignoreIfNotFound: Boolean = false
+      ignoreIfNotFound: Boolean = false,
+      connectionIdentifier: String = null
   )(implicit serializer: JsonSerializer[T]): RDD[MutationResult] =
-    new ReplaceRDD[T](sc, docs, keyspace, replaceOptions, ignoreIfNotFound)
+    new ReplaceRDD[T](
+      sc,
+      docs,
+      keyspace,
+      replaceOptions,
+      ignoreIfNotFound,
+      Option(connectionIdentifier)
+    )
 
   /** Inserts a seq of documents.
     *
@@ -173,9 +183,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
       docs: Seq[Remove],
       keyspace: Keyspace = Keyspace(),
       removeOptions: RemoveOptions = null,
-      ignoreIfNotFound: Boolean = false
+      ignoreIfNotFound: Boolean = false,
+      connectionIdentifier: String = null
   ): RDD[MutationResult] =
-    new RemoveRDD(sc, docs, keyspace, removeOptions, ignoreIfNotFound)
+    new RemoveRDD(sc, docs, keyspace, removeOptions, ignoreIfNotFound, Option(connectionIdentifier))
 
   /** Performs subdocument lookup.
     *
@@ -191,9 +202,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseLookupIn(
       docs: Seq[LookupIn],
       keyspace: Keyspace = Keyspace(),
-      lookupInOptions: LookupInOptions = null
+      lookupInOptions: LookupInOptions = null,
+      connectionIdentifier: String = null
   ): RDD[LookupInResult] =
-    new LookupInRDD(sc, docs, keyspace, lookupInOptions)
+    new LookupInRDD(sc, docs, keyspace, lookupInOptions, Option(connectionIdentifier))
 
   /** Performs subdocument mutations.
     *
@@ -209,9 +221,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseMutateIn(
       docs: Seq[MutateIn],
       keyspace: Keyspace = Keyspace(),
-      mutateInOptions: MutateInOptions = null
+      mutateInOptions: MutateInOptions = null,
+      connectionIdentifier: String = null
   ): RDD[MutateInResult] =
-    new MutateInRDD(sc, docs, keyspace, mutateInOptions)
+    new MutateInRDD(sc, docs, keyspace, mutateInOptions, Option(connectionIdentifier))
 
   /** Performs a N1QL query.
     *
@@ -223,6 +236,8 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
     *   the keyspace (only provide bucket and scope if needed).
     * @param deserializer
     *   the implicit JSON deserializer to use.
+    * @param connectionIdentifier
+    *   if a different connection should be used than the default one.
     * @tparam T
     *   the document type to decode into.
     * @return
@@ -231,9 +246,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseQuery[T: ClassTag](
       statement: String,
       queryOptions: QueryOptions = null,
-      keyspace: Keyspace = null
+      keyspace: Keyspace = null,
+      connectionIdentifier: String = null
   )(implicit deserializer: JsonDeserializer[T]): RDD[T] =
-    new QueryRDD[T](sc, statement, queryOptions, keyspace)
+    new QueryRDD[T](sc, statement, queryOptions, keyspace, Option(connectionIdentifier))
 
   /** Performs an analytics query.
     *
@@ -253,9 +269,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseAnalyticsQuery[T: ClassTag](
       statement: String,
       analyticsOptions: AnalyticsOptions = null,
-      keyspace: Keyspace = null
+      keyspace: Keyspace = null,
+      connectionIdentifier: String = null
   )(implicit deserializer: JsonDeserializer[T]): RDD[T] =
-    new AnalyticsRDD[T](sc, statement, analyticsOptions, keyspace)
+    new AnalyticsRDD[T](sc, statement, analyticsOptions, keyspace, Option(connectionIdentifier))
 
   /** Performs a full-text search query.
     *
@@ -271,9 +288,10 @@ class SparkContextFunctions(@transient val sc: SparkContext) extends Serializabl
   def couchbaseSearchQuery(
       indexName: String,
       query: SearchQuery,
-      searchOptions: SearchOptions = null
+      searchOptions: SearchOptions = null,
+      connectionIdentifier: String = null
   ): RDD[SearchResult] = {
-    new SearchRDD(sc, indexName, query, searchOptions)
+    new SearchRDD(sc, indexName, query, searchOptions, Option(connectionIdentifier))
   }
 
 }

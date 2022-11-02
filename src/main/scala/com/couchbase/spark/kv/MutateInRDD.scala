@@ -27,22 +27,30 @@ class MutateInRDD(
     @transient private val sc: SparkContext,
     val docs: Seq[MutateIn],
     val keyspace: Keyspace,
-    mutateInOptions: MutateInOptions = null
+    mutateInOptions: MutateInOptions = null,
+    connectionIdentifier: Option[String] = None
 ) extends RDD[MutateInResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf, connectionIdentifier)
   private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutateInResult] = {
     val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
-    KeyValueOperationRunner.mutateIn(globalConfig, keyspace, docsToWrite, mutateInOptions).iterator
+    KeyValueOperationRunner
+      .mutateIn(globalConfig, keyspace, docsToWrite, mutateInOptions, connectionIdentifier)
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(docs.map(d => d.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(
+        docs.map(d => d.id),
+        CouchbaseConnection(connectionIdentifier),
+        globalConfig,
+        bucketName
+      )
       .asInstanceOf[Array[Partition]]
 
     logDebug(

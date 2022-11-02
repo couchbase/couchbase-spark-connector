@@ -34,7 +34,7 @@ class AnalyticsBatch(
 ) extends Batch {
 
   override def planInputPartitions(): Array[InputPartition] = {
-    val core   = CouchbaseConnection().cluster(conf).async.core
+    val core   = CouchbaseConnection(readConfig.connectionIdentifier).cluster(conf).async.core
     val config = core.clusterConfig()
 
     val locations = if (config.globalConfig() != null) {

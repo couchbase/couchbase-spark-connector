@@ -27,23 +27,31 @@ class UpsertRDD[T](
     @transient private val sc: SparkContext,
     val docs: Seq[Upsert[T]],
     val keyspace: Keyspace,
-    val upsertOptions: UpsertOptions = null
+    val upsertOptions: UpsertOptions = null,
+    connectionIdentifier: Option[String] = None
 )(implicit serializer: JsonSerializer[T])
     extends RDD[MutationResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf, connectionIdentifier)
   private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
-    KeyValueOperationRunner.upsert(globalConfig, keyspace, docsToWrite, upsertOptions).iterator
+    KeyValueOperationRunner
+      .upsert(globalConfig, keyspace, docsToWrite, upsertOptions, connectionIdentifier)
+      .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(
+        this.docs.map(_.id),
+        CouchbaseConnection(connectionIdentifier),
+        globalConfig,
+        bucketName
+      )
       .asInstanceOf[Array[Partition]]
 
     logDebug(

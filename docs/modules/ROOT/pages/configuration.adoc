@@ -88,6 +88,60 @@ Or to set the certificate path:
 
 Please refer to the SDK documentation for the possible keys or values.
 
+== Connecting to multiple Clusters
+
+NOTE: This feature is only available with Spark Connector 3.3.0 and later.
+
+It is possible to connect to more than one Couchbase Cluster when using the Spark Connector.
+
+To create more than one connection, a custom identifier prefixed by `:` needs to be provided at configuration time. The following examples configures a default environment that is always used and a `westcoast` environment that needs to be explicitly specified when performing an operation:
+
+[source,scala]
+----
+val spark = SparkSession
+  .builder()
+  .appName("MultipleClsuterConnections")
+  .config("spark.couchbase.connectionString", "hostname1")
+  .config("spark.couchbase.username", "username")
+  .config("spark.couchbase.password", "password")
+  .config("spark.couchbase.connectionString:westcoast", "westcoasthost")
+  .config("spark.couchbase.username:westcoast", "westcoastuser")
+  .config("spark.couchbase.password:westcoast", "westcoastpassword")
+  .getOrCreate()
+----
+
+When performing an operation (like querying a DataFrame), an option can be provided to use the custom connection instead of the default one.
+
+This will use the default connection:
+
+[source,scala]
+----
+val airports = spark.read
+  .format("couchbase.query")
+  .load()
+----
+
+Setting the `QueryOptions.ConnectionIdentifier` option will override the default connection based on the identifier provided.
+
+[source,scala]
+----
+val airports = spark.read
+  .format("couchbase.query")
+  .option(QueryOptions.ConnectionIdentifier, "westcoast")
+  .load()
+----
+
+On RDD operations additional arguments are provided to achieve the same:
+
+[source,scala]
+----
+spark.sparkContext
+  .couchbaseGet(Seq(Get("airline_10"), Get("airline_10642")), connectionIdentifier = "westcoast")
+  .collect()
+----
+
+The same connection identifier mechanism works for dynamic properties (described earlier).
+
 == TLS Connections
 
 TLS connections can be confiugred through SDK properties shown above, but there is an alternative way that aligns with configuring TLS in spark itself. The following properties are recognized and if enabled used to connect to a Couchbase cluster encrypted:

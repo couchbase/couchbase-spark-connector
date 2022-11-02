@@ -26,7 +26,8 @@ case class KeyValueStreamConfig(
     streamContent: Boolean,
     streamXattrs: Boolean,
     flowControlBufferSize: Option[Int],
-    persistencePollingInterval: Option[String]
+    persistencePollingInterval: Option[String],
+    connectionIdentifier: Option[String]
 )
 
 object StreamFromVariants extends Enumeration {

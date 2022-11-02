@@ -21,5 +21,6 @@ case class KeyValueWriteConfig(
     collection: Option[String],
     idFieldName: String,
     durability: Option[String],
-    timeout: Option[String]
+    timeout: Option[String],
+    connectionIdentifier: Option[String]
 )

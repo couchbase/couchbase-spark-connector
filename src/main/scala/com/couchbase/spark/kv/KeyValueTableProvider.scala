@@ -52,9 +52,6 @@ class KeyValueTableProvider
     with DataSourceRegister
     with CreatableRelationProvider {
 
-  private lazy val sparkSession = SparkSession.active
-  private lazy val conf         = CouchbaseConfig(sparkSession.sparkContext.getConf)
-
   override def shortName(): String = "couchbase.kv"
 
   override def createRelation(
@@ -63,9 +60,16 @@ class KeyValueTableProvider
       parameters: Map[String, String],
       data: DataFrame
   ): BaseRelation = {
-    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf)
+    val couchbaseConfig = CouchbaseConfig(
+      ctx.sparkContext.getConf,
+      parameters.get(KeyValueOptions.ConnectionIdentifier)
+    )
     data.toJSON.foreachPartition(
-      new RelationPartitionWriter(writeConfig(parameters.asJava), couchbaseConfig, mode)
+      new RelationPartitionWriter(
+        writeConfig(parameters.asJava, couchbaseConfig),
+        couchbaseConfig,
+        mode
+      )
     )
 
     if (mode == SaveMode.Append) {
@@ -80,7 +84,10 @@ class KeyValueTableProvider
     }
   }
 
-  def writeConfig(properties: util.Map[String, String]): KeyValueWriteConfig = {
+  def writeConfig(
+      properties: util.Map[String, String],
+      conf: CouchbaseConfig
+  ): KeyValueWriteConfig = {
     KeyValueWriteConfig(
       conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
@@ -88,12 +95,21 @@ class KeyValueTableProvider
       Option(properties.get(KeyValueOptions.IdFieldName))
         .getOrElse(DefaultConstants.DefaultIdFieldName),
       Option(properties.get(KeyValueOptions.Durability)),
-      Option(properties.get(KeyValueOptions.Timeout))
+      Option(properties.get(KeyValueOptions.Timeout)),
+      Option(properties.get(KeyValueOptions.ConnectionIdentifier))
     )
   }
 
   def streamConfig(properties: util.Map[String, String]): KeyValueStreamConfig = {
-    val defaultNumPartitions = SparkSession.active.sparkContext.defaultParallelism
+    val sparkContext = SparkSession.active.sparkContext
+
+    val ci = Option(properties.get(KeyValueOptions.ConnectionIdentifier))
+    val conf = CouchbaseConfig(
+      sparkContext.getConf,
+      ci
+    )
+
+    val defaultNumPartitions = sparkContext.defaultParallelism
 
     var collections: Seq[String] = Seq()
 
@@ -127,7 +143,8 @@ class KeyValueTableProvider
       Option(properties.get(KeyValueOptions.StreamContent)).getOrElse("true").toBoolean,
       streamXattrs,
       Option(properties.get(KeyValueOptions.StreamFlowControlBufferSize)).map(_.toInt),
-      Option(properties.get(KeyValueOptions.StreamPersistencePollingInterval))
+      Option(properties.get(KeyValueOptions.StreamPersistencePollingInterval)),
+      ci
     )
     logDebug(s"Using KeyValueStreamConfig of $c")
     c
@@ -203,7 +220,7 @@ class RelationPartitionWriter(
       })
       .toList
 
-    val coll = CouchbaseConnection()
+    val coll = CouchbaseConnection(writeConfig.connectionIdentifier)
       .cluster(couchbaseConfig)
       .bucket(writeConfig.bucket)
       .scope(scopeName)

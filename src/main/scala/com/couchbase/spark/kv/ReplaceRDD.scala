@@ -28,25 +28,38 @@ class ReplaceRDD[T](
     val docs: Seq[Replace[T]],
     val keyspace: Keyspace,
     val replaceOptions: ReplaceOptions = null,
-    ignoreIfNotFound: Boolean = false
+    ignoreIfNotFound: Boolean = false,
+    connectionIdentifier: Option[String] = None
 )(implicit serializer: JsonSerializer[T])
     extends RDD[MutationResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf, connectionIdentifier)
   private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
     KeyValueOperationRunner
-      .replace(globalConfig, keyspace, docsToWrite, replaceOptions, ignoreIfNotFound)
+      .replace(
+        globalConfig,
+        keyspace,
+        docsToWrite,
+        replaceOptions,
+        ignoreIfNotFound,
+        connectionIdentifier
+      )
       .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(
+        this.docs.map(_.id),
+        CouchbaseConnection(connectionIdentifier),
+        globalConfig,
+        bucketName
+      )
       .asInstanceOf[Array[Partition]]
 
     logDebug(

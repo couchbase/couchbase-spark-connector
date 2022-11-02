@@ -27,16 +27,17 @@ class LookupInRDD(
     @transient private val sc: SparkContext,
     val docs: Seq[LookupIn],
     val keyspace: Keyspace,
-    lookupInOptions: LookupInOptions = null
+    lookupInOptions: LookupInOptions = null,
+    connectionIdentifier: Option[String] = None
 ) extends RDD[LookupInResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf, connectionIdentifier)
   private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[LookupInResult] = {
     val partition  = split.asInstanceOf[KeyValuePartition]
-    val connection = CouchbaseConnection()
+    val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(globalConfig)
 
     val scopeName = globalConfig
@@ -66,7 +67,12 @@ class LookupInRDD(
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(docs.map(d => d.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(
+        docs.map(d => d.id),
+        CouchbaseConnection(connectionIdentifier),
+        globalConfig,
+        bucketName
+      )
       .asInstanceOf[Array[Partition]]
 
     logDebug(

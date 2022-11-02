@@ -21,6 +21,11 @@ import com.couchbase.spark.DefaultConstants
   */
 object KeyValueOptions {
 
+  /** Option Key: Instead of using the "default" connection, allows to connect to a different
+    * cluster.
+    */
+  val ConnectionIdentifier = "connectionIdentifier"
+
   /** Option Key: The name of the bucket, which overrides the implicit bucket configured.
     */
   val Bucket = "bucket"

@@ -65,9 +65,11 @@ class QueryPartitionReader(
         DefaultConstants.DefaultCollectionName
       )
     ) {
-      CouchbaseConnection().cluster(conf).query(buildQuery(), buildOptions())
+      CouchbaseConnection(readConfig.connectionIdentifier)
+        .cluster(conf)
+        .query(buildQuery(), buildOptions())
     } else {
-      CouchbaseConnection()
+      CouchbaseConnection(readConfig.connectionIdentifier)
         .cluster(conf)
         .bucket(readConfig.bucket)
         .scope(scopeName)

@@ -76,9 +76,11 @@ class AnalyticsPartitionReader(
 
   private lazy val result = {
     if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
-      CouchbaseConnection().cluster(conf).analyticsQuery(buildAnalyticsQuery(), buildOptions())
+      CouchbaseConnection(readConfig.connectionIdentifier)
+        .cluster(conf)
+        .analyticsQuery(buildAnalyticsQuery(), buildOptions())
     } else {
-      CouchbaseConnection()
+      CouchbaseConnection(readConfig.connectionIdentifier)
         .cluster(conf)
         .bucket(readConfig.bucket.get)
         .scope(readConfig.scope.get)

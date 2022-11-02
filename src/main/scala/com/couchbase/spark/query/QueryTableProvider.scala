@@ -47,7 +47,6 @@ class QueryTableProvider
   override def shortName(): String = "couchbase.query"
 
   private lazy val sparkSession = SparkSession.active
-  private lazy val conf         = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   /** InferSchema is always called if the user does not pass in an explicit schema.
     *
@@ -61,6 +60,13 @@ class QueryTableProvider
       logDebug("Not inferring schema because called from the DataFrameWriter")
       return null
     }
+
+    val connectionIdentifier = Option(options.get(QueryOptions.ConnectionIdentifier))
+
+    val conf = CouchbaseConfig(
+      sparkSession.sparkContext.getConf,
+      connectionIdentifier
+    )
 
     val idFieldName =
       Option(options.get(QueryOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName)
@@ -97,14 +103,14 @@ class QueryTableProvider
         val statement =
           s"SELECT META().id as $idFieldName, `$bucketName`.* FROM `$bucketName`$whereClause LIMIT $inferLimit"
         logDebug(s"Inferring schema from bucket $bucketName with query '$statement'")
-        CouchbaseConnection().cluster(conf).query(statement, opts)
+        CouchbaseConnection(connectionIdentifier).cluster(conf).query(statement, opts)
       } else {
         val statement =
           s"SELECT META().id as $idFieldName, `$collectionName`.* FROM `$collectionName`$whereClause LIMIT $inferLimit"
         logDebug(
           s"Inferring schema from bucket/scope/collection $bucketName/$scopeName/$collectionName with query '$statement'"
         )
-        CouchbaseConnection()
+        CouchbaseConnection(connectionIdentifier)
           .cluster(conf)
           .bucket(bucketName)
           .scope(scopeName)
@@ -133,6 +139,13 @@ class QueryTableProvider
     Thread.currentThread().getStackTrace.exists(_.getClassName.contains("DataFrameWriter"))
 
   def readConfig(properties: util.Map[String, String]): QueryReadConfig = {
+    val connectionIdentifier = Option(properties.get(QueryOptions.ConnectionIdentifier))
+
+    val conf = CouchbaseConfig(
+      sparkSession.sparkContext.getConf,
+      connectionIdentifier
+    )
+
     QueryReadConfig(
       conf.implicitBucketNameOr(properties.get(QueryOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(QueryOptions.Scope)),
@@ -143,18 +156,22 @@ class QueryTableProvider
       Option(properties.get(QueryOptions.ScanConsistency))
         .getOrElse(DefaultConstants.DefaultQueryScanConsistency),
       Option(properties.get(QueryOptions.Timeout)),
-      Option(properties.get(QueryOptions.PushDownAggregate)).getOrElse("true").toBoolean
+      Option(properties.get(QueryOptions.PushDownAggregate)).getOrElse("true").toBoolean,
+      connectionIdentifier
     )
   }
 
-  def writeConfig(properties: util.Map[String, String]): QueryWriteConfig = {
+  def writeConfig(properties: util.Map[String, String], conf: CouchbaseConfig): QueryWriteConfig = {
+    val connectionIdentifier = Option(properties.get(QueryOptions.ConnectionIdentifier))
+
     QueryWriteConfig(
       conf.implicitBucketNameOr(properties.get(QueryOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(QueryOptions.Scope)),
       conf.implicitCollectionName(properties.get(QueryOptions.Collection)),
       Option(properties.get(QueryOptions.IdFieldName))
         .getOrElse(DefaultConstants.DefaultIdFieldName),
-      Option(properties.get(QueryOptions.Timeout))
+      Option(properties.get(QueryOptions.Timeout)),
+      connectionIdentifier
     )
   }
 
@@ -186,8 +203,11 @@ class QueryTableProvider
       properties: Map[String, String],
       data: DataFrame
   ): BaseRelation = {
-    val writeConfig     = this.writeConfig(properties.asJava)
-    val couchbaseConfig = CouchbaseConfig(ctx.sparkContext.getConf)
+    val couchbaseConfig = CouchbaseConfig(
+      ctx.sparkContext.getConf,
+      properties.get(QueryOptions.ConnectionIdentifier)
+    )
+    val writeConfig = this.writeConfig(properties.asJava, couchbaseConfig)
     data.toJSON.foreachPartition(new RelationPartitionWriter(writeConfig, couchbaseConfig, mode))
 
     new BaseRelation {
@@ -248,9 +268,12 @@ class RelationPartitionWriter(
             DefaultConstants.DefaultCollectionName
           )
         ) {
-          CouchbaseConnection().cluster(couchbaseConfig).query(statement, opts).get
+          CouchbaseConnection(writeConfig.connectionIdentifier)
+            .cluster(couchbaseConfig)
+            .query(statement, opts)
+            .get
         } else {
-          CouchbaseConnection()
+          CouchbaseConnection(writeConfig.connectionIdentifier)
             .cluster(couchbaseConfig)
             .bucket(writeConfig.bucket)
             .scope(scopeName)

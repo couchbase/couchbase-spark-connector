@@ -38,9 +38,15 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
   override def shortName(): String = "couchbase.analytics"
 
   private lazy val sparkSession = SparkSession.active
-  private lazy val conf         = CouchbaseConfig(sparkSession.sparkContext.getConf)
 
   override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+    val connectionIdentifier = Option(options.get(QueryOptions.ConnectionIdentifier))
+
+    val conf = CouchbaseConfig(
+      sparkSession.sparkContext.getConf,
+      connectionIdentifier
+    )
+
     val idFieldName = Option(options.get(AnalyticsOptions.IdFieldName))
       .getOrElse(DefaultConstants.DefaultIdFieldName)
     val whereClause =
@@ -68,14 +74,14 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
       val statement =
         s"SELECT META().id as $idFieldName, `$dataset`.* FROM `$dataset`$whereClause LIMIT $inferLimit"
       logDebug(s"Inferring schema from bucket $dataset with query '$statement'")
-      CouchbaseConnection().cluster(conf).analyticsQuery(statement, opts)
+      CouchbaseConnection(connectionIdentifier).cluster(conf).analyticsQuery(statement, opts)
     } else {
       val statement =
         s"SELECT META().id as $idFieldName, `$dataset`.* FROM `$dataset`$whereClause LIMIT $inferLimit"
       logDebug(
         s"Inferring schema from bucket/scope/dataset $bucketName/$scopeName/$dataset with query '$statement'"
       )
-      CouchbaseConnection()
+      CouchbaseConnection(connectionIdentifier)
         .cluster(conf)
         .bucket(bucketName.get)
         .scope(scopeName.get)
@@ -92,6 +98,13 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
   }
 
   def readConfig(properties: util.Map[String, String]): AnalyticsReadConfig = {
+    val connectionIdentifier = Option(properties.get(AnalyticsOptions.ConnectionIdentifier))
+
+    val conf = CouchbaseConfig(
+      sparkSession.sparkContext.getConf,
+      connectionIdentifier
+    )
+
     val dataset = properties.get(AnalyticsOptions.Dataset)
     if (dataset == null) {
       throw new IllegalArgumentException("A dataset must be provided through the options!")
@@ -107,7 +120,8 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
       Option(properties.get(AnalyticsOptions.ScanConsistency))
         .getOrElse(DefaultConstants.DefaultAnalyticsScanConsistency),
       Option(properties.get(AnalyticsOptions.Timeout)),
-      Option(properties.get(AnalyticsOptions.PushDownAggregate)).getOrElse("true").toBoolean
+      Option(properties.get(AnalyticsOptions.PushDownAggregate)).getOrElse("true").toBoolean,
+      connectionIdentifier
     )
   }
 

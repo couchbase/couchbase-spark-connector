@@ -28,24 +28,37 @@ class RemoveRDD(
     val docs: Seq[Remove],
     val keyspace: Keyspace,
     removeOptions: RemoveOptions = null,
-    ignoreIfNotFound: Boolean = false
+    ignoreIfNotFound: Boolean = false,
+    connectionIdentifier: Option[String] = None
 ) extends RDD[MutationResult](sc, Nil)
     with Logging {
 
-  private val globalConfig = CouchbaseConfig(sparkContext.getConf)
+  private val globalConfig = CouchbaseConfig(sparkContext.getConf, connectionIdentifier)
   private val bucketName   = globalConfig.implicitBucketNameOr(this.keyspace.bucket.orNull)
 
   override def compute(split: Partition, context: TaskContext): Iterator[MutationResult] = {
     val splitIds    = split.asInstanceOf[KeyValuePartition].ids
     val docsToWrite = docs.filter(u => splitIds.contains(u.id))
     KeyValueOperationRunner
-      .remove(globalConfig, keyspace, docsToWrite, removeOptions, ignoreIfNotFound)
+      .remove(
+        globalConfig,
+        keyspace,
+        docsToWrite,
+        removeOptions,
+        ignoreIfNotFound,
+        connectionIdentifier
+      )
       .iterator
   }
 
   override protected def getPartitions: Array[Partition] = {
     val partitions = KeyValuePartition
-      .partitionsForIds(this.docs.map(_.id), CouchbaseConnection(), globalConfig, bucketName)
+      .partitionsForIds(
+        this.docs.map(_.id),
+        CouchbaseConnection(connectionIdentifier),
+        globalConfig,
+        bucketName
+      )
       .asInstanceOf[Array[Partition]]
 
     logDebug(

@@ -57,8 +57,18 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
 
   private val dcpClient = Client
     .builder()
-    .seedNodes(CouchbaseConnection().dcpSeedNodes(couchbaseConfig))
-    .securityConfig(CouchbaseConnection().dcpSecurityConfig(couchbaseConfig))
+    .seedNodes(
+      CouchbaseConnection(streamConfig.connectionIdentifier).dcpSeedNodes(
+        couchbaseConfig,
+        streamConfig.connectionIdentifier
+      )
+    )
+    .securityConfig(
+      CouchbaseConnection(streamConfig.connectionIdentifier).dcpSecurityConfig(
+        couchbaseConfig,
+        streamConfig.connectionIdentifier
+      )
+    )
     .flowControl(streamConfig.flowControlBufferSize.getOrElse(1024 * 1024 * 10))
     .mitigateRollbacks(
       Duration(streamConfig.persistencePollingInterval.getOrElse("100ms")).toMicros,
