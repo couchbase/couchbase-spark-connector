@@ -95,6 +95,7 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
     )
     .noValue(!streamConfig.streamContent)
     .xattrs(streamConfig.streamXattrs)
+    .bootstrapTimeout(DCPShared.bootstrapTimeout)
     .build()
 
   attachAndConnectDcpListener()

@@ -69,6 +69,7 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
       CouchbaseConnection(config.connectionIdentifier)
         .dcpSecurityConfig(conf, config.connectionIdentifier)
     )
+    .bootstrapTimeout(DCPShared.bootstrapTimeout)
     .build()
 
   dcpClient.connect().block()
