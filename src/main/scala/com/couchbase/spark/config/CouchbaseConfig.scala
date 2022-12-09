@@ -16,9 +16,12 @@
 
 package com.couchbase.spark.config
 
+import com.couchbase.client.core.error.InvalidArgumentException
+import com.couchbase.client.core.util.ConnectionString
 import org.apache.spark.SparkConf
 
 import java.util.Locale
+import scala.collection.mutable.ArrayBuffer
 
 case class Credentials(username: String, password: String)
 
@@ -44,7 +47,7 @@ case class CouchbaseConfig(
     var bn = Option(explicitName)
     if (bn.isEmpty && bucketName.isEmpty) {
       throw new IllegalArgumentException(
-        "Either a implicitBucket needs to be configured, " +
+        "Either an implicitBucket needs to be configured, " +
           "or a bucket name needs to be provided as part of the options!"
       )
     } else if (bn.isEmpty) {
@@ -106,72 +109,172 @@ object CouchbaseConfig {
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
   private val SPARK_SSL_INSECURE          = SPARK_SSL_PREFIX + "insecure"
 
-  def checkRequiredProperties(
-      cfg: SparkConf,
-      connectionIdentifier: Option[String] = None
-  ): Unit = {
-    if (!cfg.contains(ident(CONNECTION_STRING, connectionIdentifier))) {
-      throw new IllegalArgumentException(
-        "Required config property " + ident(
-          CONNECTION_STRING,
-          connectionIdentifier
-        ) + " is not present"
-      )
+  /** @param connectionIdentifier
+    *   this needs to be the full original string, to allow dynamic connections with e.g. the same hostname but different
+    *    credentials or settings
+    * @param schema
+    *   "couchbase", "couchbases"
+    * @param hostnameAndPort
+    *   localhost:4590 or just localhost
+    * @param settings
+    *   any properties to apply e.g. "spark.couchbase.timeout.kvTimeout=10s" or
+    *   "com.couchbase.some.property=10s"
+    */
+  case class ConnectionIdentifierParsed(
+      connectionIdentifier: String,
+      schema: String,
+      hosts: Seq[ConnectionString.UnresolvedSocket],
+      username: Option[String],
+      password: Option[String],
+      settings: Seq[(String, String)]
+  ) {
+    def getSetting(key: String): Option[String] = {
+      settings.find(v => v._1 == key).map(v => v._2)
     }
-    if (!cfg.contains(ident(USERNAME, connectionIdentifier))) {
-      throw new IllegalArgumentException(
-        "Required config property " + ident(USERNAME, connectionIdentifier) + " is not present"
-      )
-    }
-    if (!cfg.contains(ident(PASSWORD, connectionIdentifier))) {
-      throw new IllegalArgumentException(
-        "Required config property " + ident(PASSWORD, connectionIdentifier) + " is not present"
-      )
-    }
+
+    def connectionString: String = schema + "://" + hosts
+      .map(v => v.hostname + (if (v.port == 0) "" else ":" + v.port))
+      .mkString(",")
   }
 
-  def apply(cfg: SparkConf, connectionIdentifier: Option[String] = None): CouchbaseConfig = {
-    checkRequiredProperties(cfg, connectionIdentifier)
+  // "couchbase://hostname"
+  // "couchbase://hostname:port"
+  // "couchbase://username:password@hostname"
+  // "couchbase://username:password@hostname:port"
+  // "couchbase://user@pw:myhosts?spark.couchbase.timeout.kvTimeout=10s"
+  private def parseConnectionIdentifier(
+      connectionIdentifier: String
+  ): ConnectionIdentifierParsed = {
+    val cs = ConnectionString.create(connectionIdentifier)
+    import scala.collection.JavaConverters._
+    ConnectionIdentifierParsed(connectionIdentifier,
+      cs.scheme().name().toLowerCase,
+      cs.hosts.asScala,
+      if (cs.username() == null) None else Some(cs.username.split(":")(0)),
+      if (cs.username() == null) None else Some(cs.username.split(":")(1)),
+      cs.params.asScala.toSeq)
+  }
 
-    val connectionString = cfg.get(ident(CONNECTION_STRING, connectionIdentifier))
+  def apply(cfg: SparkConf, connectionIdentifierOrig: Option[String] = None): CouchbaseConfig = {
+    val (dynamicConfig, connectionIdentifier) =
+      if (
+        connectionIdentifierOrig.isDefined
+        && (connectionIdentifierOrig.get.startsWith("couchbase://") || connectionIdentifierOrig.get
+          .startsWith("couchbases://"))
+      ) {
+        val p = parseConnectionIdentifier(connectionIdentifierOrig.get)
 
-    val username    = cfg.get(ident(USERNAME, connectionIdentifier))
-    val password    = cfg.get(ident(PASSWORD, connectionIdentifier))
+        (Some(p), Some(p.connectionIdentifier))
+      } else {
+        (None, connectionIdentifierOrig)
+      }
+
+    // For all options, look for them with this priority:
+    // 1. If a dynamic connectionIdentifier e.g. "couchbase://user@pw:hostname?spark.couchbase.timeout.kvTimeout=10s" is specified, use the settings from that.
+    // 2. Else if a static connectionIdentifier e.g. "test" is specified, look for "spark.couchbase.property:test" in the config.
+    // 3. If the above haven't found anything, fallback to "spark.couchbase.property" in the config.
+    //    This allows the user to specify e.g. an implicit bucket at the top-level config without having to specify it on every dynamic connectionIdentifier.
+
+    val connectionString: String = dynamicConfig
+      .map(dc => dc.connectionString)
+      .orElse(cfg.getOption(ident(CONNECTION_STRING, connectionIdentifier)))
+      .orElse(cfg.getOption(CONNECTION_STRING))
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Required config property ${CONNECTION_STRING} is not present"
+        )
+      )
+
+    val username: String = dynamicConfig
+      .flatMap(dc => dc.username)
+      .orElse(cfg.getOption(ident(USERNAME, connectionIdentifier)))
+      .orElse(cfg.getOption(USERNAME))
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Required config property ${USERNAME} is not present"
+        )
+      )
+
+    val password: String = dynamicConfig
+      .flatMap(dc => dc.password)
+      .orElse(cfg.getOption(ident(PASSWORD, connectionIdentifier)))
+      .orElse(cfg.getOption(PASSWORD))
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Required config property ${PASSWORD} is not present"
+        )
+      )
+
     val credentials = Credentials(username, password)
 
-    val bucketName     = cfg.getOption(ident(BUCKET_NAME, connectionIdentifier))
-    val scopeName      = cfg.getOption(ident(SCOPE_NAME, connectionIdentifier))
-    val collectionName = cfg.getOption(ident(COLLECTION_NAME, connectionIdentifier))
-    val waitUntilReadyTimeout =
-      cfg.getOption(ident(WAIT_UNTIL_READY_TIMEOUT, connectionIdentifier))
+    val bucketName: Option[String] = dynamicConfig
+      .flatMap(dc => dc.getSetting(BUCKET_NAME))
+      .orElse(cfg.getOption(ident(BUCKET_NAME, connectionIdentifier)))
+      .orElse(cfg.getOption(BUCKET_NAME))
+
+    val scopeName: Option[String] = dynamicConfig
+      .flatMap(dc => dc.getSetting(SCOPE_NAME))
+      .orElse(cfg.getOption(ident(SCOPE_NAME, connectionIdentifier)))
+      .orElse(cfg.getOption(SCOPE_NAME))
+
+    val collectionName: Option[String] = dynamicConfig
+      .flatMap(dc => dc.getSetting(COLLECTION_NAME))
+      .orElse(cfg.getOption(ident(COLLECTION_NAME, connectionIdentifier)))
+      .orElse(cfg.getOption(COLLECTION_NAME))
+
+    val waitUntilReadyTimeout: Option[String] = dynamicConfig
+      .flatMap(dc => dc.getSetting(WAIT_UNTIL_READY_TIMEOUT))
+      .orElse(cfg.getOption(ident(WAIT_UNTIL_READY_TIMEOUT, connectionIdentifier)))
+      .orElse(cfg.getOption(WAIT_UNTIL_READY_TIMEOUT))
 
     var useSsl                           = false
     var keyStorePath: Option[String]     = None
     var keyStorePassword: Option[String] = None
 
     // check for spark-related SSL settings
-    if (cfg.get(ident(SPARK_SSL_ENABLED, connectionIdentifier), "false").toBoolean) {
+    val sslEnabled = dynamicConfig
+      .flatMap(dc => dc.getSetting(SPARK_SSL_ENABLED))
+      .orElse(cfg.getOption(ident(SPARK_SSL_ENABLED, connectionIdentifier)))
+      .getOrElse("false")
+      .toBoolean
+
+    if (sslEnabled) {
       useSsl = true
       keyStorePath = cfg.getOption(ident(SPARK_SSL_KEYSTORE, connectionIdentifier))
       keyStorePassword = cfg.getOption(ident(SPARK_SSL_KEYSTORE_PASSWORD, connectionIdentifier))
     }
 
-    val sslInsecure = cfg.get(ident(SPARK_SSL_INSECURE, connectionIdentifier), "false").toBoolean
+    val sslInsecure = dynamicConfig
+      .flatMap(dc => dc.getSetting(SPARK_SSL_INSECURE))
+      .orElse(cfg.getOption(ident(SPARK_SSL_INSECURE, connectionIdentifier)))
+      .getOrElse("false")
+      .toBoolean
 
+    // Look for any properties that we'd want to pass down to the Cluster property loaders - e.g. "com.couchbase." ones.
     val properties = cfg.getAllWithPrefix(PREFIX).toMap
     val filteredProperties = properties
       .filterKeys(key => {
         val prefixedKey = PREFIX + key
         prefixedKey != ident(USERNAME, connectionIdentifier) &&
+        prefixedKey != USERNAME &&
         prefixedKey != ident(PASSWORD, connectionIdentifier) &&
+        prefixedKey != PASSWORD &&
         prefixedKey != ident(CONNECTION_STRING, connectionIdentifier) &&
+        prefixedKey != CONNECTION_STRING &&
         prefixedKey != ident(BUCKET_NAME, connectionIdentifier) &&
+        prefixedKey != BUCKET_NAME &&
         prefixedKey != ident(SCOPE_NAME, connectionIdentifier) &&
+        prefixedKey != SCOPE_NAME &&
         prefixedKey != ident(COLLECTION_NAME, connectionIdentifier) &&
+        prefixedKey != COLLECTION_NAME &&
         prefixedKey != ident(WAIT_UNTIL_READY_TIMEOUT, connectionIdentifier) &&
+        prefixedKey != WAIT_UNTIL_READY_TIMEOUT &&
         prefixedKey != ident(SPARK_SSL_ENABLED, connectionIdentifier) &&
+        prefixedKey != SPARK_SSL_ENABLED &&
         prefixedKey != ident(SPARK_SSL_KEYSTORE, connectionIdentifier) &&
-        prefixedKey != ident(SPARK_SSL_KEYSTORE_PASSWORD, connectionIdentifier)
+        prefixedKey != SPARK_SSL_KEYSTORE &&
+        prefixedKey != ident(SPARK_SSL_KEYSTORE_PASSWORD, connectionIdentifier) &&
+        prefixedKey != SPARK_SSL_KEYSTORE_PASSWORD
       })
       .map(kv => {
         (kv._1, kv._2)
