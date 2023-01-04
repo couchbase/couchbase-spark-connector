@@ -1,6 +1,6 @@
 name := "spark-connector"
 
-version := "3.3.0-SNAPSHOT"
+version := "3.3.0"
 
 organization := "com.couchbase.client"
 
@@ -9,7 +9,7 @@ scalaVersion := "2.12.15"
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.3.0")
-val sdkVersion   = "1.4.0"
+val sdkVersion   = "1.4.1"
 val dcpVersion   = "0.43.0"
 
 scalacOptions += "-feature"
