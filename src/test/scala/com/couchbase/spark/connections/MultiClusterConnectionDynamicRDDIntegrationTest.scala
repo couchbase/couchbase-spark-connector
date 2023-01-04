@@ -15,26 +15,19 @@
  */
 package com.couchbase.spark.connections
 
-import com.couchbase.client.core.error.InvalidArgumentException
-import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.client.scala.manager.collection.CollectionSpec
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.connections.MultiClusterConnectionStaticIntegrationTest.prepareSampleData
-import com.couchbase.spark.kv.LookupIn
+import com.couchbase.spark.config.CouchbaseConnection
+import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.{prepareSampleData, runStandardRDDQuery}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
-import org.apache.spark.sql.functions.lit
-import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer, CouchbaseService}
+import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 
 import java.util.UUID
 
-/** Tests multiple cluster connections where they are dynamically setup, against an empty config.
+/** Tests multiple cluster connections where they are dynamically setup, against a regular config and RDD operations.
  */
 @TestInstance(Lifecycle.PER_CLASS)
-class MultiClusterConnectionDynamicEmptyConfigIntegrationTest {
+class MultiClusterConnectionDynamicRDDIntegrationTest {
 
   var container: CouchbaseContainer = _
   var spark: SparkSession           = _
@@ -55,13 +48,11 @@ class MultiClusterConnectionDynamicEmptyConfigIntegrationTest {
       .builder()
       .master("local[*]")
       .appName(this.getClass.getSimpleName)
-//      .config("spark.couchbase.connectionString", container.getConnectionString)
-//      .config("spark.couchbase.username", container.getUsername)
-//      .config("spark.couchbase.password", container.getPassword)
-//      .config("spark.couchbase.implicitBucket", bucketName)
+      .config("spark.couchbase.connectionString", container.getConnectionString)
+      .config("spark.couchbase.username", container.getUsername)
+      .config("spark.couchbase.password", container.getPassword)
+      .config("spark.couchbase.implicitBucket", bucketName)
       .getOrCreate()
-
-    spark.conf.getAll.foreach(c => println(s"Start: ${c._1} = ${c._2}"))
   }
 
   @AfterAll
@@ -73,31 +64,25 @@ class MultiClusterConnectionDynamicEmptyConfigIntegrationTest {
 
   @Test
   def withAllRequiredSettings(): Unit = {
-    import com.couchbase.spark._
-
     val id = s"couchbase://${container.getUsername}:${container.getPassword}@${container.getHost}:${container.getBootstrapCarrierDirectPort}?spark.couchbase.implicitBucket=${bucketName}"
+    runStandardRDDQuery(spark, id)
+  }
 
-    val result = spark.sparkContext
-      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))), connectionIdentifier = id)
-      .collect()
+  @Test
+  def missingUsernameAndPassword(): Unit = {
+    val id = s"couchbase://${container.getHost}:${container.getBootstrapCarrierDirectPort}?spark.couchbase.implicitBucket=${bucketName}"
+    runStandardRDDQuery(spark, id)
+  }
 
-    assertEquals(1, result.length)
-    assertEquals("SFO", result.head.contentAs[String](0).get)
+  @Test
+  def minimalSettings(): Unit = {
+    val id = s"couchbase://${container.getHost}:${container.getBootstrapCarrierDirectPort}"
+    runStandardRDDQuery(spark, id)
   }
 
   @Test
   def missingImplicitBucket(): Unit = {
-    import com.couchbase.spark._
-
     val id = s"couchbase://${container.getUsername}:${container.getPassword}@${container.getHost}:${container.getBootstrapCarrierDirectPort}"
-
-    try {
-      spark.sparkContext
-        .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))), connectionIdentifier = id)
-        .collect()
-    }
-    catch {
-      case _: IllegalArgumentException =>
-    }
+    runStandardRDDQuery(spark, id)
   }
 }

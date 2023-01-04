@@ -16,12 +16,10 @@
 package com.couchbase.spark.connections
 
 import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.client.scala.manager.collection.CollectionSpec
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.connections.MultiClusterConnectionStaticIntegrationTest.prepareSampleData
+import com.couchbase.spark.config.CouchbaseConnection
+import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.{prepareSampleData, runStandardRDDQuery}
 import com.couchbase.spark.kv.LookupIn
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
@@ -29,10 +27,10 @@ import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 
 import java.util.UUID
 
-/** Tests multiple cluster connections where they are statically setup (config time).
+/** Tests multiple cluster connections where they are statically setup (config time), with RDD operations.
  */
 @TestInstance(Lifecycle.PER_CLASS)
-class MultiClusterConnectionStaticIntegrationTest {
+class MultiClusterConnectionStaticRDDIntegrationTest {
 
   var container: CouchbaseContainer = _
   var spark: SparkSession           = _
@@ -72,41 +70,6 @@ class MultiClusterConnectionStaticIntegrationTest {
 
   @Test
   def basic(): Unit = {
-    import com.couchbase.spark._
-
-    val result = spark.sparkContext
-      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))), connectionIdentifier = connectionIdentifier)
-      .collect()
-
-    assertEquals(1, result.length)
-    assertEquals("SFO", result.head.contentAs[String](0).get)
-  }
-}
-
-object MultiClusterConnectionStaticIntegrationTest {
-  def prepareSampleData(container: CouchbaseContainer, bucketName: String, scopeName: String, collectionName: String): Unit = {
-    val initial = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config(s"spark.couchbase.connectionString", container.getConnectionString)
-      .config(s"spark.couchbase.username", container.getUsername)
-      .config(s"spark.couchbase.password", container.getPassword)
-      .config(s"spark.couchbase.implicitBucket", bucketName)
-      .getOrCreate()
-
-    val bucket =
-      CouchbaseConnection().bucket(CouchbaseConfig(initial.sparkContext.getConf), Some(bucketName))
-
-    bucket.collections.createScope(scopeName)
-    bucket.collections.createCollection(CollectionSpec(collectionName, scopeName))
-
-    val airports = initial.read
-      .json("src/test/resources/airports.json")
-      .withColumn("type", lit("airport"))
-
-    airports.write.format("couchbase.kv").save()
-
-    initial.stop()
+    runStandardRDDQuery(spark, connectionIdentifier)
   }
 }

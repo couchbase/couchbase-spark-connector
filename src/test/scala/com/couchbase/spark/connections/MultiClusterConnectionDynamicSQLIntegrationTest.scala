@@ -15,22 +15,20 @@
  */
 package com.couchbase.spark.connections
 
-import com.couchbase.client.scala.kv.LookupInSpec
 import com.couchbase.spark.config.CouchbaseConnection
-import com.couchbase.spark.connections.MultiClusterConnectionStaticIntegrationTest.prepareSampleData
-import com.couchbase.spark.kv.LookupIn
+import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.{prepareSampleData, runStandardSQLQuery}
 import org.apache.spark.sql.SparkSession
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 
 import java.util.UUID
 
-/** Tests multiple cluster connections where they are dynamically setup, against a regular config.
+/** Tests multiple cluster connections where they are dynamically setup, against a regular config, with SparkSQL
+ * operations.
  */
 @TestInstance(Lifecycle.PER_CLASS)
-class MultiClusterConnectionDynamicIntegrationTest {
+class MultiClusterConnectionDynamicSQLIntegrationTest {
 
   var container: CouchbaseContainer = _
   var spark: SparkSession           = _
@@ -65,59 +63,28 @@ class MultiClusterConnectionDynamicIntegrationTest {
     container.stop()
   }
 
+
   @Test
   def withAllRequiredSettings(): Unit = {
-    import com.couchbase.spark._
-
     val id = s"couchbase://${container.getUsername}:${container.getPassword}@${container.getHost}:${container.getBootstrapCarrierDirectPort}?spark.couchbase.implicitBucket=${bucketName}"
-
-    val result = spark.sparkContext
-      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))), connectionIdentifier = id)
-      .collect()
-
-    assertEquals(1, result.length)
-    assertEquals("SFO", result.head.contentAs[String](0).get)
+    runStandardSQLQuery(spark, id)
   }
 
   @Test
   def missingUsernameAndPassword(): Unit = {
-    import com.couchbase.spark._
-
     val id = s"couchbase://${container.getHost}:${container.getBootstrapCarrierDirectPort}?spark.couchbase.implicitBucket=${bucketName}"
-
-    val result = spark.sparkContext
-      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))), connectionIdentifier = id)
-      .collect()
-
-    assertEquals(1, result.length)
-    assertEquals("SFO", result.head.contentAs[String](0).get)
+    runStandardSQLQuery(spark, id)
   }
 
   @Test
   def minimalSettings(): Unit = {
-    import com.couchbase.spark._
-
     val id = s"couchbase://${container.getHost}:${container.getBootstrapCarrierDirectPort}"
-
-    val result = spark.sparkContext
-      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))), connectionIdentifier = id)
-      .collect()
-
-    assertEquals(1, result.length)
-    assertEquals("SFO", result.head.contentAs[String](0).get)
+    runStandardSQLQuery(spark, id)
   }
 
   @Test
   def missingImplicitBucket(): Unit = {
-    import com.couchbase.spark._
-
     val id = s"couchbase://${container.getUsername}:${container.getPassword}@${container.getHost}:${container.getBootstrapCarrierDirectPort}"
-
-    val result = spark.sparkContext
-      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))), connectionIdentifier = id)
-      .collect()
-
-    assertEquals(1, result.length)
-    assertEquals("SFO", result.head.contentAs[String](0).get)
+    runStandardSQLQuery(spark, id)
   }
 }
