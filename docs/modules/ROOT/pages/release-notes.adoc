@@ -4,6 +4,29 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 3.3.0 GA (January 2023)
+
+Version 3.3.0 is the first version to support Spark 3.3.0.
+
+
+*Bug fixes and stability*
+* https://issues.couchbase.com/browse/SPARKC-166[SPARKC-166]:
+Improved handling of aggregate result datatypes.
+* https://issues.couchbase.com/browse/SPARKC-176[SPARKC-176]:
+Bump DCP client version.
+* https://issues.couchbase.com/browse/SPARKC-174[SPARKC-174]:
+Adjust default DCP bootstrap timeout to improve connection capability in high-latency environments.
+
+*Features*
+* https://issues.couchbase.com/browse/SPARKC-167[SPARKC-167],
+https://issues.couchbase.com/browse/SPARKC-168[SPARKC-168]:
+Support connecting to multiple Clusters.
+* https://issues.couchbase.com/browse/SPARKC-175[SPARKC-175],
+https://issues.couchbase.com/browse/SPARKC-165[SPARKC-165]:
+Support Spark 3.3.0.
+* https://issues.couchbase.com/browse/SPARKC-160[SPARKC-160]:
+Shade Reactor dependency into 'fatjar' build to better support the Databricks environment.
+
 == Couchbase Spark Connector 3.2.2 GA (July 2022)
 
 Version 3.2.2 is the third version to support Spark 3.2.x and is built on top of the Couchbase Scala SDK 1.3.x as well
