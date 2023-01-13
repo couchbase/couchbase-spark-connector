@@ -26,8 +26,8 @@ version := "1.0.0-SNAPSHOT"
 scalaVersion := "2.12.14"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "3.2.1",
-  "org.apache.spark" %% "spark-sql" % "3.2.1",
+  "org.apache.spark" %% "spark-core" % "3.3.0",
+  "org.apache.spark" %% "spark-sql" % "3.3.0",
   "com.couchbase.client" %% "spark-connector" % "3.3.0"
 )
 ----
