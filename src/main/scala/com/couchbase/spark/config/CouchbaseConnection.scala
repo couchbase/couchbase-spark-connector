@@ -16,15 +16,18 @@
 
 package com.couchbase.spark.config
 
-import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment}
+import com.couchbase.client.core.config.PortInfo
+import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment, NetworkResolution}
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
+import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.core.transaction.config.CoreTransactionsCleanupConfig
-import com.couchbase.client.core.util.ConnectionString
+import com.couchbase.client.core.util.{ConnectionString, ConnectionStringUtil}
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
-import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
+import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig, SeedNode}
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
+import reactor.core.publisher.{Flux, Mono}
 
 import java.nio.file.Paths
 import java.util
@@ -216,17 +219,68 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
   }
 
   def dcpSeedNodes(cfg: CouchbaseConfig, connectionIdentifier: Option[String]): String = {
-    val allSeedNodes = CouchbaseConnection(connectionIdentifier)
+    val core = CouchbaseConnection(connectionIdentifier)
       .cluster(cfg)
       .async
       .core
-      .configurationProvider()
-      .seedNodes()
-      .blockFirst()
-      .asScala
-      .map(_.address())
+    val networkResolution = core.context.environment.ioConfig.networkResolution
+    val tls = core.context.environment.securityConfig.tlsEnabled
 
-    allSeedNodes.mkString(",")
+    logDebug(s"Waiting for config, networkResolution=${networkResolution} tls=${tls}")
+
+    // This is a hot stream that will return any config that's available.  Otherwise we'll block here
+    // until one is.
+    val nodes: Seq[PortInfo] = core.configurationProvider().configs
+      // Wait for a non-empty config
+      .filter(cc => cc.globalConfig() != null || (cc.bucketConfigs() != null && !cc.bucketConfigs().isEmpty))
+      .flatMap(cc => {
+        // If the cluster is not EOL then it should have provided a globalConfig via GCCCP.  As a backup we'll also
+        // look for any bucket config.  All should contain at least one node we can use for DCP bootstrapping.
+        if (cc.globalConfig != null) {
+          Flux.fromIterable(cc.globalConfig.portInfos).collectList
+        }
+        else {
+          // The filter check above guarantees we have a bucket config.
+          val firstBucketConfig = cc.bucketConfigs.asScala.head._2
+          Flux.fromIterable(firstBucketConfig.portInfos).collectList
+        }
+      })
+      .doOnNext(v => logDebug(s"Got configuration with ${v.size} nodes"))
+      // Safety timer on waiting for the config
+      .blockFirst(core.context.environment.timeoutConfig.connectTimeout)
+      .asScala
+
+    val allSeedNodes = nodes
+      .map(node => {
+        var port = Option(node.ports().get(ServiceType.KV))
+        var sslPort = Option(node.sslPorts().get(ServiceType.KV))
+        var hostname = node.hostname
+
+        // Get the resolved network name from the core context.
+        // Empty optional means default (internal) network.
+        // We know the alternate address has been resolved,
+        // because DefaultConfigurationProvider has already pushed at least one config.
+        core.context().alternateAddress().ifPresent(networkName => {
+          val alternate = node.alternateAddresses().get(networkName);
+
+          if (alternate != null) {
+            port = Option(alternate.services.get(ServiceType.KV))
+            sslPort = Option(alternate.sslServices.get(ServiceType.KV))
+            hostname = alternate.hostname
+
+            logDebug(s"Using alternate for network ${networkName} node ${node.hostname}: ${alternate.hostname} port=${port} sslPort=${sslPort}")
+          }
+        })
+
+        val portToUse = if (tls) sslPort else port
+        hostname + portToUse.map(p => ":" + p).getOrElse("")
+      })
+
+    val out = allSeedNodes.mkString(",")
+
+    logDebug(s"Generated DCP string '${out}'")
+
+    out
   }
 
   def dcpSecurityConfig(
