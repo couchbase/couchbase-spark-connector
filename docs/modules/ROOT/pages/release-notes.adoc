@@ -9,6 +9,7 @@ Release notes for the Spark Connector.
 Version 3.3.1 is built and tested against Spark 3.3.0.
 
 *Bug fixes and stability*
+
 * https://issues.couchbase.com/browse/SPARKC-177[SPARKC-177]:
 If alternate addresses are configured on the cluster (for instance, for Kubernetes deployments), these will now be used automatically when doing structured streaming.
 
@@ -17,6 +18,7 @@ If alternate addresses are configured on the cluster (for instance, for Kubernet
 Version 3.3.0 is the first version to support Spark 3.3.0.
 
 *Bug fixes and stability*
+
 * https://issues.couchbase.com/browse/SPARKC-166[SPARKC-166]:
 Improved handling of aggregate result datatypes.
 * https://issues.couchbase.com/browse/SPARKC-176[SPARKC-176]:
@@ -25,6 +27,7 @@ Bump DCP client version.
 Adjust default DCP bootstrap timeout to improve connection capability in high-latency environments.
 
 *Features*
+
 * https://issues.couchbase.com/browse/SPARKC-167[SPARKC-167],
 https://issues.couchbase.com/browse/SPARKC-168[SPARKC-168]:
 Support connecting to multiple Clusters.
