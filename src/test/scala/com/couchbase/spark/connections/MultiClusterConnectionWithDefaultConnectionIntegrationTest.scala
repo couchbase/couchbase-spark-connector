@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Couchbase, Inc.
+ * Copyright (c) 2023 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,13 @@
  */
 package com.couchbase.spark.connections
 
+import com.couchbase.client.scala.kv.LookupInSpec
 import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.{prepareSampleData, runStandardRDDQuery}
+import com.couchbase.spark.kv.LookupIn
+import com.couchbase.spark.toSparkContextFunctions
 import org.apache.spark.sql.SparkSession
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
 import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
@@ -25,9 +29,11 @@ import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 import java.util.UUID
 
 /** Tests multiple cluster connections where they are statically setup (config time), with RDD operations.
- */
+  * The difference to MultiClusterConnectionStaticRDDIntegrationTest is that this has both a default and named
+  * connection.  Added for SPARKC-178.
+  */
 @TestInstance(Lifecycle.PER_CLASS)
-class MultiClusterConnectionStaticRDDIntegrationTest {
+class MultiClusterConnectionWithDefaultConnectionIntegrationTest {
 
   var container: CouchbaseContainer = _
   var spark: SparkSession           = _
@@ -49,21 +55,14 @@ class MultiClusterConnectionStaticRDDIntegrationTest {
       .builder()
       .master("local[*]")
       .appName(this.getClass.getSimpleName)
-      .config(s"spark.couchbase.connectionString:${connectionIdentifier}", container.getConnectionString) // filtered
-      .config(s"spark.couchbase.username:${connectionIdentifier}", container.getUsername) // filtered
-      .config(s"spark.couchbase.password:${connectionIdentifier}", container.getPassword) // filtered
-      .config(s"spark.couchbase.connectionString", container.getConnectionString) // filtered
-      .config(s"spark.couchbase.username", container.getUsername) // filtered
-      .config(s"spark.couchbase.password", container.getPassword) // filtered
-      .config(s"spark.couchbase.implicitBucket", bucketName) // filtered
-      .config(s"spark.couchbase.implicitBucket:${connectionIdentifier}", bucketName) // filtered
-      .config(s"spark.couchbase.connectionString:xxxx${connectionIdentifier}", container.getConnectionString) // filtered
-      .config(s"spark.couchbase.username:xxxx${connectionIdentifier}", container.getUsername) // filtered
-      .config(s"spark.couchbase.password:xxxx${connectionIdentifier}", container.getPassword) // filtered
-      .config(s"spark.couchbase.implicitBucket:xxxx${connectionIdentifier}", bucketName) // filtered
-      .config(s"spark.couchbase.maxNumRequestsInRetry:xxxx${connectionIdentifier}", 77) // filtered
-      .config(s"spark.couchbase.maxNumRequestsInRetry:${connectionIdentifier}", 88) // not filtered, connectionId-ed, but will override the 4
-      .config(s"spark.couchbase.maxNumRequestsInRetry", 4) // not filtered, default
+      .config(s"spark.couchbase.connectionString", container.getConnectionString)
+      .config(s"spark.couchbase.username", container.getUsername)
+      .config(s"spark.couchbase.password", container.getPassword)
+      .config(s"spark.couchbase.implicitBucket", bucketName)
+      .config(s"spark.couchbase.connectionString:${connectionIdentifier}", container.getConnectionString)
+      .config(s"spark.couchbase.username:${connectionIdentifier}", container.getUsername)
+      .config(s"spark.couchbase.password:${connectionIdentifier}", container.getPassword)
+      .config(s"spark.couchbase.implicitBucket:${connectionIdentifier}", bucketName)
       .getOrCreate()
 
     spark.conf.getAll.foreach(c => println(s"Initial: ${c._1} = ${c._2}"))
@@ -77,12 +76,13 @@ class MultiClusterConnectionStaticRDDIntegrationTest {
   }
 
   @Test
-  def basicWithConnectionIdentifier(): Unit = {
-    runStandardRDDQuery(spark, connectionIdentifier)
-  }
-
-  @Test
   def basic(): Unit = {
-    runStandardRDDQuery(spark)
+    // Use the default connection
+    val result = spark.sparkContext
+      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))))
+      .collect()
+
+    assertEquals(1, result.length)
+    assertEquals("SFO", result.head.contentAs[String](0).get)
   }
 }

@@ -16,12 +16,11 @@
 
 package com.couchbase.spark.config
 
-import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.util.ConnectionString
 import org.apache.spark.SparkConf
 
 import java.util.Locale
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.immutable.SortedMap
 
 case class Credentials(username: String, password: String)
 
@@ -108,6 +107,8 @@ object CouchbaseConfig {
   private val SPARK_SSL_KEYSTORE          = SPARK_SSL_PREFIX + "keyStore"
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
   private val SPARK_SSL_INSECURE          = SPARK_SSL_PREFIX + "insecure"
+
+  private val FILTERED_OUT: List[String] = "username" :: "password" :: "connectionString" :: "implicitBucket" :: "implicitScope" :: "implicitCollection" :: "waitUntilReadyTimeout" :: "ssl.enabled" :: "ssl.keyStore" :: "ssl.keyStorePassword" :: "ssl.insecure" :: Nil
 
   /** @param connectionIdentifier
     *   this needs to be the full original string, to allow dynamic connections with e.g. the same hostname but different
@@ -251,33 +252,16 @@ object CouchbaseConfig {
       .toBoolean
 
     // Look for any properties that we'd want to pass down to the Cluster property loaders - e.g. "com.couchbase." ones.
-    val properties = cfg.getAllWithPrefix(PREFIX).toMap
+    // - sort properties so any connectionIdentified property will follow any default property with the same key
+    val properties = SortedMap[String, String]() ++ cfg.getAllWithPrefix(PREFIX)
     val filteredProperties = properties
-      .filterKeys(key => {
-        val prefixedKey = PREFIX + key
-        prefixedKey != ident(USERNAME, connectionIdentifier) &&
-        prefixedKey != USERNAME &&
-        prefixedKey != ident(PASSWORD, connectionIdentifier) &&
-        prefixedKey != PASSWORD &&
-        prefixedKey != ident(CONNECTION_STRING, connectionIdentifier) &&
-        prefixedKey != CONNECTION_STRING &&
-        prefixedKey != ident(BUCKET_NAME, connectionIdentifier) &&
-        prefixedKey != BUCKET_NAME &&
-        prefixedKey != ident(SCOPE_NAME, connectionIdentifier) &&
-        prefixedKey != SCOPE_NAME &&
-        prefixedKey != ident(COLLECTION_NAME, connectionIdentifier) &&
-        prefixedKey != COLLECTION_NAME &&
-        prefixedKey != ident(WAIT_UNTIL_READY_TIMEOUT, connectionIdentifier) &&
-        prefixedKey != WAIT_UNTIL_READY_TIMEOUT &&
-        prefixedKey != ident(SPARK_SSL_ENABLED, connectionIdentifier) &&
-        prefixedKey != SPARK_SSL_ENABLED &&
-        prefixedKey != ident(SPARK_SSL_KEYSTORE, connectionIdentifier) &&
-        prefixedKey != SPARK_SSL_KEYSTORE &&
-        prefixedKey != ident(SPARK_SSL_KEYSTORE_PASSWORD, connectionIdentifier) &&
-        prefixedKey != SPARK_SSL_KEYSTORE_PASSWORD
+      .filterKeys(k => {
+        !filteredOut(k, connectionIdentifier)
       })
       .map(kv => {
-        (kv._1, kv._2)
+        // remove the :connectionIdentifier suffix from the key if there is one
+        val k = if (connectionIdentifier.isDefined && kv._1.endsWith(":" + connectionIdentifier.get)) kv._1.substring(0, kv._1.length - connectionIdentifier.get.length - 1) else kv._1
+        (k, kv._2) // connectionIdentified property will win over default because it is last
       })
       .toSeq
 
@@ -307,5 +291,29 @@ object CouchbaseConfig {
       case Some(i) => property + ":" + i
       case None    => property
     }
+  }
+
+  /** indicates if the key should be filtered out of filteredProperties
+    * Only properties that are not in the FILTERED_OUT list (username, password etc)
+    * and properties not belonging to this connectionId should be filted out.
+    *
+    * @param key
+    *   the key-only part of the property name
+    * @param identifier
+    *   the connection identifier.
+    * @return
+    *   should the property be filtered out
+    */
+  private def filteredOut(key: String, connectionIdentifier: Option[String]): Boolean = {
+    val cidIndex = key.indexOf(':');
+    val propertyName = if (cidIndex != -1) key.substring(0, cidIndex) else key
+    // filtered out regardless of no cid, same cid or different cid
+    FILTERED_OUT.contains(propertyName) ||
+    // key has prefix, but connectionIdentifier not specified
+    (cidIndex != -1 && connectionIdentifier.isEmpty) ||
+    // key does not have prefix, but connectionIdentifier specified
+    (cidIndex == -1 && connectionIdentifier.isDefined) ||
+    // key has prefix and connectionIdentifier specified, but they don't match
+    (cidIndex != -1 && (connectionIdentifier.isDefined && !key.substring(cidIndex + 1).equals(connectionIdentifier.get)))
   }
 }

@@ -32,6 +32,15 @@ object MultiClusterConnectionTestUtil {
     assertEquals("SFO", result.head.contentAs[String](0).get)
   }
 
+  def runStandardRDDQuery(spark: SparkSession) {
+    val result = spark.sparkContext
+      .couchbaseLookupIn(Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))))
+      .collect()
+
+    assertEquals(1, result.length)
+    assertEquals("SFO", result.head.contentAs[String](0).get)
+  }
+
   def prepareSampleData(container: CouchbaseContainer, bucketName: String, scopeName: String, collectionName: String): Unit = {
     val initial = SparkSession
       .builder()
