@@ -4,6 +4,15 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 3.3.2 GA (10 October 2023)
+
+Version 3.3.2 is built and tested against Spark 3.3.0.
+
+=== Bug fixes and stability
+
+* https://issues.couchbase.com/browse/SPARKC-178[SPARKC-178]:
+Fix issues with `connectionIdentifier`.
+
 == Couchbase Spark Connector 3.3.1 GA (22 February 2023)
 
 Version 3.3.1 is built and tested against Spark 3.3.0.

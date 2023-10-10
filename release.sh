@@ -11,7 +11,7 @@
 # 2. Now edit these versions:
 
 vers_sha=04a6fcd35aca87cf2c7bee3e790af7f3cb69f866  # the Git sha being released
-vers=3.3.1                                         # the version being released
+vers=3.3.2                                         # the version being released
 
 # 3. Now run the script from the script's directory, e.g.
 #   cd couchbase-spark-connector
