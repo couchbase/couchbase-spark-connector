@@ -251,6 +251,13 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
       .asScala
 
     val allSeedNodes = nodes
+      .filter(node => {
+        val nodeIsRunningKvService = node.ports().containsKey(ServiceType.KV) || node.sslPorts().containsKey(ServiceType.KV)
+        if (!nodeIsRunningKvService) {
+          logDebug(s"Filtering out non-KV node ${node} from DCP connection string")
+        }
+        nodeIsRunningKvService
+      })
       .map(node => {
         var port = Option(node.ports().get(ServiceType.KV))
         var sslPort = Option(node.sslPorts().get(ServiceType.KV))
