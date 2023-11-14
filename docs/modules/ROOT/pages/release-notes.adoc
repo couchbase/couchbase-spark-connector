@@ -4,6 +4,15 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 3.3.3 GA (14 November 2023)
+
+Version 3.3.3 is built and tested against Spark 3.3.0.
+
+=== Bug fixes and stability
+
+* https://issues.couchbase.com/browse/SPARKC-181[SPARKC-181]:
+Allow structured streaming to work against clusters that do not have the KV service running on all nodes.
+
 == Couchbase Spark Connector 3.3.2 GA (10 October 2023)
 
 Version 3.3.2 is built and tested against Spark 3.3.0.
