@@ -1,6 +1,6 @@
 name := "spark-connector"
 
-version := "3.3.3-SNAPSHOT"
+version := "3.3.3"
 
 organization := "com.couchbase.client"
 
