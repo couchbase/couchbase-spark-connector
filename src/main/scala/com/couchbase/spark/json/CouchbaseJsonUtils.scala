@@ -17,6 +17,7 @@
 package com.couchbase.spark.json
 
 import com.fasterxml.jackson.core.{JsonFactory, JsonParser}
+import org.apache.spark.sql.catalyst.json.{JSONOptionsInRead, JacksonParser}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 

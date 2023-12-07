@@ -134,7 +134,7 @@ object CouchbaseConfig {
     }
 
     def connectionString: String = schema + "://" + hosts
-      .map(v => v.hostname + (if (v.port == 0) "" else ":" + v.port))
+      .map(v => v.host + (if (v.port == 0) "" else ":" + v.port))
       .mkString(",")
   }
 
