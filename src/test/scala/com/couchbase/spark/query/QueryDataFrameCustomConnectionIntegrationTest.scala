@@ -17,6 +17,7 @@ package com.couchbase.spark.query
 
 import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.kv.KeyValueOptions
+import com.couchbase.spark.util.ClusterVersions.testContainer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
@@ -36,7 +37,7 @@ class QueryDataFrameCustomConnectionIntegrationTest {
   def setup(): Unit = {
     val bucketName: String = UUID.randomUUID().toString
 
-    container = new CouchbaseContainer("couchbase/server:6.6.2")
+    container = testContainer()
       .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(true))
     container.start()
 

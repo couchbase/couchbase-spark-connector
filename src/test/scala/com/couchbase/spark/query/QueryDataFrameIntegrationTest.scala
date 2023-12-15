@@ -16,6 +16,7 @@
 package com.couchbase.spark.query
 
 import com.couchbase.spark.config.CouchbaseConnection
+import com.couchbase.spark.util.ClusterVersions.testContainer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.apache.spark.sql.functions.lit
@@ -36,7 +37,7 @@ class QueryDataFrameIntegrationTest {
   def setup(): Unit = {
     val bucketName: String = UUID.randomUUID().toString
 
-    container = new CouchbaseContainer("couchbase/server:6.6.2")
+    container = testContainer()
       .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(true))
     container.start()
 

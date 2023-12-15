@@ -18,6 +18,7 @@ package com.couchbase.spark.query
 import com.couchbase.client.scala.manager.collection.CollectionSpec
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.kv.KeyValueOptions
+import com.couchbase.spark.util.ClusterVersions.testContainer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
@@ -39,8 +40,7 @@ class QueryDataFrameCollectionsIntegrationTest {
 
   @BeforeAll
   def setup(): Unit = {
-    container = new CouchbaseContainer("couchbase/server:7.0.3")
-      .withBucket(new BucketDefinition(bucketName))
+    container = testContainer(bucketName)
     container.start()
 
     spark = SparkSession

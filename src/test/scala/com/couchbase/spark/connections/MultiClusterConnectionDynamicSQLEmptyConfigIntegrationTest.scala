@@ -17,6 +17,7 @@ package com.couchbase.spark.connections
 
 import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.{prepareSampleData, runStandardRDDQuery, runStandardSQLQuery}
+import com.couchbase.spark.util.ClusterVersions.testContainer
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
@@ -38,8 +39,7 @@ class MultiClusterConnectionDynamicSQLEmptyConfigIntegrationTest {
 
   @BeforeAll
   def setup(): Unit = {
-    container = new CouchbaseContainer("couchbase/server:7.0.3")
-      .withBucket(new BucketDefinition(bucketName))
+    container = testContainer(bucketName)
     container.start()
 
     prepareSampleData(container, bucketName, scopeName, airportCollectionName)

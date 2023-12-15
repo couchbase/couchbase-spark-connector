@@ -18,6 +18,7 @@ package com.couchbase.spark.kv
 import com.couchbase.client.scala.kv.LookupInSpec
 import com.couchbase.client.scala.manager.collection.CollectionSpec
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.util.ClusterVersions.{DefaultTestVersion, testContainer}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -39,8 +40,7 @@ class LookupInRDDIntegrationTest {
 
   @BeforeAll
   def setup(): Unit = {
-    container = new CouchbaseContainer("couchbase/server:7.0.3")
-      .withBucket(new BucketDefinition(bucketName))
+    container = testContainer(bucketName)
     container.start()
 
     spark = SparkSession
