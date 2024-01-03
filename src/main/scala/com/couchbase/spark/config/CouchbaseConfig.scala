@@ -182,7 +182,11 @@ object CouchbaseConfig {
       .orElse(cfg.getOption(CONNECTION_STRING))
       .getOrElse(
         throw new IllegalArgumentException(
-          s"Required config property ${CONNECTION_STRING} is not present"
+          s"Required config property ${CONNECTION_STRING}${
+            connectionIdentifierOrig match {
+              case Some(value) => ":" + value
+              case None => ""
+            }} is not present"
         )
       )
 
