@@ -4,6 +4,15 @@
 [abstract]
 Release notes for the Spark Connector.
 
+== Couchbase Spark Connector 3.3.4 GA (8 January 2023)
+
+Version 3.3.4 is built and tested against Spark 3.3.4.
+
+=== Bug fixes and stability
+
+* https://issues.couchbase.com/browse/SPARKC-181[SPARKC-181]:
+When performing a DataFrame SQL++ read (`spark.read().format("couchbase.query")`), rows will now be streamed and backpressured, rather than buffered in-memory.
+
 == Couchbase Spark Connector 3.3.3 GA (14 November 2023)
 
 Version 3.3.3 is built and tested against Spark 3.3.0.
