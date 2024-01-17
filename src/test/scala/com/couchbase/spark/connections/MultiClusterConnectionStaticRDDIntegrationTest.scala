@@ -15,65 +15,37 @@
  */
 package com.couchbase.spark.connections
 
-import com.couchbase.spark.config.CouchbaseConnection
-import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.{prepareSampleData, runStandardRDDQuery}
-import com.couchbase.spark.util.ClusterVersions.testContainer
+import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.runStandardRDDQuery
+import com.couchbase.spark.util.{Params, SparkTest}
 import org.apache.spark.sql.SparkSession
-import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
-
-import java.util.UUID
+import org.junit.jupiter.api.Test
 
 /** Tests multiple cluster connections where they are statically setup (config time), with RDD operations.
  */
-@TestInstance(Lifecycle.PER_CLASS)
-class MultiClusterConnectionStaticRDDIntegrationTest {
+class MultiClusterConnectionStaticRDDIntegrationTest extends SparkTest {
+  override def testName: String = super.testName
 
-  var container: CouchbaseContainer = _
-  var spark: SparkSession           = _
 
   private val connectionIdentifier = "test:one"
-  private val bucketName = UUID.randomUUID().toString
-  private val scopeName = UUID.randomUUID().toString
-  private val airportCollectionName = UUID.randomUUID().toString
 
-  @BeforeAll
-  def setup(): Unit = {
-    container = testContainer(bucketName)
-    container.start()
-
-    prepareSampleData(container, bucketName, scopeName, airportCollectionName)
-
-    spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config(s"spark.couchbase.connectionString:${connectionIdentifier}", container.getConnectionString) // filtered
-      .config(s"spark.couchbase.username:${connectionIdentifier}", container.getUsername) // filtered
-      .config(s"spark.couchbase.password:${connectionIdentifier}", container.getPassword) // filtered
-      .config(s"spark.couchbase.connectionString", container.getConnectionString) // filtered
-      .config(s"spark.couchbase.username", container.getUsername) // filtered
-      .config(s"spark.couchbase.password", container.getPassword) // filtered
-      .config(s"spark.couchbase.implicitBucket", bucketName) // filtered
-      .config(s"spark.couchbase.implicitBucket:${connectionIdentifier}", bucketName) // filtered
-      .config(s"spark.couchbase.connectionString:xxxx${connectionIdentifier}", container.getConnectionString) // filtered
-      .config(s"spark.couchbase.username:xxxx${connectionIdentifier}", container.getUsername) // filtered
-      .config(s"spark.couchbase.password:xxxx${connectionIdentifier}", container.getPassword) // filtered
-      .config(s"spark.couchbase.implicitBucket:xxxx${connectionIdentifier}", bucketName) // filtered
+  override def sparkBuilderCustomizer(builder: SparkSession.Builder, params: Params): Unit = {
+    builder
+      .config(s"spark.couchbase.connectionString:${connectionIdentifier}", params.connectionString) // filtered
+      .config(s"spark.couchbase.username:${connectionIdentifier}", infra.params.username) // filtered
+      .config(s"spark.couchbase.password:${connectionIdentifier}", infra.params.password) // filtered
+      .config(s"spark.couchbase.connectionString", params.connectionString) // filtered
+      .config(s"spark.couchbase.username", infra.params.username) // filtered
+      .config(s"spark.couchbase.password", infra.params.password) // filtered
+      .config(s"spark.couchbase.implicitBucket", params.bucketName) // filtered
+      .config(s"spark.couchbase.implicitBucket:${connectionIdentifier}", params.bucketName) // filtered
+      .config(s"spark.couchbase.connectionString:xxxx${connectionIdentifier}", params.connectionString) // filtered
+      .config(s"spark.couchbase.username:xxxx${connectionIdentifier}", infra.params.username) // filtered
+      .config(s"spark.couchbase.password:xxxx${connectionIdentifier}", infra.params.password) // filtered
+      .config(s"spark.couchbase.implicitBucket:xxxx${connectionIdentifier}", params.bucketName) // filtered
       .config(s"spark.couchbase.maxNumRequestsInRetry:xxxx${connectionIdentifier}", 77) // filtered
       .config(s"spark.couchbase.maxNumRequestsInRetry:${connectionIdentifier}", 88) // not filtered, connectionId-ed, but will override the 4
       .config(s"spark.couchbase.maxNumRequestsInRetry", 4) // not filtered, default
-      .getOrCreate()
 
-    spark.conf.getAll.foreach(c => println(s"Initial: ${c._1} = ${c._2}"))
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    CouchbaseConnection().stop()
-    spark.stop()
-    container.stop()
   }
 
   @Test

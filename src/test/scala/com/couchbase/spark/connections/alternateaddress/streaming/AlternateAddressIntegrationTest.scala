@@ -15,16 +15,12 @@
  */
 package com.couchbase.spark.connections.alternateaddress.streaming
 
-import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.kv.KeyValueOptions
-import com.couchbase.spark.util.ClusterVersions.testContainer
+import com.couchbase.spark.util.TestInfraBuilder
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
-
-import java.util.UUID
+import org.junit.jupiter.api.{Test, TestInstance}
 
 /** Tests alternate addresses.
   *
@@ -34,54 +30,42 @@ import java.util.UUID
 @TestInstance(Lifecycle.PER_CLASS)
 class AlternateAddressIntegrationTest {
 
-  var container: CouchbaseContainer = _
-  var spark: SparkSession           = _
-
-  private val bucketName = UUID.randomUUID().toString
-
-  @BeforeAll
-  def setup(): Unit = {
-    container = testContainer(bucketName)
-    container.start()
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    container.stop()
-  }
-
   private def test(customiser: (SparkSession.Builder) => Unit) {
-    val builder = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName("Structured Streaming Example")
-      .config("spark.couchbase.connectionString", container.getConnectionString)
-      .config("spark.couchbase.username", "Administrator")
-      .config("spark.couchbase.password", "password")
-      .config("spark.couchbase.implicitBucket", bucketName)
+    val infra = TestInfraBuilder()
+      .createBucketScopeAndCollection("AlternateAddressIntegrationTest")
+      .connectToSpark((builder, params) => {
+        builder
+          .config("spark.couchbase.connectionString", params.connectionString)
+          .config("spark.couchbase.username", params.username)
+          .config("spark.couchbase.password", params.password)
+          .config("spark.couchbase.implicitBucket", params.bucketName)
 
-    customiser.apply(builder)
+        customiser.apply(builder)
+      })
+      .prepareAirportSampleData()
 
-    val spark = builder.getOrCreate()
+    try {
+      val spark = infra.spark
 
-    val sourceDf = spark.readStream
-      .format("couchbase.kv")
-      .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
-      .load
+      val sourceDf = spark.readStream
+        .format("couchbase.kv")
+        .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
+        .load
 
-    val aggDf = sourceDf.groupBy("collection").count()
+      val aggDf = sourceDf.groupBy("collection").count()
 
-    val query = aggDf.writeStream
-      .format("console")
-      .outputMode(OutputMode.Complete)
-      .trigger(Trigger.Once())
-      .queryName("kv2console")
-      .start
+      val query = aggDf.writeStream
+        .format("console")
+        .outputMode(OutputMode.Complete)
+        .trigger(Trigger.Once())
+        .queryName("kv2console")
+        .start
 
-    query.awaitTermination()
-
-    CouchbaseConnection().stop()
-    spark.stop()
+      query.awaitTermination()
+    }
+    finally {
+      infra.stop()
+    }
   }
 
   @Test

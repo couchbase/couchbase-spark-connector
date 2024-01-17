@@ -40,30 +40,4 @@ object MultiClusterConnectionTestUtil {
     assertEquals(1, result.length)
     assertEquals("SFO", result.head.contentAs[String](0).get)
   }
-
-  def prepareSampleData(container: CouchbaseContainer, bucketName: String, scopeName: String, collectionName: String): Unit = {
-    val initial = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config(s"spark.couchbase.connectionString", container.getConnectionString)
-      .config(s"spark.couchbase.username", container.getUsername)
-      .config(s"spark.couchbase.password", container.getPassword)
-      .config(s"spark.couchbase.implicitBucket", bucketName)
-      .getOrCreate()
-
-    val bucket =
-      CouchbaseConnection().bucket(CouchbaseConfig(initial.sparkContext.getConf), Some(bucketName))
-
-    bucket.collections.createScope(scopeName)
-    bucket.collections.createCollection(CollectionSpec(collectionName, scopeName))
-
-    val airports = initial.read
-      .json("src/test/resources/airports.json")
-      .withColumn("type", lit("airport"))
-
-    airports.write.format("couchbase.kv").save()
-
-    initial.stop()
-  }
 }

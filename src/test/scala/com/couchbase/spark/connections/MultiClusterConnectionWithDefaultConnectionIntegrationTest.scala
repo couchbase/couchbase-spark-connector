@@ -16,63 +16,36 @@
 package com.couchbase.spark.connections
 
 import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.spark.config.CouchbaseConnection
-import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.{prepareSampleData, runStandardRDDQuery}
 import com.couchbase.spark.kv.LookupIn
 import com.couchbase.spark.toSparkContextFunctions
-import com.couchbase.spark.util.ClusterVersions.testContainer
+import com.couchbase.spark.util.{Params, SparkTest}
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
+import org.junit.jupiter.api.Test
 
-import java.util.UUID
-
-/** Tests multiple cluster connections where they are statically setup (config time), with RDD operations.
-  * The difference to MultiClusterConnectionStaticRDDIntegrationTest is that this has both a default and named
-  * connection.  Added for SPARKC-178.
+/** Tests multiple cluster connections where they are statically setup (config time), with RDD
+  * operations. The difference to MultiClusterConnectionStaticRDDIntegrationTest is that this has
+  * both a default and named connection. Added for SPARKC-178.
   */
-@TestInstance(Lifecycle.PER_CLASS)
-class MultiClusterConnectionWithDefaultConnectionIntegrationTest {
+class MultiClusterConnectionWithDefaultConnectionIntegrationTest extends SparkTest {
+  override def testName: String = super.testName
 
-  var container: CouchbaseContainer = _
-  var spark: SparkSession           = _
 
   private val connectionIdentifier = "test:one"
-  private val bucketName = UUID.randomUUID().toString
-  private val scopeName = UUID.randomUUID().toString
-  private val airportCollectionName = UUID.randomUUID().toString
 
-  @BeforeAll
-  def setup(): Unit = {
-    container = testContainer(bucketName)
-    container.start()
-
-    prepareSampleData(container, bucketName, scopeName, airportCollectionName)
-
-    spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config(s"spark.couchbase.connectionString", container.getConnectionString)
-      .config(s"spark.couchbase.username", container.getUsername)
-      .config(s"spark.couchbase.password", container.getPassword)
-      .config(s"spark.couchbase.implicitBucket", bucketName)
-      .config(s"spark.couchbase.connectionString:${connectionIdentifier}", container.getConnectionString)
-      .config(s"spark.couchbase.username:${connectionIdentifier}", container.getUsername)
-      .config(s"spark.couchbase.password:${connectionIdentifier}", container.getPassword)
-      .config(s"spark.couchbase.implicitBucket:${connectionIdentifier}", bucketName)
-      .getOrCreate()
-
-    spark.conf.getAll.foreach(c => println(s"Initial: ${c._1} = ${c._2}"))
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    CouchbaseConnection().stop()
-    spark.stop()
-    container.stop()
+  override def sparkBuilderCustomizer(builder: SparkSession.Builder, params: Params): Unit = {
+    builder
+      .config(s"spark.couchbase.connectionString", params.connectionString)
+      .config(s"spark.couchbase.username", params.username)
+      .config(s"spark.couchbase.password", params.password)
+      .config(s"spark.couchbase.implicitBucket", params.bucketName)
+      .config(
+        s"spark.couchbase.connectionString:${connectionIdentifier}",
+        params.connectionString
+      )
+      .config(s"spark.couchbase.username:${connectionIdentifier}", params.username)
+      .config(s"spark.couchbase.password:${connectionIdentifier}", params.password)
+      .config(s"spark.couchbase.implicitBucket:${connectionIdentifier}", params.bucketName)
   }
 
   @Test
