@@ -86,7 +86,7 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
       .groupBy(v => Math.floor(v._2 % inputPartitions))
       .values
       .map(v => {
-        val offsets = v.keys.toMap
+        val offsets = v.toMap.keys.toMap
         KeyValuePartitionOffset(offsets, None).asInstanceOf[PartitionOffset]
       })
       .toList

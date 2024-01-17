@@ -102,6 +102,7 @@ class QueryRDD[T: ClassTag](
                 p.hostname()
               }
             })
+            .toSeq
         )
       )
     } else {

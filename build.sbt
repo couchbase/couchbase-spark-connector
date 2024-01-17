@@ -4,12 +4,12 @@ version := "3.5.0-SNAPSHOT"
 
 organization := "com.couchbase.client"
 
-scalaVersion := "2.12.18"
+crossScalaVersions := Seq("2.12.18", "2.13.10")
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.0")
-val sdkVersion   = "1.5.0"
+val sdkVersion   = "1.5.2"
 val dcpVersion   = "0.47.0"
 
 scalacOptions += "-feature"

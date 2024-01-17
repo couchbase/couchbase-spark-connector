@@ -249,6 +249,7 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
       // Safety timer on waiting for the config
       .blockFirst(core.context.environment.timeoutConfig.connectTimeout)
       .asScala
+      .toSeq
 
     val allSeedNodes = nodes
       .filter(node => {
