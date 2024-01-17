@@ -16,66 +16,32 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.kv.KeyValueOptions
+import com.couchbase.spark.util.{Params, SparkTest, TestInfraBuilder, TestInfraConnectedToSpark}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull}
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer, CouchbaseService}
 
-import java.util.UUID
+class AnalyticsDataFrameCustomConnectionIntegrationTest extends SparkTest {
 
-@TestInstance(Lifecycle.PER_CLASS)
-class AnalyticsDataFrameCustomConnectionIntegrationTest {
+  override def testName: String = super.testName
 
-  var container: CouchbaseContainer = _
-  var spark: SparkSession           = _
+  override def sparkBuilderCustomizer(builder: SparkSession.Builder, params: Params): Unit = {
+    builder
+      .config("spark.couchbase.connectionString:custom", params.connectionString)
+      .config("spark.couchbase.username:custom", params.username)
+      .config("spark.couchbase.password:custom", params.password)
+      .config("spark.couchbase.implicitBucket:custom", params.bucketName)
+  }
 
   @BeforeAll
-  def setup(): Unit = {
-    val bucketName: String = UUID.randomUUID().toString
-
-    container = new CouchbaseContainer("couchbase/server:6.6.2")
-      .withEnabledServices(CouchbaseService.KV, CouchbaseService.ANALYTICS)
-      .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(false))
-    container.start()
-
-    spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config("spark.couchbase.connectionString:custom", container.getConnectionString)
-      .config("spark.couchbase.username:custom", container.getUsername)
-      .config("spark.couchbase.password:custom", container.getPassword)
-      .config("spark.couchbase.implicitBucket:custom", bucketName)
-      .getOrCreate()
-
+  def setupTest(): Unit = {
     val identifier = Some("custom")
     val config     = CouchbaseConfig(spark.sparkContext.getConf, identifier)
     val cluster    = CouchbaseConnection(identifier).cluster(config)
 
-    cluster.analyticsIndexes.createDataset("airports", bucketName)
+    cluster.analyticsIndexes.createDataset("airports", infra.params.bucketName)
     cluster.analyticsQuery("connect link Local").get
-
-    prepareSampleData()
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    container.stop()
-    spark.stop()
-  }
-
-  private def prepareSampleData(): Unit = {
-    val airports = spark.read
-      .json("src/test/resources/airports.json")
-      .withColumn("type", lit("airport"))
-
-    airports.write
-      .format("couchbase.kv")
-      .option(KeyValueOptions.ConnectionIdentifier, "custom")
-      .save()
   }
 
   @Test

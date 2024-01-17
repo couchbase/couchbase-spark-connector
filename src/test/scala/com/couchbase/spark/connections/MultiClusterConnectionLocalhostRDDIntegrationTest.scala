@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2022 Couchbase, Inc.
  *
@@ -16,48 +15,24 @@
  */
 package com.couchbase.spark.connections
 
-import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.runStandardRDDQuery
-import com.couchbase.spark.kv.LookupIn
-import org.apache.spark.sql.SparkSession
-import org.junit.jupiter.api.Assertions.assertEquals
+import com.couchbase.spark.util.SparkTest
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api._
 
-import java.util.UUID
-
-/** Tests multiple cluster connections where they are dynamically setup, against a regular config, RDD operations
- * and a localhost cluster.
- *
- * These tests are for manual testing and hence are disabled.
- */
+/** Tests multiple cluster connections where they are dynamically setup, against a regular config,
+  * RDD operations and a localhost cluster.
+  *
+  * These tests are for manual testing and hence are disabled.
+  */
 @Disabled
-@TestInstance(Lifecycle.PER_CLASS)
-class MultiClusterConnectionLocalhostRDDIntegrationTest {
-
-  var spark: SparkSession           = _
-
-  private val bucketName = UUID.randomUUID().toString
-
-  @BeforeAll
-  def setup(): Unit = {
-    spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .getOrCreate()
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    CouchbaseConnection().stop()
-    spark.stop()
-  }
+class MultiClusterConnectionLocalhostRDDIntegrationTest extends SparkTest {
+  override def testName: String = super.testName
 
   @Test
   def missingPort(): Unit = {
-    val id = s"couchbase://Administrator:password@localhost?spark.couchbase.implicitBucket=${bucketName}"
+    val id =
+      s"couchbase://Administrator:password@localhost?spark.couchbase.implicitBucket=${infra.params.bucketName}"
     runStandardRDDQuery(spark, id)
   }
 }

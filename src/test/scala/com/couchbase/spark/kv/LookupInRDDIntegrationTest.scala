@@ -16,75 +16,12 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.client.scala.manager.collection.CollectionSpec
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.lit
+import com.couchbase.spark.util.SparkTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
+import org.junit.jupiter.api.Test
 
-import java.util.UUID
-
-@TestInstance(Lifecycle.PER_CLASS)
-class LookupInRDDIntegrationTest {
-
-  var container: CouchbaseContainer = _
-  var spark: SparkSession           = _
-
-  private val bucketName            = UUID.randomUUID().toString
-  private val scopeName             = UUID.randomUUID().toString
-  private val airportCollectionName = UUID.randomUUID().toString
-
-  @BeforeAll
-  def setup(): Unit = {
-    container = new CouchbaseContainer("couchbase/server:7.0.3")
-      .withBucket(new BucketDefinition(bucketName))
-    container.start()
-
-    spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config("spark.couchbase.connectionString", container.getConnectionString)
-      .config("spark.couchbase.username", container.getUsername)
-      .config("spark.couchbase.password", container.getPassword)
-      .config("spark.couchbase.implicitBucket", bucketName)
-      .getOrCreate()
-
-    val bucket =
-      CouchbaseConnection().bucket(CouchbaseConfig(spark.sparkContext.getConf), Some(bucketName))
-
-    bucket.collections.createScope(scopeName)
-    bucket.collections.createCollection(CollectionSpec(airportCollectionName, scopeName))
-
-    prepareSampleData()
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    CouchbaseConnection().stop()
-    container.stop()
-    spark.stop()
-  }
-
-  private def prepareSampleData(): Unit = {
-    val airports = spark.read
-      .json("src/test/resources/airports.json")
-
-    airports
-      .withColumn("type", lit("airport"))
-      .write
-      .format("couchbase.kv")
-      .save()
-
-    airports.write
-      .format("couchbase.kv")
-      .option(KeyValueOptions.Scope, scopeName)
-      .option(KeyValueOptions.Collection, airportCollectionName)
-      .save()
-  }
+class LookupInRDDIntegrationTest extends SparkTest {
+  override def testName: String = super.testName
 
   @Test
   def testLookupFromDefaultCollection(): Unit = {
@@ -105,7 +42,10 @@ class LookupInRDDIntegrationTest {
     val result = spark.sparkContext
       .couchbaseLookupIn(
         Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))),
-        Keyspace(scope = Some(scopeName), collection = Some(airportCollectionName))
+        Keyspace(
+          scope = Some(infra.params.scopeName),
+          collection = Some(infra.params.collectionName)
+        )
       )
       .collect()
 

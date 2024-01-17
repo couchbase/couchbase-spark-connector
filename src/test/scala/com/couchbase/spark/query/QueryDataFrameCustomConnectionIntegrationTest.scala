@@ -17,6 +17,8 @@ package com.couchbase.spark.query
 
 import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.kv.KeyValueOptions
+import com.couchbase.spark.util.ClusterVersions.testContainer
+import com.couchbase.spark.util.{Params, SparkTest, TestInfraConnectedToSpark}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
@@ -26,48 +28,15 @@ import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
 
 import java.util.UUID
 
-@TestInstance(Lifecycle.PER_CLASS)
-class QueryDataFrameCustomConnectionIntegrationTest {
+class QueryDataFrameCustomConnectionIntegrationTest extends SparkTest {
+  override def testName: String = super.testName
 
-  var container: CouchbaseContainer = _
-  var spark: SparkSession           = _
-
-  @BeforeAll
-  def setup(): Unit = {
-    val bucketName: String = UUID.randomUUID().toString
-
-    container = new CouchbaseContainer("couchbase/server:6.6.2")
-      .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(true))
-    container.start()
-
-    spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config("spark.couchbase.connectionString:custom", container.getConnectionString)
-      .config("spark.couchbase.username:custom", container.getUsername)
-      .config("spark.couchbase.password:custom", container.getPassword)
-      .config("spark.couchbase.implicitBucket:custom", bucketName)
-      .getOrCreate()
-
-    prepareSampleData()
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    container.stop()
-    spark.stop()
-  }
-
-  private def prepareSampleData(): Unit = {
-    val airports = spark.read
-      .json("src/test/resources/airports.json")
-      .withColumn("type", lit("airport"))
-
-    airports.write
-      .format("couchbase.kv")
-      .option(KeyValueOptions.ConnectionIdentifier, "custom")
-      .save()
+  override def sparkBuilderCustomizer(builder: SparkSession.Builder, params: Params): Unit = {
+    builder
+      .config("spark.couchbase.connectionString:custom", params.connectionString)
+      .config("spark.couchbase.username:custom", params.username)
+      .config("spark.couchbase.password:custom", params.password)
+      .config("spark.couchbase.implicitBucket:custom", params.bucketName)
   }
 
   @Test

@@ -16,61 +16,21 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.util.{SparkTest, TestInfraBuilder, TestInfraConnectedToSpark}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
-import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer, CouchbaseService}
 
-import java.util.UUID
-
-@TestInstance(Lifecycle.PER_CLASS)
-class AnalyticsDataFrameIntegrationTest {
-
-  var container: CouchbaseContainer = _
-  var spark: SparkSession           = _
+class AnalyticsDataFrameIntegrationTest extends SparkTest {
+  override def testName: String = super.testName
 
   @BeforeAll
-  def setup(): Unit = {
-    val bucketName: String = UUID.randomUUID().toString
-
-    container = new CouchbaseContainer("couchbase/server:6.6.2")
-      .withEnabledServices(CouchbaseService.KV, CouchbaseService.ANALYTICS)
-      .withBucket(new BucketDefinition(bucketName).withPrimaryIndex(false))
-    container.start()
-
-    spark = SparkSession
-      .builder()
-      .master("local[*]")
-      .appName(this.getClass.getSimpleName)
-      .config("spark.couchbase.connectionString", container.getConnectionString)
-      .config("spark.couchbase.username", container.getUsername)
-      .config("spark.couchbase.password", container.getPassword)
-      .config("spark.couchbase.implicitBucket", bucketName)
-      .getOrCreate()
-
+  def setupTest(): Unit = {
     val cluster = CouchbaseConnection().cluster(CouchbaseConfig(spark.sparkContext.getConf))
-    cluster.analyticsIndexes.createDataset("airports", bucketName)
+    cluster.analyticsIndexes.createDataset("airports", infra.params.bucketName)
     cluster.analyticsQuery("connect link Local").get
-
-    prepareSampleData()
-  }
-
-  @AfterAll
-  def teardown(): Unit = {
-    CouchbaseConnection().stop()
-    container.stop()
-    spark.stop()
-  }
-
-  private def prepareSampleData(): Unit = {
-    val airports = spark.read
-      .json("src/test/resources/airports.json")
-      .withColumn("type", lit("airport"))
-
-    airports.write.format("couchbase.kv").save()
   }
 
   @Test
