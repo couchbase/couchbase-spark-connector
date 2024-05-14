@@ -31,15 +31,22 @@ case class SparkSslOptions(
     insecure: Boolean
 )
 
+case class CertificateAuthOptions(
+     keystorePath: String,
+     keystorePassword: String,
+     keystoreType: String,
+)
+
 case class CouchbaseConfig(
     connectionString: String,
-    credentials: Credentials,
+    credentials: Option[Credentials],
     bucketName: Option[String],
     scopeName: Option[String],
     collectionName: Option[String],
     waitUntilReadyTimeout: Option[String],
     sparkSslOptions: SparkSslOptions,
-    properties: Seq[(String, String)]
+    properties: Seq[(String, String)],
+    certAuthOptions: Option[CertificateAuthOptions],
 ) {
 
   def implicitBucketNameOr(explicitName: String): String = {
@@ -101,6 +108,10 @@ object CouchbaseConfig {
   private val SCOPE_NAME               = PREFIX + "implicitScope"
   private val COLLECTION_NAME          = PREFIX + "implicitCollection"
   private val WAIT_UNTIL_READY_TIMEOUT = PREFIX + "waitUntilReadyTimeout"
+  private val AUTH                     = PREFIX + "auth."
+  private val KEYSTORE_PATH            = PREFIX + "keyStorePath"
+  private val KEYSTORE_PASSWORD        = PREFIX + "keyStorePassword"
+  private val KEYSTORE_TYPE            = PREFIX + "keyStoreType"
 
   private val SPARK_SSL_PREFIX            = SPARK_PREFIX + "ssl."
   private val SPARK_SSL_ENABLED           = SPARK_SSL_PREFIX + "enabled"
@@ -108,7 +119,7 @@ object CouchbaseConfig {
   private val SPARK_SSL_KEYSTORE_PASSWORD = SPARK_SSL_PREFIX + "keyStorePassword"
   private val SPARK_SSL_INSECURE          = SPARK_SSL_PREFIX + "insecure"
 
-  private val FILTERED_OUT: List[String] = "username" :: "password" :: "connectionString" :: "implicitBucket" :: "implicitScope" :: "implicitCollection" :: "waitUntilReadyTimeout" :: "ssl.enabled" :: "ssl.keyStore" :: "ssl.keyStorePassword" :: "ssl.insecure" :: Nil
+  private val FILTERED_OUT: List[String] = "username" :: "password" :: "connectionString" :: "implicitBucket" :: "implicitScope" :: "implicitCollection" :: "waitUntilReadyTimeout" :: "ssl.enabled" :: "ssl.keyStore" :: "ssl.keyStorePassword" :: "ssl.insecure" :: "keyStorePath" ::  "keyStorePassword" :: "keyStoreType" :: Nil
 
   /** @param connectionIdentifier
     *   this needs to be the full original string, to allow dynamic connections with e.g. the same hostname but different
@@ -156,6 +167,13 @@ object CouchbaseConfig {
       cs.params.asScala.toSeq)
   }
 
+   def getOption(key: String, dynamicConfig : Option[ConnectionIdentifierParsed], cfg:SparkConf, connectionIdentifier : Option[String] , remove:Boolean): Option[String] = {
+    dynamicConfig
+      .flatMap(dc => dc.getSetting(key))
+      .orElse(cfg.getOption(ident(key, connectionIdentifier)))
+      .orElse(cfg.getOption(key))
+  }
+
   def apply(cfg: SparkConf, connectionIdentifierOrig: Option[String] = None): CouchbaseConfig = {
     val (dynamicConfig, connectionIdentifier) =
       if (
@@ -190,47 +208,31 @@ object CouchbaseConfig {
         )
       )
 
-    val username: String = dynamicConfig
+    val username: Option[String] = dynamicConfig
       .flatMap(dc => dc.username)
       .orElse(cfg.getOption(ident(USERNAME, connectionIdentifier)))
       .orElse(cfg.getOption(USERNAME))
-      .getOrElse(
-        throw new IllegalArgumentException(
-          s"Required config property ${USERNAME} is not present"
-        )
-      )
 
-    val password: String = dynamicConfig
+    val password: Option[String] = dynamicConfig
       .flatMap(dc => dc.password)
       .orElse(cfg.getOption(ident(PASSWORD, connectionIdentifier)))
       .orElse(cfg.getOption(PASSWORD))
-      .getOrElse(
-        throw new IllegalArgumentException(
-          s"Required config property ${PASSWORD} is not present"
-        )
-      )
 
-    val credentials = Credentials(username, password)
+    val credentials = {
+      if (username.isDefined || password.isDefined) {
+        if (username.isEmpty || password.isEmpty) {
+          throw new IllegalArgumentException("when one of " + USERNAME + " or " + PASSWORD + " is specified, then both must be specified")
+        }
+        Some (Credentials(username.get, password.get))
+      } else {
+        Option.empty
+      }
+    }
 
-    val bucketName: Option[String] = dynamicConfig
-      .flatMap(dc => dc.getSetting(BUCKET_NAME))
-      .orElse(cfg.getOption(ident(BUCKET_NAME, connectionIdentifier)))
-      .orElse(cfg.getOption(BUCKET_NAME))
-
-    val scopeName: Option[String] = dynamicConfig
-      .flatMap(dc => dc.getSetting(SCOPE_NAME))
-      .orElse(cfg.getOption(ident(SCOPE_NAME, connectionIdentifier)))
-      .orElse(cfg.getOption(SCOPE_NAME))
-
-    val collectionName: Option[String] = dynamicConfig
-      .flatMap(dc => dc.getSetting(COLLECTION_NAME))
-      .orElse(cfg.getOption(ident(COLLECTION_NAME, connectionIdentifier)))
-      .orElse(cfg.getOption(COLLECTION_NAME))
-
-    val waitUntilReadyTimeout: Option[String] = dynamicConfig
-      .flatMap(dc => dc.getSetting(WAIT_UNTIL_READY_TIMEOUT))
-      .orElse(cfg.getOption(ident(WAIT_UNTIL_READY_TIMEOUT, connectionIdentifier)))
-      .orElse(cfg.getOption(WAIT_UNTIL_READY_TIMEOUT))
+    val bucketName: Option[String] = getOption(BUCKET_NAME, dynamicConfig, cfg, connectionIdentifier, false)
+    val scopeName: Option[String] = getOption(SCOPE_NAME, dynamicConfig, cfg, connectionIdentifier, false)
+    val collectionName: Option[String] = getOption(COLLECTION_NAME, dynamicConfig, cfg, connectionIdentifier, false)
+    val waitUntilReadyTimeout: Option[String] = getOption(WAIT_UNTIL_READY_TIMEOUT, dynamicConfig, cfg, connectionIdentifier, false)
 
     var useSsl                           = false
     var keyStorePath: Option[String]     = None
@@ -245,8 +247,8 @@ object CouchbaseConfig {
 
     if (sslEnabled) {
       useSsl = true
-      keyStorePath = cfg.getOption(ident(SPARK_SSL_KEYSTORE, connectionIdentifier))
-      keyStorePassword = cfg.getOption(ident(SPARK_SSL_KEYSTORE_PASSWORD, connectionIdentifier))
+      keyStorePath =  getOption(SPARK_SSL_KEYSTORE, dynamicConfig, cfg, connectionIdentifier, false)
+      keyStorePassword =  getOption(SPARK_SSL_KEYSTORE_PASSWORD, dynamicConfig, cfg, connectionIdentifier, false)
     }
 
     val sslInsecure = dynamicConfig
@@ -269,6 +271,29 @@ object CouchbaseConfig {
       })
       .toSeq
 
+    val certKeyStorePath : Option[String] = getOption(KEYSTORE_PATH, dynamicConfig, cfg, connectionIdentifier, false)
+    cfg.remove(KEYSTORE_PATH)
+    val certKeyStorePassword: Option[String] = getOption(KEYSTORE_PASSWORD, dynamicConfig, cfg, connectionIdentifier, false)
+    cfg.remove(KEYSTORE_PASSWORD)
+    val certKeyStoreType: Option[String] = getOption(KEYSTORE_TYPE, dynamicConfig, cfg, connectionIdentifier, false)
+    cfg.remove(KEYSTORE_TYPE)
+
+    val certAuth: Option[CertificateAuthOptions] = {
+      if (certKeyStorePath.isDefined || certKeyStorePassword.isDefined || certKeyStoreType.isDefined) {
+        if (certKeyStorePath.isEmpty || certKeyStorePassword.isEmpty || certKeyStoreType.isEmpty) {
+          throw new IllegalArgumentException("when one of " + KEYSTORE_PATH + ", " + KEYSTORE_PASSWORD + " or " + KEYSTORE_TYPE + " is specified, then all must be specified")
+        }
+        Some(CertificateAuthOptions(certKeyStorePath.get, certKeyStorePassword.get, certKeyStoreType.get))
+      } else {
+        Option.empty
+      }
+    }
+
+    if ((credentials.isEmpty && certAuth.isEmpty) || (credentials.isDefined && certAuth.isDefined)){
+      throw new IllegalArgumentException("Exactly one means of authentication - (" + USERNAME + " and " + PASSWORD +
+        ") or (" + KEYSTORE_PATH + ", " + KEYSTORE_PASSWORD + " and " + KEYSTORE_TYPE + " - must be specified")
+    }
+
     CouchbaseConfig(
       connectionString,
       credentials,
@@ -277,7 +302,8 @@ object CouchbaseConfig {
       collectionName,
       waitUntilReadyTimeout,
       SparkSslOptions(useSsl, keyStorePath, keyStorePassword, sslInsecure),
-      filteredProperties
+      filteredProperties,
+      certAuth,
     )
   }
 
