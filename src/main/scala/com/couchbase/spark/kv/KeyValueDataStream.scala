@@ -17,7 +17,7 @@ package com.couchbase.spark.kv
 
 import com.couchbase.client.dcp.highlevel.{SnapshotMarker, StreamOffset}
 import com.couchbase.client.dcp.message.DcpFailoverLogResponse
-import com.couchbase.client.dcp.Client
+import com.couchbase.client.dcp.{Authenticator, CertificateAuthenticator, Client, PasswordAuthenticator, StaticCredentialsProvider}
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.util.Version
 import org.apache.spark.internal.Logging
@@ -28,6 +28,7 @@ import org.apache.spark.sql.types.StructType
 import org.json4s.jackson.Serialization
 import org.json4s.{DefaultFormats, NoTypeHints}
 
+import java.nio.file.Paths
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -40,6 +41,11 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
   private lazy val sparkSession = SparkSession.active
   lazy val conf: CouchbaseConfig =
     CouchbaseConfig(sparkSession.sparkContext.getConf, config.connectionIdentifier)
+
+  val authenticator: Authenticator = {
+    conf.certAuthOptions.map(ca => CertificateAuthenticator.fromKeyStore(Paths.get(ca.keystorePath), ca.keystorePassword, ca.keystoreType))
+      .orElse(conf.credentials.map(cr => new PasswordAuthenticator(new StaticCredentialsProvider(cr.username, cr.password)))).get
+  }
 
   val dcpClient: Client = Client
     .builder()
@@ -64,7 +70,7 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
         .asJava
     )
     .userAgent(Version.productName, Version.version, "stream")
-    .credentials(conf.credentials.username, conf.credentials.password)
+    .authenticator(authenticator)
     .securityConfig(
       CouchbaseConnection(config.connectionIdentifier)
         .dcpSecurityConfig(conf, config.connectionIdentifier)

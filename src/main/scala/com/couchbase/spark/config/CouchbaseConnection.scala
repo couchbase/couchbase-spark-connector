@@ -17,24 +17,26 @@
 package com.couchbase.spark.config
 
 import com.couchbase.client.core.config.PortInfo
-import com.couchbase.client.core.env.{AbstractMapPropertyLoader, CoreEnvironment, NetworkResolution}
+import com.couchbase.client.core.env._
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.client.core.io.CollectionIdentifier
 import com.couchbase.client.core.service.ServiceType
 import com.couchbase.client.core.transaction.config.CoreTransactionsCleanupConfig
-import com.couchbase.client.core.util.{ConnectionString, ConnectionStringUtil}
+import com.couchbase.client.core.util.ConnectionString
+import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
-import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig, SeedNode}
+import com.couchbase.spark.config.CouchbaseConnection.connections
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
-import reactor.core.publisher.{Flux, Mono}
+import reactor.core.publisher.Flux
 
 import java.nio.file.Paths
 import java.util
+import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, DurationInt}
-import scala.collection.JavaConverters._
 
 class CouchbaseConnection(val identifier: String) extends Serializable with Logging {
 
@@ -67,7 +69,7 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
         )
 
         var builder = ClusterEnvironment.builder
-
+        
         val parsedConnstr = ConnectionString.create(cfg.connectionString)
         if (
           cfg.sparkSslOptions.enabled || parsedConnstr
@@ -91,12 +93,17 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
       }
 
       if (clusterRef.isEmpty) {
+        val authenticator: Authenticator = {
+          cfg.certAuthOptions.map(ca => CertificateAuthenticator.fromKeyStore(Paths.get(ca.keystorePath), ca.keystorePassword, Optional.of(ca.keystoreType)))
+            .orElse(cfg.credentials.map(cr => PasswordAuthenticator.create(cr.username, cr.password))).get
+        }
+
         clusterRef = Option(
           Cluster
             .connect(
               cfg.connectionString,
               ClusterOptions
-                .create(cfg.credentials.username, cfg.credentials.password)
+                .create(authenticator)
                 .environment(envRef.get)
             )
             .get
@@ -186,6 +193,7 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
           envRef.get.shutdown()
           envRef = None
         }
+        connections.remove(identifier)
       } catch {
         case e: Throwable => logDebug(s"Encountered error during shutdown $e")
       }

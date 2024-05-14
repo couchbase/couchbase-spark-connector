@@ -18,7 +18,7 @@ package com.couchbase.spark.kv
 import com.couchbase.client.dcp.highlevel._
 import com.couchbase.client.dcp.message.{DcpFailoverLogResponse, StreamEndReason}
 import com.couchbase.client.dcp.state.PartitionState
-import com.couchbase.client.dcp.{Client, StreamTo}
+import com.couchbase.client.dcp.{Authenticator, CertificateAuthenticator, Client, PasswordAuthenticator, StaticCredentialsProvider, StreamTo}
 import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.util.Version
 import org.apache.spark.sql.catalyst.InternalRow
@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.util.ArrayBasedMapData
 import org.apache.spark.sql.connector.read.streaming.{ContinuousPartitionReader, PartitionOffset}
 import org.apache.spark.unsafe.types.UTF8String
 
+import java.nio.file.Paths
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
@@ -55,6 +56,11 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
   private var currentEntry: DocumentChange = _
   private val ownedVbuckets                = partition.partitionOffset.streamStartOffsets.keys
 
+  val authenticator: Authenticator = {
+    couchbaseConfig.certAuthOptions.map(ca => CertificateAuthenticator.fromKeyStore(Paths.get(ca.keystorePath), ca.keystorePassword, ca.keystoreType))
+      .orElse(couchbaseConfig.credentials.map(cr => new PasswordAuthenticator(new StaticCredentialsProvider(cr.username, cr.password)))).get
+  }
+
   private val dcpClient = Client
     .builder()
     .seedNodes(
@@ -75,7 +81,7 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
       TimeUnit.MICROSECONDS
     )
     .userAgent(Version.productName, Version.version, "reader")
-    .credentials(couchbaseConfig.credentials.username, couchbaseConfig.credentials.password)
+    .authenticator(authenticator)
     .bucket(streamConfig.bucket)
     .collectionsAware(streamConfig.scope.isDefined || streamConfig.collections.nonEmpty)
     .scopeName(
