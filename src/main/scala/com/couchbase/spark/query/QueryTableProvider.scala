@@ -78,12 +78,12 @@ class QueryTableProvider
     val scanConsistency = Option(options.get(QueryOptions.ScanConsistency))
       .getOrElse(DefaultConstants.DefaultQueryScanConsistency)
 
-    val opts = CouchbaseQueryOptions()
-    scanConsistency match {
+    val newOpts = CouchbaseQueryOptions()
+    val opts = scanConsistency match {
       case QueryOptions.NotBoundedScanConsistency =>
-        opts.scanConsistency(QueryScanConsistency.NotBounded)
+        newOpts.scanConsistency(QueryScanConsistency.NotBounded)
       case QueryOptions.RequestPlusScanConsistency =>
-        opts.scanConsistency(QueryScanConsistency.RequestPlus())
+        newOpts.scanConsistency(QueryScanConsistency.RequestPlus())
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
 

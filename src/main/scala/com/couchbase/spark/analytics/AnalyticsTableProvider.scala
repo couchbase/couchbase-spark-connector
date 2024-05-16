@@ -58,12 +58,12 @@ class AnalyticsTableProvider extends TableProvider with Logging with DataSourceR
     val scanConsistency = Option(options.get(AnalyticsOptions.ScanConsistency))
       .getOrElse(DefaultConstants.DefaultAnalyticsScanConsistency)
 
-    val opts = CouchbaseAnalyticsOptions()
-    scanConsistency match {
+    val newOpts = CouchbaseAnalyticsOptions()
+    val opts = scanConsistency match {
       case AnalyticsOptions.NotBoundedScanConsistency =>
-        opts.scanConsistency(AnalyticsScanConsistency.NotBounded)
+        newOpts.scanConsistency(AnalyticsScanConsistency.NotBounded)
       case AnalyticsOptions.RequestPlusScanConsistency =>
-        opts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
+        newOpts.scanConsistency(AnalyticsScanConsistency.RequestPlus)
       case v => throw new IllegalArgumentException("Unknown scanConsistency of " + v)
     }
 
