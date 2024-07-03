@@ -97,4 +97,29 @@ object QueryOptions {
     */
   val RequestPlusScanConsistency = "requestPlus"
 
+  /** Option Values: Partitioning.
+    *
+    * If any of the four following options are set, all must be.
+    *
+    * They will partition a single SQL++ query into multiple queries, so it can be executed by multiple Spark workers.
+    *
+    * As an example, if partitionColumn is set to "id", partitionLowerBound is 0, partitionUpperBound is 1000, and
+    * partitionCount is 3, then the multiple queries would look similar to this:
+    *
+    * SELECT [...] WHERE [...] AND id < 334
+    * SELECT [...] WHERE [...] AND (id >= 334 AND id < 667)
+    * SELECT [...] WHERE [...] AND id >= 667
+    *
+    * The chosen partitionColumn must support the SQL comparison operators "<" and ">=".
+    * Any results where partitionColumn is null or otherwise not matched by those operators, will not be included.
+    *
+    * partitionLowerBound and partitionUpperBound do not bound or limit the results, they simply choose how many results
+    * are in each partition.
+    *
+    * partitionCount determines how many partitions the query will be split into.
+    */
+  val PartitionColumn = "partitionColumn"
+  val PartitionLowerBound = "partitionLowerBound"
+  val PartitionUpperBound = "partitionUpperBound"
+  val PartitionCount = "partitionCount"
 }

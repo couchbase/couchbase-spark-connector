@@ -16,15 +16,13 @@
 
 package com.couchbase.spark.query
 
-import com.couchbase.client.core.error.DmlFailureException
+import com.couchbase.client.core.error.{DmlFailureException, InvalidArgumentException}
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.client.scala.json.JsonObject
-import com.couchbase.client.scala.query.{
-  QueryScanConsistency,
-  QueryOptions => CouchbaseQueryOptions
-}
+import com.couchbase.client.scala.query.{QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import com.couchbase.spark.query.QueryOptions.{PartitionColumn, PartitionLowerBound, PartitionUpperBound, PartitionCount}
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -146,6 +144,29 @@ class QueryTableProvider
       connectionIdentifier
     )
 
+    val partitionColumn = Option(properties.get(PartitionColumn))
+    val lowerBound = Option(properties.get(PartitionLowerBound))
+    val upperBound = Option(properties.get(PartitionUpperBound))
+    val numPartitions = Option(properties.get(PartitionCount))
+
+    val partitionOptionCount = partitionColumn.count(_ => true) + lowerBound.count(_ => true) + upperBound.count(_ => true) + numPartitions.count(_ => true)
+    if (partitionOptionCount > 0 && partitionOptionCount < 4) {
+      throw new InvalidArgumentException("If one of partitionColumn, partitionLowerBound, partitionUpperBound and partitionCount arguments are provided, then all must be", null, null)
+    }
+
+    val partitioning = if (partitionColumn.isDefined && lowerBound.isDefined && upperBound.isDefined && numPartitions.isDefined) {
+      val lb = lowerBound.get.toLong
+      val ub = upperBound.get.toLong
+      val np = numPartitions.get.toLong
+      if (lb >= ub) {
+        throw new InvalidArgumentException(s"${PartitionLowerBound} must be < ${PartitionUpperBound}", null, null)
+      }
+      if (np <= 0) {
+        throw new InvalidArgumentException(s"${PartitionCount} must be > 0", null, null)
+      }
+      Some(PartitioningConfig(partitionColumn.get, lb, ub, np))
+    } else None
+
     QueryReadConfig(
       conf.implicitBucketNameOr(properties.get(QueryOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(QueryOptions.Scope)),
@@ -157,7 +178,8 @@ class QueryTableProvider
         .getOrElse(DefaultConstants.DefaultQueryScanConsistency),
       Option(properties.get(QueryOptions.Timeout)),
       Option(properties.get(QueryOptions.PushDownAggregate)).getOrElse("true").toBoolean,
-      connectionIdentifier
+      connectionIdentifier,
+      partitioning
     )
   }
 

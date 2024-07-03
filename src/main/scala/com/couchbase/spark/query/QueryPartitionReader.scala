@@ -43,14 +43,17 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 import scala.concurrent.duration.Duration
 
+// Executes on the Spark worker.
 class QueryPartitionReader(
-    schema: StructType,
+    partition: QueryInputPartition,
     conf: CouchbaseConfig,
-    readConfig: QueryReadConfig,
-    filters: Array[Filter],
-    aggregations: Option[Aggregation]
+    readConfig: QueryReadConfig
 ) extends PartitionReader[InternalRow]
     with Logging {
+
+  private val schema: StructType = partition.schema
+  private val filters: Array[Filter] = partition.filters
+  private val aggregations: Option[Aggregation] = partition.aggregations
 
   private val scopeName = readConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
   private val collectionName =
@@ -160,6 +163,17 @@ class QueryPartitionReader(
       predicate = " WHERE " + compiledFilters
     }
 
+    partition.bound match {
+      case Some(value) =>
+        if (predicate.contains("WHERE")) {
+          predicate = predicate + s" AND (${value.whereClause})"
+        }  else {
+          predicate = predicate + s" WHERE (${value.whereClause})"
+        }
+
+      case None =>
+    }
+
     val groupBy = if (hasAggregateGroupBy) {
       " GROUP BY " + aggregations.get
         .groupByExpressions()
@@ -182,7 +196,7 @@ class QueryPartitionReader(
         s"select $fieldsEncoded from `$collectionName`$predicate$groupBy"
       }
 
-    logDebug(s"Building and running N1QL query $query")
+    logDebug(s"Building and running N1QL query for `${readConfig.bucket}`.`${scopeName}`: $query")
     query
   }
 

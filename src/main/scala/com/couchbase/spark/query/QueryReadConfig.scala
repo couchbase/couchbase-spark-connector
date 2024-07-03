@@ -25,5 +25,6 @@ case class QueryReadConfig(
     scanConsistency: String,
     timeout: Option[String],
     pushDownAggregate: Boolean,
-    connectionIdentifier: Option[String]
+    connectionIdentifier: Option[String],
+    partition: Option[PartitioningConfig]
 )

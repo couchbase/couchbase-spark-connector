@@ -100,7 +100,7 @@ To create more than one connection, a custom identifier prefixed by `:` needs to
 ----
 val spark = SparkSession
   .builder()
-  .appName("MultipleClsuterConnections")
+  .appName("MultipleClusterConnections")
   .config("spark.couchbase.connectionString", "hostname1")
   .config("spark.couchbase.username", "username")
   .config("spark.couchbase.password", "password")
@@ -165,3 +165,41 @@ TLS connections can be confiugred through SDK properties shown above, but there 
 |===
 
 Note that the prefix for these properties is not `spark.couchbase` but `spark.ssl`, since they are spark-generic properties.
+
+== Query partitioning
+
+NOTE: This feature is available with Spark Connector 3.5.0 and later.
+
+Individual SQL++ queries can be partitioned into multiple sub-queries, which can then be executed in parallel by multiple Spark workers.
+
+Partitioning is enabled by specifying all four partition options (if one is specified, all must be):
+
+[source,scala]
+----
+    val airports = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.PartitionColumn, "id")
+      .option(QueryOptions.PartitionLowerBound, "0")
+      .option(QueryOptions.PartitionUpperBound, "10000")
+      .option(QueryOptions.PartitionCount, "10")
+      .load()
+----
+
+This will generate and execute 10 sub-queries similar to:
+
+* SELECT [...] WHERE [...] AND id < 1000
+* SELECT [...] WHERE [...] AND (id >= 1000 AND id < 2000)
+* SELECT [...] WHERE [...] AND (id >= 2000 AND id < 3000)
+* ...
+* SELECT [...] WHERE [...] AND id >= 9000
+
+The chosen `partitionColumn` must support the SQL comparison operators "<" and ">=".
+
+Any results where `partitionColumn` is null or otherwise not matched by those operators, will not be included.
+
+`partitionLowerBound` and `partitionUpperBound` do not bound or limit the results. They simply choose how many results
+are in each partition.
+Best results will be achieved when these are chosen carefully to ensure that each partition is a similar size.
+
+`partitionCount` determines how many partitions the query will be split into.
+
