@@ -1,7 +1,9 @@
 # Couchbase Spark Connector release script
 # ========================================
 #
-# For internal use by Couchbase developers
+# For internal use by Couchbase developers.
+#
+# Snapshot handling: snapshot builds are built locally, but not published to Sonatype, or Git-tagged.
 #
 # 1. Before running this script:
 #  * Bump the version numbers in build.sbt and README.md.
@@ -11,7 +13,7 @@
 # 2. Now edit these versions:
 
 vers_sha=04a6fcd35aca87cf2c7bee3e790af7f3cb69f866  # the Git sha being released
-vers=3.5.0                                         # the version being released
+vers=3.5.0-SNAPSHOT                                         # the version being released
 
 # 3. Now run the script from the script's directory, e.g.
 #   cd couchbase-spark-connector
