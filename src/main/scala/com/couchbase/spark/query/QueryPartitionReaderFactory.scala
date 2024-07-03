@@ -24,6 +24,6 @@ class QueryPartitionReaderFactory(conf: CouchbaseConfig, readConfig: QueryReadCo
     extends PartitionReaderFactory {
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
     val part = partition.asInstanceOf[QueryInputPartition]
-    new QueryPartitionReader(part.schema, conf, readConfig, part.filters, part.aggregations)
+    new QueryPartitionReader(part, conf, readConfig)
   }
 }

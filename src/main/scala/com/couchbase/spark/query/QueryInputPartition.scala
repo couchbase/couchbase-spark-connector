@@ -20,11 +20,16 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 
-class QueryInputPartition(
+case class QueryInputPartition(
     val schema: StructType,
     val filters: Array[Filter],
     val locations: Array[String],
-    val aggregations: Option[Aggregation]
+    val aggregations: Option[Aggregation],
+    val bound: Option[QueryPartitionBound]
 ) extends InputPartition {
   override def preferredLocations(): Array[String] = locations
 }
+
+case class QueryPartitionBound(whereClause: String)
+
+case class PartitioningConfig(partitionColumn: String, lowerBound: Long, upperBound: Long, numPartitions: Long)
