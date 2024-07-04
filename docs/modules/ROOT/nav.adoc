@@ -7,6 +7,7 @@
 * xref:java-api.adoc[Java API]
 * xref:streaming.adoc[Structured Streaming Support]
 * xref:spark-shell.adoc[Using the Spark Shell]
+* xref:pyspark.adoc[Pyspark]
 * xref:cloud.adoc[Couchbase Cloud Support]
 * xref:databricks.adoc[Databricks Support]
 * xref:configuration.adoc[Configuration]

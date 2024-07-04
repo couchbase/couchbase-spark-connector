@@ -1,0 +1,46 @@
+= Using the Spark Shell
+:page-topic-type: concept
+
+[abstract]
+You can use the Couchbase Spark Connector together with Pyspark to quickly and easily explore your data.
+
+NOTE: Pyspark is not an officially supported configuration for the Couchbase Spark Connector. 
+The information on this page is for experimental purposes only.
+
+== Using the Spark Connector with Pyspark
+
+To use the Couchbase Spark Connector with Pyspark:
+
+. Download and extract the xref:download-links.adoc[current version of the Couchbase Spark Connector] to get the `spark-connector-assembly-VERSION.jar` file.
+This file contains the connector.
+. Use the `spark-submit` command with your Spark Python script.
+** To automatically start a local Spark master:
+```
+bin/spark-submit --jars spark-connector-assembly-VERSION.jar YourPythonScript.py
+```
+
+** To connect to a pre-existing Spark master:
+```
+bin/spark-submit --master spark://your-spark-host:7077 --jars spark-connector-assembly-VERSION.jar YourPythonScript.py
+```
+
+== Example
+
+The following example shows a Python/Pyspark script that uses the Couchbase Spark Connector.
+
+```
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("Couchbase Spark Connector Example") \
+    .config("spark.couchbase.connectionString", "couchbases://YourCouchbaseClusterHostname") \
+    .config("spark.couchbase.username", "test") \
+    .config("spark.couchbase.password", "Password!1") \
+    .config("spark.couchbase.implicitBucket", "travel-sample") \
+    .getOrCreate()
+
+df = spark.read.format("couchbase.query").load()
+df.printSchema()
+df.show()
+spark.stop()
+``` 
