@@ -332,6 +332,9 @@ object CouchbaseConnection {
     )
   }
 
+  private[couchbase] def stopAll(): Unit = {
+    connections.values.forEach(c => c.stop())
+  }
 }
 
 class SparkPropertyLoader(properties: Seq[(String, String)])
