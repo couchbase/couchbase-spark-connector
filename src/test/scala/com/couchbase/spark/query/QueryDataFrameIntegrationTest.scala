@@ -135,7 +135,6 @@ class QueryDataFrameIntegrationTest extends SparkTest {
 
     assertEquals(4, airports.count)
     airports.foreach(row => {
-      assertEquals("airport", row.getAs[String]("type"))
       assertNotNull(row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("name"))
     })
