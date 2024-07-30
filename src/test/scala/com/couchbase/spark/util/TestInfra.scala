@@ -81,7 +81,7 @@ class TestInfraConnectedToSpark(
   def stop(): Unit = {
     logInfo(s"Stopping test and removing bucket ${params.bucketName}")
     params.cluster.buckets.dropBucket(params.bucketName).get
-    CouchbaseConnection().stop()
+    CouchbaseConnection.stopAll()
     spark.stop()
     params.cluster.disconnect()
   }
