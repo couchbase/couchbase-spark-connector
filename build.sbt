@@ -1,20 +1,30 @@
 name := "spark-connector"
 
-version := "3.3.4"
+version := "3.3.5"
 
 organization := "com.couchbase.client"
 
-scalaVersion := "2.12.17"
+scalaVersion := "2.12.18"
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.3.4")
-val sdkVersion   = "1.5.2"
+val sdkVersion   = "1.7.1"
 val dcpVersion   = "0.44.0"
 
 scalacOptions += "-feature"
 
 resolvers += Resolver.mavenLocal
+
+credentials += Credentials("Sonatype Nexus Repository Manager",
+  "oss.sonatype.org",
+  sys.env.getOrElse("SONATYPE_USERNAME", ""),
+  sys.env.getOrElse("SONATYPE_PASSWORD", ""))
+credentials += Credentials("Sonatype Nexus Repository Manager",
+  "ossrh",
+  sys.env.getOrElse("SONATYPE_USERNAME", ""),
+  sys.env.getOrElse("SONATYPE_PASSWORD", ""))
+
 
 libraryDependencies ++= Seq(
   "org.apache.spark"     %% "spark-core"        % sparkVersion                     % Provided,

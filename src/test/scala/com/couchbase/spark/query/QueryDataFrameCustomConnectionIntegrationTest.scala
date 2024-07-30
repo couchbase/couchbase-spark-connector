@@ -17,7 +17,6 @@ package com.couchbase.spark.query
 
 import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.kv.KeyValueOptions
-import com.couchbase.spark.util.ClusterVersions.testContainer
 import com.couchbase.spark.util.{Params, SparkTest, TestInfraConnectedToSpark}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.lit

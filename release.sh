@@ -11,7 +11,7 @@
 # 2. Now edit these versions:
 
 vers_sha=04a6fcd35aca87cf2c7bee3e790af7f3cb69f866  # the Git sha being released
-vers=3.3.2                                         # the version being released
+vers=3.3.5                                         # the version being released
 
 # 3. Now run the script from the script's directory, e.g.
 #   cd couchbase-spark-connector
@@ -46,7 +46,7 @@ if ! $snapshot; then
 fi
 
 # Build and publish to the local Maven repo.
-#sbt clean publishM2
+sbt clean publishM2
 
 # Build fatjar (needed for Databricks).
 sbt assembly
