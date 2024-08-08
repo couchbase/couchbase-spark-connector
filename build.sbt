@@ -8,13 +8,25 @@ crossScalaVersions := Seq("2.12.18", "2.13.10")
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
-val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.0")
-val sdkVersion   = "1.5.2"
+publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+
+val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.1")
+val sdkVersion   = "1.7.2"
 val dcpVersion   = "0.47.0"
 
 scalacOptions += "-feature"
 
+credentials += Credentials("Sonatype Nexus Repository Manager",
+  "oss.sonatype.org",
+  sys.env.getOrElse("SONATYPE_USERNAME", ""),
+  sys.env.getOrElse("SONATYPE_PASSWORD", ""))
+credentials += Credentials("Sonatype Nexus Repository Manager",
+  "ossrh",
+  sys.env.getOrElse("SONATYPE_USERNAME", ""),
+  sys.env.getOrElse("SONATYPE_PASSWORD", ""))
+
 resolvers += Resolver.mavenLocal
+resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 libraryDependencies ++= Seq(
   "org.apache.spark"     %% "spark-core"        % sparkVersion                     % Provided,

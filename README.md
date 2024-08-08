@@ -8,12 +8,12 @@ The connector is available through the following coordinates:
 
  - **Group:** `com.couchbase.client`
  - **Artifact:** `spark-connector_2.12`
- - **Version:** `3.3.3` 
+ - **Version:** `3.5.0` 
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.3.3"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.5.0"
 ```
 
 ## Documentation
@@ -27,7 +27,8 @@ appropriate, please see [Maven Central](http://search.maven.org/#search%7Cga%7C1
 or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-connector) for releases to download.
 
 | Connector | Apache Spark | Couchbase Server |
-|-----------|--------------| ---------------- |
+|-----------|--------------|------------------|
+| 3.5.x     | 3.5          | 7.x              |
 | 3.3.x     | 3.3          | 6.x - 7.x        |
 | 3.2.x     | 3.2          | 6.x - 7.x        |
 | 3.1.x     | 3.1          | 6.x - 7.x        |
@@ -46,7 +47,7 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 Applying scalafmt (source code formatting) is done through `sbt scalafmtAll`.
 
 ## License
-Copyright 2015-2023 Couchbase Inc.
+Copyright 2015-2024 Couchbase Inc.
 
 Licensed under the Apache License, Version 2.0.
 
