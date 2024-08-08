@@ -1,0 +1,4 @@
+pyspark
+jupyter
+python-dotenv
+pytest
