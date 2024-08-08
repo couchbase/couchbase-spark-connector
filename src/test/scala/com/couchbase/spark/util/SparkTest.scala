@@ -36,6 +36,8 @@ class SparkTest {
       .getOrElse(st.map(_.getMethodName)
         .find(v => v.endsWith("Test") || v.endsWith("Test$1"))
         .getOrElse(UUID.randomUUID.toString.substring(0, 6)))
+      .split("\\.")
+      .last
   }
 
   // Tests can override if needed.

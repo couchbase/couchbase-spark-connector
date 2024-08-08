@@ -21,34 +21,13 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
-import org.apache.spark.sql.sources.{
-  AlwaysFalse,
-  AlwaysTrue,
-  And,
-  EqualNullSafe,
-  EqualTo,
-  Filter,
-  GreaterThan,
-  GreaterThanOrEqual,
-  In,
-  IsNotNull,
-  IsNull,
-  LessThan,
-  LessThanOrEqual,
-  Not,
-  Or,
-  StringContains,
-  StringEndsWith,
-  StringStartsWith
-}
+import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
-import com.couchbase.client.scala.analytics.{
-  AnalyticsMetrics,
-  AnalyticsScanConsistency,
-  AnalyticsOptions => CouchbaseAnalyticsOptions
-}
+import com.couchbase.client.scala.analytics.{AnalyticsMetrics, AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
+import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
 import com.couchbase.spark.json.CouchbaseJsonUtils
+import org.apache.spark.SparkEnv.logInfo
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
 
@@ -76,10 +55,12 @@ class AnalyticsPartitionReader(
 
   private lazy val result = {
     if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
+      logDebug(s"Running analytics query ${buildAnalyticsQuery()}")
       CouchbaseConnection(readConfig.connectionIdentifier)
         .cluster(conf)
         .analyticsQuery(buildAnalyticsQuery(), buildOptions())
     } else {
+      logDebug(s"Running analytics query ${buildAnalyticsQuery()} against ${readConfig.bucket.get}.${readConfig.scope.get}")
       CouchbaseConnection(readConfig.connectionIdentifier)
         .cluster(conf)
         .bucket(readConfig.bucket.get)
@@ -167,21 +148,6 @@ class AnalyticsPartitionReader(
     query
   }
 
-  def maybeEscapeField(field: String): String = {
-    if (
-      field.startsWith("MAX")
-      || field.startsWith("MIN")
-      || field.startsWith("COUNT")
-      || field.startsWith("SUM")
-      || field.startsWith("AVG")
-      || field.startsWith("`")
-    ) {
-      field
-    } else {
-      s"`$field`"
-    }
-  }
-
   def buildOptions(): CouchbaseAnalyticsOptions = {
     var opts = CouchbaseAnalyticsOptions()
     readConfig.scanConsistency match {
@@ -193,6 +159,41 @@ class AnalyticsPartitionReader(
     }
     readConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
+  }
+
+  def hasAggregateFields: Boolean = {
+    aggregations match {
+      case Some(a) => !a.aggregateExpressions().isEmpty
+      case None    => false
+    }
+  }
+
+  def hasAggregateGroupBy: Boolean = {
+    aggregations match {
+      case Some(a) => !a.groupByExpressions().isEmpty
+      case None    => false
+    }
+  }
+
+  override def currentMetricsValues(): Array[CustomTaskMetric] = {
+    AnalyticsPartitionReader.currentMetricsValues(resultMetrics)
+  }
+}
+
+object AnalyticsPartitionReader {
+  def maybeEscapeField(field: String): String = {
+    if (
+      field.startsWith("MAX")
+        || field.startsWith("MIN")
+        || field.startsWith("COUNT")
+        || field.startsWith("SUM")
+        || field.startsWith("AVG")
+        || field.startsWith("`")
+    ) {
+      field
+    } else {
+      s"`$field`"
+    }
   }
 
   /** Transform the filters into a analytics sql++ where clause.
@@ -221,7 +222,8 @@ class AnalyticsPartitionReader(
         filter.append(encoded)
         i = i + 1
       } catch {
-        case _: Exception => logInfo("Ignoring unsupported filter: " + f)
+        case _: Exception =>
+          // Silently drop the unsupported filter (we don't have the logger in this object method)
       }
     })
 
@@ -289,21 +291,7 @@ class AnalyticsPartitionReader(
     case v                        => v.split('.').map(elem => s"`$elem`").mkString(".")
   }
 
-  def hasAggregateFields: Boolean = {
-    aggregations match {
-      case Some(a) => !a.aggregateExpressions().isEmpty
-      case None    => false
-    }
-  }
-
-  def hasAggregateGroupBy: Boolean = {
-    aggregations match {
-      case Some(a) => !a.groupByExpressions().isEmpty
-      case None    => false
-    }
-  }
-
-  override def currentMetricsValues(): Array[CustomTaskMetric] = {
+  def currentMetricsValues(resultMetrics: Option[AnalyticsMetrics]): Array[CustomTaskMetric] = {
     resultMetrics match {
       case Some(m) =>
         Array(

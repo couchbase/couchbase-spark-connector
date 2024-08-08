@@ -39,6 +39,9 @@ import scala.util.control.NonFatal
 
 /**
   * Constructs a parser for a given schema that translates a json string to an [[InternalRow]].
+  *
+  * Couchbase note: See SPARKC-144 and SPARKC-145 for why this Spark code is C&Ped into the connector code: summary - it seems to be
+  * that Datatricks does not provide this in their environment.
   */
 class JacksonParser(
                      schema: DataType,

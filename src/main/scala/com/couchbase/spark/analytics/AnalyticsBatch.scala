@@ -34,7 +34,18 @@ class AnalyticsBatch(
 ) extends Batch {
 
   override def planInputPartitions(): Array[InputPartition] = {
-    val core   = CouchbaseConnection(readConfig.connectionIdentifier).cluster(conf).async.core
+    val locations = AnalyticsBatch.planInputPartitions(conf, readConfig.connectionIdentifier)
+    Array(new AnalyticsInputPartition(schema, filters, locations, aggregations))
+  }
+
+  override def createReaderFactory(): PartitionReaderFactory =
+    new AnalyticsPartitionReaderFactory(conf, readConfig)
+}
+
+object AnalyticsBatch {
+  def planInputPartitions(conf: CouchbaseConfig,
+                          connectionIdentifier: Option[String]): Array[String] = {
+    val core   = CouchbaseConnection(connectionIdentifier).cluster(conf).async.core
     val config = core.clusterConfig()
 
     val locations = if (config.globalConfig() != null) {
@@ -55,10 +66,6 @@ class AnalyticsBatch(
     } else {
       Array[String]()
     }
-
-    Array(new AnalyticsInputPartition(schema, filters, locations, aggregations))
+    locations
   }
-
-  override def createReaderFactory(): PartitionReaderFactory =
-    new AnalyticsPartitionReaderFactory(conf, readConfig)
 }
