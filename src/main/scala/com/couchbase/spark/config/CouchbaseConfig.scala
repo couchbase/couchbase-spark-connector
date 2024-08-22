@@ -167,7 +167,7 @@ object CouchbaseConfig {
       cs.params.asScala.toSeq)
   }
 
-   def getOption(key: String, dynamicConfig : Option[ConnectionIdentifierParsed], cfg:SparkConf, connectionIdentifier : Option[String] , remove:Boolean): Option[String] = {
+   def getOption(key: String, dynamicConfig : Option[ConnectionIdentifierParsed], cfg:SparkConf, connectionIdentifier : Option[String]): Option[String] = {
     dynamicConfig
       .flatMap(dc => dc.getSetting(key))
       .orElse(cfg.getOption(ident(key, connectionIdentifier)))
@@ -229,10 +229,10 @@ object CouchbaseConfig {
       }
     }
 
-    val bucketName: Option[String] = getOption(BUCKET_NAME, dynamicConfig, cfg, connectionIdentifier, false)
-    val scopeName: Option[String] = getOption(SCOPE_NAME, dynamicConfig, cfg, connectionIdentifier, false)
-    val collectionName: Option[String] = getOption(COLLECTION_NAME, dynamicConfig, cfg, connectionIdentifier, false)
-    val waitUntilReadyTimeout: Option[String] = getOption(WAIT_UNTIL_READY_TIMEOUT, dynamicConfig, cfg, connectionIdentifier, false)
+    val bucketName: Option[String] = getOption(BUCKET_NAME, dynamicConfig, cfg, connectionIdentifier)
+    val scopeName: Option[String] = getOption(SCOPE_NAME, dynamicConfig, cfg, connectionIdentifier)
+    val collectionName: Option[String] = getOption(COLLECTION_NAME, dynamicConfig, cfg, connectionIdentifier)
+    val waitUntilReadyTimeout: Option[String] = getOption(WAIT_UNTIL_READY_TIMEOUT, dynamicConfig, cfg, connectionIdentifier)
 
     var useSsl                           = false
     var keyStorePath: Option[String]     = None
@@ -247,8 +247,8 @@ object CouchbaseConfig {
 
     if (sslEnabled) {
       useSsl = true
-      keyStorePath =  getOption(SPARK_SSL_KEYSTORE, dynamicConfig, cfg, connectionIdentifier, false)
-      keyStorePassword =  getOption(SPARK_SSL_KEYSTORE_PASSWORD, dynamicConfig, cfg, connectionIdentifier, false)
+      keyStorePath =  getOption(SPARK_SSL_KEYSTORE, dynamicConfig, cfg, connectionIdentifier)
+      keyStorePassword =  getOption(SPARK_SSL_KEYSTORE_PASSWORD, dynamicConfig, cfg, connectionIdentifier)
     }
 
     val sslInsecure = dynamicConfig
@@ -271,12 +271,9 @@ object CouchbaseConfig {
       })
       .toSeq
 
-    val certKeyStorePath : Option[String] = getOption(KEYSTORE_PATH, dynamicConfig, cfg, connectionIdentifier, false)
-    cfg.remove(KEYSTORE_PATH)
-    val certKeyStorePassword: Option[String] = getOption(KEYSTORE_PASSWORD, dynamicConfig, cfg, connectionIdentifier, false)
-    cfg.remove(KEYSTORE_PASSWORD)
-    val certKeyStoreType: Option[String] = getOption(KEYSTORE_TYPE, dynamicConfig, cfg, connectionIdentifier, false)
-    cfg.remove(KEYSTORE_TYPE)
+    val certKeyStorePath : Option[String] = getOption(KEYSTORE_PATH, dynamicConfig, cfg, connectionIdentifier)
+    val certKeyStorePassword: Option[String] = getOption(KEYSTORE_PASSWORD, dynamicConfig, cfg, connectionIdentifier)
+    val certKeyStoreType: Option[String] = getOption(KEYSTORE_TYPE, dynamicConfig, cfg, connectionIdentifier)
 
     val certAuth: Option[CertificateAuthOptions] = {
       if (certKeyStorePath.isDefined || certKeyStorePassword.isDefined || certKeyStoreType.isDefined) {
