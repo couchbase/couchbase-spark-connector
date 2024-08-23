@@ -12,7 +12,7 @@ publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.1")
 val sdkVersion   = "1.7.2"
-val dcpVersion   = "0.47.0"
+val dcpVersion   = "0.51.0"
 
 scalacOptions += "-feature"
 
@@ -35,7 +35,6 @@ libraryDependencies ++= Seq(
   "com.couchbase.client" %% "scala-client"      % sdkVersion,
   "com.couchbase.client"  % "dcp-client"        % dcpVersion,
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers"    % "couchbase"         % "1.19.3"                         % Test
 )
 
 homepage := Some(url("https://couchbase.com"))
