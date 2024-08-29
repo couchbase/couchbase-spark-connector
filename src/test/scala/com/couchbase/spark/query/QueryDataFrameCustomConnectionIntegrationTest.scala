@@ -15,12 +15,12 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.spark.util.{Params, SparkTest}
+import com.couchbase.spark.util.{Params, SparkOperationalTest}
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
 import org.junit.jupiter.api.Test
 
-class QueryDataFrameCustomConnectionIntegrationTest extends SparkTest {
+class QueryDataFrameCustomConnectionIntegrationTest extends SparkOperationalTest {
   override def testName: String = super.testName
 
   override def sparkBuilderCustomizer(builder: SparkSession.Builder, params: Params): Unit = {

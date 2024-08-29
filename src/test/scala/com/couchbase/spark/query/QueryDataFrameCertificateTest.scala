@@ -16,7 +16,7 @@
 package com.couchbase.spark.query
 
 import com.couchbase.spark.config.CouchbaseConfig
-import com.couchbase.spark.util.{Params, SparkTest, TestInfraBuilder}
+import com.couchbase.spark.util.{Params, SparkOperationalTest, TestInfraBuilder}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
@@ -38,7 +38,7 @@ import org.junit.jupiter.api.{BeforeAll, Disabled, Test, TestInstance}
 
 @TestInstance(Lifecycle.PER_CLASS)
 @Disabled
-class QueryDataFrameCertificateIntegrationTest extends SparkTest {
+class QueryDataFrameCertificateIntegrationTest extends SparkOperationalTest {
 
   override def testName: String = super.testName
 

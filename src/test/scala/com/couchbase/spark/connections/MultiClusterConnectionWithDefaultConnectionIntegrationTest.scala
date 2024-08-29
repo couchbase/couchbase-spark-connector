@@ -18,7 +18,7 @@ package com.couchbase.spark.connections
 import com.couchbase.client.scala.kv.LookupInSpec
 import com.couchbase.spark.kv.LookupIn
 import com.couchbase.spark.toSparkContextFunctions
-import com.couchbase.spark.util.{Params, SparkTest}
+import com.couchbase.spark.util.{Params, SparkOperationalTest}
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
   * operations. The difference to MultiClusterConnectionStaticRDDIntegrationTest is that this has
   * both a default and named connection. Added for SPARKC-178.
   */
-class MultiClusterConnectionWithDefaultConnectionIntegrationTest extends SparkTest {
+class MultiClusterConnectionWithDefaultConnectionIntegrationTest extends SparkOperationalTest {
   override def testName: String = super.testName
 
 

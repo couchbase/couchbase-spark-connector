@@ -17,11 +17,13 @@ package com.couchbase.spark.util
 
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.TestInstance.Lifecycle
+import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.{BeforeAll, TestInstance}
 
 // Assumptions:
 // The travel-sample dataset has been loaded
 @TestInstance(Lifecycle.PER_CLASS)
+@ExtendWith(Array(classOf[RequiresColumnarCluster]))
 class SparkColumnarTest extends SparkTest {
 
   // Tests can override if needed.
