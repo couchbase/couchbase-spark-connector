@@ -1,15 +1,11 @@
 package com.couchbase.spark.connections
 
 import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.client.scala.manager.collection.CollectionSpec
-import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.kv.LookupIn
 import com.couchbase.spark.query.QueryOptions
 import com.couchbase.spark.toSparkContextFunctions
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.testcontainers.couchbase.CouchbaseContainer
 
 object MultiClusterConnectionTestUtil {
   def runStandardSQLQuery(spark: SparkSession, id: String) {

@@ -15,18 +15,10 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.spark.config.CouchbaseConnection
-import com.couchbase.spark.kv.KeyValueOptions
-import com.couchbase.spark.util.ClusterVersions.testContainer
-import com.couchbase.spark.util.{Params, SparkTest, TestInfraConnectedToSpark}
+import com.couchbase.spark.util.{Params, SparkTest}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
-import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
-import org.testcontainers.couchbase.{BucketDefinition, CouchbaseContainer}
-
-import java.util.UUID
+import org.junit.jupiter.api.Test
 
 class QueryDataFrameCustomConnectionIntegrationTest extends SparkTest {
   override def testName: String = super.testName
