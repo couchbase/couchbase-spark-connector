@@ -134,22 +134,21 @@ case class Params(
 }
 
 class TestInfraBuilder extends Logging {
-
-  private val connectionString = "192.168.0.99"
-  private val username         = "Administrator"
-  private val password         = "password"
+  private val propertyLoader = new TestOptionsPropertyLoader()
 
   private var bucketName: Option[String]     = None
   private var scopeName: Option[String]      = None
   private var collectionName: Option[String] = None
-  private val env = ClusterEnvironment.builder
-    // Make it easier to connect to non-prod cloud clusters
-    .securityConfig(SecurityConfig().enableTls(true).trustManagerFactory(InsecureTrustManagerFactory.INSTANCE))
-    .build.get
+  private val env = propertyLoader.tlsEnabled match {
+    case true => ClusterEnvironment.builder
+      .securityConfig(SecurityConfig().enableTls(true).trustManagerFactory(InsecureTrustManagerFactory.INSTANCE))
+      .build.get
+    case false => ClusterEnvironment.create
+  }
   // Cannot use the CouchbaseConnection() as that will do bucket.waitUntilReady(),
   // so we need to create the bucket first using a regular Scala SDK Cluster.
-  private val cluster = Cluster.connect(connectionString,
-    ClusterOptions.create(username, password).environment(env)).get
+  private val cluster = Cluster.connect(propertyLoader.connectionString,
+    ClusterOptions.create(propertyLoader.username, propertyLoader.password).environment(env)).get
 
   def createBucket(bn: String): TestInfraBuilder = {
     this.bucketName match {
@@ -227,7 +226,13 @@ class TestInfraBuilder extends Logging {
   }
 
   private def buildParams = {
-    Params(connectionString, username, password, bucketName, scopeName, collectionName, cluster)
+    Params(propertyLoader.connectionString,
+      propertyLoader.username,
+      propertyLoader.password,
+      bucketName,
+      scopeName,
+      collectionName,
+      cluster)
   }
 
   def connectToSpark(): TestInfraConnectedToSpark = {
