@@ -16,11 +16,11 @@
 package com.couchbase.spark.query
 
 import com.couchbase.client.core.error.InvalidArgumentException
-import com.couchbase.spark.util.SparkTest
+import com.couchbase.spark.util.SparkOperationalTest
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
 import org.junit.jupiter.api.Test
 
-class QueryPartitioningIntegrationTest extends SparkTest {
+class QueryPartitioningIntegrationTest extends SparkOperationalTest {
   override def testName: String = "QueryPartitioningIntegrationTest"
 
   @Test

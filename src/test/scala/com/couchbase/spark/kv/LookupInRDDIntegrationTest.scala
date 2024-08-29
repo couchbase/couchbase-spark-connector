@@ -16,11 +16,11 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.spark.util.SparkTest
+import com.couchbase.spark.util.SparkOperationalTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class LookupInRDDIntegrationTest extends SparkTest {
+class LookupInRDDIntegrationTest extends SparkOperationalTest {
   override def testName: String = super.testName
 
   @Test

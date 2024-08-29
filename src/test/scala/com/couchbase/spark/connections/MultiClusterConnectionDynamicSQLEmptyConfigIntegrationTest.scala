@@ -16,13 +16,13 @@
 package com.couchbase.spark.connections
 
 import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.runStandardSQLQuery
-import com.couchbase.spark.util.SparkTest
+import com.couchbase.spark.util.SparkOperationalTest
 import org.junit.jupiter.api.Test
 
 /** Tests multiple cluster connections where they are dynamically setup, against an empty config and
   * SQL operations.
   */
-class MultiClusterConnectionDynamicSQLEmptyConfigIntegrationTest extends SparkTest {
+class MultiClusterConnectionDynamicSQLEmptyConfigIntegrationTest extends SparkOperationalTest {
   override def testName: String = super.testName
 
   @Test

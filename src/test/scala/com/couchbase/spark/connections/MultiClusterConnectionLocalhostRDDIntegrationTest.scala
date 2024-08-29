@@ -16,7 +16,7 @@
 package com.couchbase.spark.connections
 
 import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.runStandardRDDQuery
-import com.couchbase.spark.util.SparkTest
+import com.couchbase.spark.util.SparkOperationalTest
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api._
 
@@ -26,7 +26,7 @@ import org.junit.jupiter.api._
   * These tests are for manual testing and hence are disabled.
   */
 @Disabled
-class MultiClusterConnectionLocalhostRDDIntegrationTest extends SparkTest {
+class MultiClusterConnectionLocalhostRDDIntegrationTest extends SparkOperationalTest {
   override def testName: String = super.testName
 
   @Test

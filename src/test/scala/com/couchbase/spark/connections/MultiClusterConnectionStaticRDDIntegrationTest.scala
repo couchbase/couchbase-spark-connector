@@ -16,13 +16,13 @@
 package com.couchbase.spark.connections
 
 import com.couchbase.spark.connections.MultiClusterConnectionTestUtil.runStandardRDDQuery
-import com.couchbase.spark.util.{Params, SparkTest}
+import com.couchbase.spark.util.{Params, SparkOperationalTest}
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.Test
 
 /** Tests multiple cluster connections where they are statically setup (config time), with RDD operations.
  */
-class MultiClusterConnectionStaticRDDIntegrationTest extends SparkTest {
+class MultiClusterConnectionStaticRDDIntegrationTest extends SparkOperationalTest {
   override def testName: String = super.testName
 
 

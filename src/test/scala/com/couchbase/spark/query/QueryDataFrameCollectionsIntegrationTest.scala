@@ -15,12 +15,12 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.spark.util.SparkTest
+import com.couchbase.spark.util.SparkOperationalTest
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.Test
 
-class QueryDataFrameCollectionsIntegrationTest extends SparkTest {
+class QueryDataFrameCollectionsIntegrationTest extends SparkOperationalTest {
   override def testName: String = super.testName
 
   @Test
