@@ -17,11 +17,13 @@ package com.couchbase.spark.util
 
 import com.couchbase.client.core.error.BucketExistsException
 import com.couchbase.client.core.util.ConsistencyUtil
-import com.couchbase.client.scala.Cluster
+import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
+import com.couchbase.client.scala.{Cluster, ClusterOptions}
 import com.couchbase.client.scala.manager.bucket.CreateBucketSettings
 import com.couchbase.client.scala.manager.collection.CreateCollectionSettings
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.kv.KeyValueOptions
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.functions.{col, lit}
@@ -79,8 +81,12 @@ class TestInfraConnectedToSpark(
   }
 
   def stop(): Unit = {
-    logInfo(s"Stopping test and removing bucket ${params.bucketName}")
-    params.cluster.buckets.dropBucket(params.bucketName).get
+    params._bucketName match {
+      case Some(bn) =>
+        logInfo(s"Stopping test and removing bucket $bn")
+        params.cluster.buckets.dropBucket(bn).get
+      case _ =>
+    }
     CouchbaseConnection.stopAll()
     spark.stop()
     params.cluster.disconnect()
@@ -91,7 +97,7 @@ case class Params(
     connectionString: String,
     username: String,
     password: String,
-    private val _bucketName: Option[String],
+    _bucketName: Option[String],
     private val _scopeName: Option[String],
     private val _collectionName: Option[String],
     cluster: Cluster
@@ -128,17 +134,21 @@ case class Params(
 }
 
 class TestInfraBuilder extends Logging {
-
-  private val connectionString = "localhost"
-  private val username         = "Administrator"
-  private val password         = "password"
+  private val propertyLoader = new TestOptionsPropertyLoader()
 
   private var bucketName: Option[String]     = None
   private var scopeName: Option[String]      = None
   private var collectionName: Option[String] = None
+  private val env = propertyLoader.tlsEnabled match {
+    case true => ClusterEnvironment.builder
+      .securityConfig(SecurityConfig().enableTls(true).trustManagerFactory(InsecureTrustManagerFactory.INSTANCE))
+      .build.get
+    case false => ClusterEnvironment.create
+  }
   // Cannot use the CouchbaseConnection() as that will do bucket.waitUntilReady(),
   // so we need to create the bucket first using a regular Scala SDK Cluster.
-  private val cluster = Cluster.connect(connectionString, username, password).get
+  private val cluster = Cluster.connect(propertyLoader.connectionString,
+    ClusterOptions.create(propertyLoader.username, propertyLoader.password).environment(env)).get
 
   def createBucket(bn: String): TestInfraBuilder = {
     this.bucketName match {
@@ -216,7 +226,13 @@ class TestInfraBuilder extends Logging {
   }
 
   private def buildParams = {
-    Params(connectionString, username, password, bucketName, scopeName, collectionName, cluster)
+    Params(propertyLoader.connectionString,
+      propertyLoader.username,
+      propertyLoader.password,
+      bucketName,
+      scopeName,
+      collectionName,
+      cluster)
   }
 
   def connectToSpark(): TestInfraConnectedToSpark = {
