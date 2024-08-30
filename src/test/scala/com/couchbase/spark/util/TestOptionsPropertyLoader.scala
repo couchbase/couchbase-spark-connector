@@ -3,7 +3,15 @@ package com.couchbase.spark.util
 import java.util.Properties
 import scala.util.Try
 
-class TestOptionsPropertyLoader {
+trait CouchbaseClusterSettings {
+  def connectionString: String
+  def username: String
+  def password: String
+  def tlsEnabled: Boolean
+  def clusterType: String
+}
+
+class TestOptionsPropertyLoader extends CouchbaseClusterSettings {
   private val properties = new Properties()
 
   private val propertiesFile = List("integration.local.properties", "integration.properties")

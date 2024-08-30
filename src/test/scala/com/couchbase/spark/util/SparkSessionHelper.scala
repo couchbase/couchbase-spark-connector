@@ -15,16 +15,23 @@
  */
 package com.couchbase.spark.util
 
-import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.extension.ExtendWith
+import org.apache.spark.sql.SparkSession
 
-@TestInstance(Lifecycle.PER_CLASS)
-@ExtendWith(Array(classOf[RequiresOperationalCluster]))
-class SparkOperationalTest extends SparkTest {
-}
+/** Helpers for creating SparkSessions */
+object SparkSessionHelper {
+  def sparkSessionBuilder(): SparkSession.Builder = {
+    SparkSession
+      .builder()
+      .master("local[*]")
+  }
 
-@TestInstance(Lifecycle.PER_CLASS)
-@ExtendWith(Array(classOf[RequiresOperationalCluster]))
-abstract class SparkOperationalSimpleTest extends SparkSimpleTest {
+  def provideCouchbaseCreds(
+      sparkBuilder: SparkSession.Builder,
+      params: CouchbaseClusterSettings
+  ): SparkSession.Builder = {
+    sparkBuilder
+      .config("spark.couchbase.connectionString", params.connectionString)
+      .config("spark.couchbase.username", params.username)
+      .config("spark.couchbase.password", params.password)
+  }
 }
