@@ -15,13 +15,13 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.spark.util.SparkOperationalTest
+import com.couchbase.spark.util.{SparkOperationalSimpleTest, SparkOperationalTest, TestNameUtil}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.Test
 
-class QueryDataFrameIntegrationTest extends SparkOperationalTest {
-  override def testName: String = super.testName
+class QueryDataFrameIntegrationTest extends SparkOperationalSimpleTest {
+  override def testName: String = TestNameUtil.testName
 
   @Test
   def testReadDocumentsWithFilter(): Unit = {
@@ -126,6 +126,7 @@ class QueryDataFrameIntegrationTest extends SparkOperationalTest {
 
     airports.createOrReplaceTempView("airports")
 
+    airports.foreach(a => println(a))
     val aggregates = spark.sql(
       "select avg(runways) as avg_run from airports"
     )
@@ -141,8 +142,8 @@ class QueryDataFrameIntegrationTest extends SparkOperationalTest {
   def testScopedQuery(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, infra.params.scopeName)
-      .option(QueryOptions.Collection, infra.params.collectionName)
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
       .load()
 
     assertEquals(4, airports.count)
