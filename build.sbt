@@ -4,7 +4,7 @@ version := "3.5.1-SNAPSHOT"
 
 organization := "com.couchbase.client"
 
-crossScalaVersions := Seq("2.12.18", "2.13.10")
+crossScalaVersions := Seq("2.12.19", "2.13.14")
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
