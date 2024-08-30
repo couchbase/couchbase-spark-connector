@@ -31,7 +31,7 @@ import org.apache.spark.sql.functions.{col, lit}
 import java.util
 import java.util.{Arrays, UUID}
 
-
+@deprecated("Deprecating: tests should use the simpler replacement classes (TestResourceCreator, SparkSessionHelper, and possibly - but not required - SparkSimpleTest")
 class TestInfraConnectedToSpark(
     private val customizer: Option[(SparkSession.Builder, Params) => Unit],
     val params: Params

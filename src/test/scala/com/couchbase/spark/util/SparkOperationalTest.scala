@@ -19,6 +19,7 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestInstance.Lifecycle
 import org.junit.jupiter.api.extension.ExtendWith
 
+@deprecated("Deprecating: tests should use the simpler replacement classes (TestResourceCreator, SparkSessionHelper, and possibly - but not required - SparkSimpleTest/SparkOperationalSimpleTest")
 @TestInstance(Lifecycle.PER_CLASS)
 @ExtendWith(Array(classOf[RequiresOperationalCluster]))
 class SparkOperationalTest extends SparkTest {

@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory
 
 import java.util.UUID
 
+@deprecated("Deprecating: tests should use the simpler replacement classes (TestResourceCreator, SparkSessionHelper, and possibly - but not required - SparkSimpleTest")
 @TestInstance(Lifecycle.PER_CLASS)
 class SparkTest {
   protected var spark: SparkSession = _

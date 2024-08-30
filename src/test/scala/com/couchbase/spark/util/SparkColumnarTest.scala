@@ -22,6 +22,7 @@ import org.junit.jupiter.api.{BeforeAll, TestInstance}
 
 // Assumptions:
 // The travel-sample dataset has been loaded
+@deprecated("Deprecating: tests should use the simpler replacement classes (TestResourceCreator, SparkSessionHelper, and possibly - but not required - SparkSimpleTest")
 @TestInstance(Lifecycle.PER_CLASS)
 @ExtendWith(Array(classOf[RequiresColumnarCluster]))
 class SparkColumnarTest extends SparkTest {
