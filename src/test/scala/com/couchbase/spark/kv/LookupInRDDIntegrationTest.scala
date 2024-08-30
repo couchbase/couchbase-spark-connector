@@ -16,12 +16,12 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.client.scala.kv.LookupInSpec
-import com.couchbase.spark.util.SparkOperationalTest
+import com.couchbase.spark.util.{SparkOperationalSimpleTest, SparkOperationalTest, TestNameUtil}
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class LookupInRDDIntegrationTest extends SparkOperationalTest {
-  override def testName: String = super.testName
+class LookupInRDDIntegrationTest extends SparkOperationalSimpleTest {
+  override def testName: String = TestNameUtil.testName
 
   @Test
   def testLookupFromDefaultCollection(): Unit = {
@@ -43,8 +43,8 @@ class LookupInRDDIntegrationTest extends SparkOperationalTest {
       .couchbaseLookupIn(
         Seq(LookupIn("airport::sfo", Seq(LookupInSpec.get("iata")))),
         Keyspace(
-          scope = Some(infra.params.scopeName),
-          collection = Some(infra.params.collectionName)
+          scope = Some(testResources.scopeName),
+          collection = Some(testResources.collectionName)
         )
       )
       .collect()

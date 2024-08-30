@@ -15,20 +15,20 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.spark.util.SparkOperationalTest
+import com.couchbase.spark.util.{SparkOperationalSimpleTest, SparkOperationalTest, TestNameUtil}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.Test
 
-class QueryDataFrameCollectionsIntegrationTest extends SparkOperationalTest {
-  override def testName: String = super.testName
+class QueryDataFrameCollectionsIntegrationTest extends SparkOperationalSimpleTest {
+  def testName = TestNameUtil.testName
 
   @Test
   def testReadDocumentsFromCollection(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, infra.params.scopeName)
-      .option(QueryOptions.Collection, infra.params.collectionName)
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
@@ -44,8 +44,8 @@ class QueryDataFrameCollectionsIntegrationTest extends SparkOperationalTest {
     val airports = spark.read
       .format("couchbase.query")
       .option(QueryOptions.IdFieldName, "myIdFieldName")
-      .option(QueryOptions.Scope, infra.params.scopeName)
-      .option(QueryOptions.Collection, infra.params.collectionName)
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
@@ -59,8 +59,8 @@ class QueryDataFrameCollectionsIntegrationTest extends SparkOperationalTest {
   def testPushDownAggregationWithoutGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, infra.params.scopeName)
-      .option(QueryOptions.Collection, infra.params.collectionName)
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
@@ -81,8 +81,8 @@ class QueryDataFrameCollectionsIntegrationTest extends SparkOperationalTest {
   def testPushDownAggregationWithGroupBy(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, infra.params.scopeName)
-      .option(QueryOptions.Collection, infra.params.collectionName)
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 

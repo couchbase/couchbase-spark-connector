@@ -15,20 +15,52 @@
  */
 package com.couchbase.spark.query
 
-import com.couchbase.spark.util.{Params, SparkOperationalTest}
-import org.apache.spark.sql.SparkSession
+import com.couchbase.spark.kv.KeyValueOptions
+import com.couchbase.spark.util.{CreatedResources, Params, RequiresOperationalCluster, SparkOperationalTest, SparkSessionHelper, TestNameUtil, TestOptionsPropertyLoader, TestResourceCreator}
+import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.functions.lit
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance.Lifecycle
+import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
+import org.junit.jupiter.api.extension.ExtendWith
 
-class QueryDataFrameCustomConnectionIntegrationTest extends SparkOperationalTest {
-  override def testName: String = super.testName
+@ExtendWith(Array(classOf[RequiresOperationalCluster]))
+@TestInstance(Lifecycle.PER_CLASS)
+class QueryDataFrameCustomConnectionIntegrationTest {
+  protected var spark: SparkSession = _
+  protected val params = new TestOptionsPropertyLoader()
+  protected val testResourceCreator = new TestResourceCreator(params)
+  protected var testResources: CreatedResources = _
 
-  override def sparkBuilderCustomizer(builder: SparkSession.Builder, params: Params): Unit = {
-    builder
+  @BeforeAll
+  def setup(): Unit = {
+    val builder = SparkSessionHelper.sparkSessionBuilder()
+    testResources = testResourceCreator.createBucketScopeAndCollection(Some(TestNameUtil.testName))
+    spark = builder
       .config("spark.couchbase.connectionString:custom", params.connectionString)
       .config("spark.couchbase.username:custom", params.username)
       .config("spark.couchbase.password:custom", params.password)
-      .config("spark.couchbase.implicitBucket:custom", params.bucketName)
+      .config("spark.couchbase.implicitBucket:custom", testResources.bucketName)
+      .getOrCreate()
+
+    // Cannot use prepareAirportSampleData as we have a custom connectionIdentifier
+    val airports = spark.read
+      .json("src/test/resources/airports.json")
+    airports
+      .withColumn("type", lit("airport"))
+      .write
+      .format("couchbase.kv")
+      .mode(SaveMode.Overwrite)
+      .option(KeyValueOptions.ConnectionIdentifier, "custom")
+      .option(KeyValueOptions.Bucket, testResources.bucketName)
+      .save()
+  }
+
+  @AfterAll
+  def teardown(): Unit = {
+    spark.stop()
+    testResourceCreator.deleteBucket(testResources.bucketName)
+    testResourceCreator.stop()
   }
 
   @Test

@@ -16,11 +16,11 @@
 package com.couchbase.spark.query
 
 import com.couchbase.client.core.error.InvalidArgumentException
-import com.couchbase.spark.util.SparkOperationalTest
+import com.couchbase.spark.util.{SparkOperationalSimpleTest, SparkOperationalTest}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
 import org.junit.jupiter.api.Test
 
-class QueryPartitioningIntegrationTest extends SparkOperationalTest {
+class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
   override def testName: String = "QueryPartitioningIntegrationTest"
 
   @Test
@@ -77,8 +77,8 @@ class QueryPartitioningIntegrationTest extends SparkOperationalTest {
   def basic(): Unit = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, infra.params.scopeName)
-      .option(QueryOptions.Collection, infra.params.collectionName)
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .load()
 
@@ -132,8 +132,8 @@ class QueryPartitioningIntegrationTest extends SparkOperationalTest {
   def readDocumentsFromCollectionHelper(lowerBound: Long, upperBound: Long, partitionCount: Long): Long = {
     val airports = spark.read
       .format("couchbase.query")
-      .option(QueryOptions.Scope, infra.params.scopeName)
-      .option(QueryOptions.Collection, infra.params.collectionName)
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
       .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
       .option(QueryOptions.PartitionColumn, "runways")
       .option(QueryOptions.PartitionLowerBound, lowerBound.toString)
