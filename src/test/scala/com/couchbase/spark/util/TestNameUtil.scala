@@ -15,16 +15,19 @@
  */
 package com.couchbase.spark.util
 
-import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.extension.ExtendWith
+import java.util.UUID
 
-@TestInstance(Lifecycle.PER_CLASS)
-@ExtendWith(Array(classOf[RequiresOperationalCluster]))
-class SparkOperationalTest extends SparkTest {
-}
-
-@TestInstance(Lifecycle.PER_CLASS)
-@ExtendWith(Array(classOf[RequiresOperationalCluster]))
-abstract class SparkOperationalSimpleTest extends SparkSimpleTest {
+object TestNameUtil {
+  /** Guesses the name of the current test file or test, from the stacktrace. */
+  def testName: String = {
+    val st = Thread.currentThread.getStackTrace
+    st.map(_.getClassName.replace("com.couchbase.spark.", ""))
+      .filterNot(_.endsWith("SparkTest"))
+      .find(_.endsWith("Test"))
+      .getOrElse(st.map(_.getMethodName)
+        .find(v => v.endsWith("Test") || v.endsWith("Test$1"))
+        .getOrElse(UUID.randomUUID.toString.substring(0, 6)))
+      .split("\\.")
+      .last
+  }
 }
