@@ -1,7 +1,7 @@
 Examples and tests using the Couchbase Spark Connector with PySpark.
 
 Requirements:
-* A running Couchbase cluster.
+* A running Couchbase cluster.  Both Operational and Columnar, but of course make sure you are running a test, notebook or example that is compatible with that cluster type.
 * With the `travel-sample` sample bucket loaded.
 
 To get started:
