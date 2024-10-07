@@ -280,7 +280,7 @@ class RelationPartitionWriter(
         s"$prefix INTO `$collectionName` (KEY, VALUE) $values"
       }
 
-    logDebug("Building and running N1QL query " + statement)
+    logInfo("Building and running N1QL query " + statement)
 
     val opts = buildOptions()
     try {

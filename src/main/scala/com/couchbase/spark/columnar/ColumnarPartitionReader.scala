@@ -56,7 +56,7 @@ class ColumnarPartitionReader(
   }
 
   private lazy val result = {
-    logDebug(s"Running Columnar query ${buildColumnarQuery()}")
+    logInfo(s"Running Columnar query ${buildColumnarQuery()}")
     CouchbaseConnection(readConfig.connectionIdentifier)
       .cluster(conf)
       .analyticsQuery(buildColumnarQuery(), buildOptions())

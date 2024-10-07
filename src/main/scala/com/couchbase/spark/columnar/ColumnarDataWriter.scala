@@ -67,7 +67,7 @@ class ColumnarDataWriter(
     val sql =
       s"INSERT INTO `${writeConfig.database}`.`${writeConfig.scope}`.`${writeConfig.collection}` [${writer.toString}]"
 
-    logDebug(s"Executing Columnar write query $sql")
+    logInfo(s"Executing Columnar write query $sql")
 
     CouchbaseConnection(writeConfig.connectionIdentifier)
       .cluster(conf)

@@ -196,7 +196,7 @@ class QueryPartitionReader(
         s"select $fieldsEncoded from `$collectionName`$predicate$groupBy"
       }
 
-    logDebug(s"Building and running N1QL query for `${readConfig.bucket}`.`${scopeName}`: $query")
+    logInfo(s"Building and running N1QL query for `${readConfig.bucket}`.`${scopeName}`: $query")
     query
   }
 
