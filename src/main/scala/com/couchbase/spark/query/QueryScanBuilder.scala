@@ -72,6 +72,12 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
     true
   }
 
-  override def supportCompletePushDown(aggregation: Aggregation): Boolean =
-    QueryAggregations.supportsCompleteAggPushdown(aggregation)
+  override def supportCompletePushDown(aggregation: Aggregation): Boolean = {
+    readConfig.partition match {
+      case Some(_) =>
+        // In partitioning mode, push-down aggregation is not supported - see SPARKC-206
+        false
+      case None => QueryAggregations.supportsCompleteAggPushdown(aggregation)
+    }
+  }
 }
