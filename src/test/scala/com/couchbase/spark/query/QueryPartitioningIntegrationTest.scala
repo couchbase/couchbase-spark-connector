@@ -17,8 +17,12 @@ package com.couchbase.spark.query
 
 import com.couchbase.client.core.error.InvalidArgumentException
 import com.couchbase.spark.util.{SparkOperationalSimpleTest, SparkOperationalTest}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.max
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows}
 import org.junit.jupiter.api.Test
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
 
 class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
   override def testName: String = "QueryPartitioningIntegrationTest"
@@ -92,6 +96,64 @@ class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
   }
 
   @Test
+  def groupByCountAggregationIsCorrect(): Unit = {
+    val groups = partitionedQuery(1, 8, 2).groupBy("country").count().collect()
+    assertEquals(3, groups.length)
+    assertEquals(2L, groups.find(v => v.get(0) == "United States").get(1))
+    assertEquals(1L, groups.find(v => v.get(0) == "Germany").get(1))
+  }
+
+  @Test
+  def groupByMaxAggregationIsCorrect(): Unit = {
+    val groups = partitionedQuery(1, 8, 2).groupBy("country").agg(max("elevation")).collect()
+    assertEquals(3, groups.length)
+    assertEquals(204L, groups.find(v => v.get(0) == "United States").get(1))
+    assertEquals(111L, groups.find(v => v.get(0) == "Germany").get(1))
+  }
+
+  @Test
+  def maxAggregationIsCorrect(): Unit = {
+    val value = partitionedQuery(1, 8, 2).agg(max("elevation")).collect()
+    assertEquals(1, value.length)
+    assertEquals(204L, value(0).get(0))
+  }
+
+  @Test
+  def minAggregationIsCorrect(): Unit = {
+    val value = partitionedQuery(1, 8, 2).agg(min("elevation")).collect()
+    assertEquals(1, value.length)
+    assertEquals(4L, value(0).get(0))
+  }
+
+  @Test
+  def countIsCorrect(): Unit = {
+    val value = partitionedQuery(1, 8, 2).count()
+    assertEquals(4L, value)
+  }
+
+  @Test
+  def countAggregationIsCorrect(): Unit = {
+    val value = partitionedQuery(1, 8, 2).agg(count("elevation")).collect()
+    assertEquals(1, value.length)
+    assertEquals(4L, value(0).get(0))
+  }
+
+  @Test
+  def countStarAggregationIsCorrect(): Unit = {
+    val value = partitionedQuery(1, 8, 2).agg(count("*")).collect()
+    assertEquals(1, value.length)
+    assertEquals(4L, value(0).get(0))
+  }
+
+  @Test
+  def sumAggregationIsCorrect(): Unit = {
+    val value = partitionedQuery(1, 8, 2).agg(sum("elevation")).collect()
+    assertEquals(1, value.length)
+    assertEquals(204L + 4L + 183L + 111L, value(0).get(0))
+  }
+
+
+  @Test
   def countMoreThanRange(): Unit = {
     assertEquals(4, readDocumentsFromCollectionHelper(1, 8, 9))
   }
@@ -129,8 +191,8 @@ class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
       })
   }
 
-  def readDocumentsFromCollectionHelper(lowerBound: Long, upperBound: Long, partitionCount: Long): Long = {
-    val airports = spark.read
+  def partitionedQuery(lowerBound: Long, upperBound: Long, partitionCount: Long): DataFrame = {
+    spark.read
       .format("couchbase.query")
       .option(QueryOptions.Scope, testResources.scopeName)
       .option(QueryOptions.Collection, testResources.collectionName)
@@ -140,6 +202,10 @@ class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
       .option(QueryOptions.PartitionUpperBound, upperBound.toString)
       .option(QueryOptions.PartitionCount, partitionCount.toString)
       .load()
+  }
+
+  def readDocumentsFromCollectionHelper(lowerBound: Long, upperBound: Long, partitionCount: Long): Long = {
+    val airports = partitionedQuery(lowerBound, upperBound, partitionCount)
 
     val ap = airports.collect()
 
