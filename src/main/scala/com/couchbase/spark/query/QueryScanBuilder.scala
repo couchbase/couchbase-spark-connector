@@ -25,14 +25,16 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
     extends ScanBuilder
     with SupportsPushDownFilters
     with SupportsPushDownRequiredColumns
-    with SupportsPushDownAggregates {
+    with SupportsPushDownAggregates
+    with SupportsPushDownLimit {
 
   private var finalSchema                       = schema
   private var pushedFilter                      = Array.empty[Filter]
   private var aggregations: Option[Aggregation] = None
+  private var limit: Option[Int]                = None
 
   override def build(): Scan = {
-    new QueryScan(finalSchema, readConfig, pushedFilter, aggregations)
+    new QueryScan(finalSchema, readConfig, pushedFilter, aggregations, limit)
   }
 
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
@@ -79,5 +81,10 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
         false
       case None => QueryAggregations.supportsCompleteAggPushdown(aggregation)
     }
+  }
+
+  override def pushLimit(limit: Int): Boolean = {
+    this.limit = Some(limit)
+    true
   }
 }

@@ -33,7 +33,8 @@ class QueryBatch(
     conf: CouchbaseConfig,
     readConfig: QueryReadConfig,
     filters: Array[Filter],
-    aggregations: Option[Aggregation]
+    aggregations: Option[Aggregation],
+    limit: Option[Int]
 ) extends Batch with Logging {
 
   override def planInputPartitions(): Array[InputPartition] = {
@@ -62,7 +63,7 @@ class QueryBatch(
 
     val partitions: Array[QueryInputPartition] = readConfig.partition match {
       case Some(value) => makePartitions(value, locations)
-      case None => Array(QueryInputPartition(schema, filters, locations, aggregations, None))
+      case None => Array(QueryInputPartition(schema, filters, locations, aggregations, None, limit))
     }
 
     partitions.map(_.asInstanceOf[InputPartition])
@@ -133,7 +134,8 @@ class QueryBatch(
         } else {
           s"$lBound AND $uBound"
         }
-      ans += QueryInputPartition(schema, filters, locations, aggregations, Some(QueryPartitionBound(whereClause)))
+      // Will apply the limit to each partition, but this is ok as Spark will also re-apply the limit at the global level
+      ans += QueryInputPartition(schema, filters, locations, aggregations, Some(QueryPartitionBound(whereClause)), limit)
       i = i + 1
     }
     ans.toArray

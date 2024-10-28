@@ -152,6 +152,11 @@ class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
     assertEquals(204L + 4L + 183L + 111L, value(0).get(0))
   }
 
+  @Test
+  def limit(): Unit = {
+    val value = partitionedQuery(1, 8, 2).limit(2).collect()
+    assertEquals(2, value.length)
+  }
 
   @Test
   def countMoreThanRange(): Unit = {
