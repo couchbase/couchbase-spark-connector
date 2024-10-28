@@ -99,16 +99,16 @@ class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
   def groupByCountAggregationIsCorrect(): Unit = {
     val groups = partitionedQuery(1, 8, 2).groupBy("country").count().collect()
     assertEquals(3, groups.length)
-    assertEquals(204L, groups.find(v => v.get(0) == "United States").get(1))
-    assertEquals(183L, groups.find(v => v.get(0) == "Germany").get(1))
+    assertEquals(2L, groups.find(v => v.get(0) == "United States").get(1))
+    assertEquals(1L, groups.find(v => v.get(0) == "Germany").get(1))
   }
 
   @Test
   def groupByMaxAggregationIsCorrect(): Unit = {
     val groups = partitionedQuery(1, 8, 2).groupBy("country").agg(max("elevation")).collect()
     assertEquals(3, groups.length)
-    assertEquals(2L, groups.find(v => v.get(0) == "United States").get(1))
-    assertEquals(1L, groups.find(v => v.get(0) == "Germany").get(1))
+    assertEquals(204L, groups.find(v => v.get(0) == "United States").get(1))
+    assertEquals(111L, groups.find(v => v.get(0) == "Germany").get(1))
   }
 
   @Test
