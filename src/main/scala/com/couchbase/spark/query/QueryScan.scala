@@ -28,13 +28,14 @@ class QueryScan(
     schema: StructType,
     readConfig: QueryReadConfig,
     filters: Array[Filter],
-    aggregations: Option[Aggregation]
+    aggregations: Option[Aggregation],
+    limit: Option[Int]
 ) extends Scan {
 
   private lazy val conf =
     CouchbaseConfig(SparkSession.active.sparkContext.getConf, readConfig.connectionIdentifier)
 
   override def readSchema(): StructType = schema
-  override def toBatch: Batch = new QueryBatch(schema, conf, readConfig, filters, aggregations)
+  override def toBatch: Batch = new QueryBatch(schema, conf, readConfig, filters, aggregations, limit)
 
 }

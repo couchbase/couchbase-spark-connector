@@ -40,6 +40,18 @@ class QueryDataFrameIntegrationTest extends SparkTest {
   }
 
   @Test
+  def testReadDocumentsWithLimit(): Unit = {
+    val airports = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Filter, "type = 'airport'")
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+      .limit(2)
+
+    assertEquals(2, airports.count)
+  }
+
+  @Test
   def testChangeIdFieldName(): Unit = {
     val airports = spark.read
       .format("couchbase.query")

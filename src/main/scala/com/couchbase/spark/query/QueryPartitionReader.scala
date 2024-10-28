@@ -183,6 +183,11 @@ class QueryPartitionReader(
       ""
     }
 
+    val limit = partition.limit match {
+      case Some(value) => s" LIMIT $value"
+      case None => ""
+    }
+
     val fieldsEncoded = fields.mkString(", ")
 
     val query =
@@ -191,9 +196,9 @@ class QueryPartitionReader(
           DefaultConstants.DefaultCollectionName
         )
       ) {
-        s"select $fieldsEncoded from `${readConfig.bucket}`$predicate$groupBy"
+        s"select $fieldsEncoded from `${readConfig.bucket}`$predicate$groupBy$limit"
       } else {
-        s"select $fieldsEncoded from `$collectionName`$predicate$groupBy"
+        s"select $fieldsEncoded from `$collectionName`$predicate$groupBy$limit"
       }
 
     logDebug(s"Building and running N1QL query for `${readConfig.bucket}`.`${scopeName}`: $query")

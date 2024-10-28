@@ -25,7 +25,8 @@ case class QueryInputPartition(
     val filters: Array[Filter],
     val locations: Array[String],
     val aggregations: Option[Aggregation],
-    val bound: Option[QueryPartitionBound]
+    val bound: Option[QueryPartitionBound],
+    limit: Option[Int]
 ) extends InputPartition {
   override def preferredLocations(): Array[String] = locations
 }
