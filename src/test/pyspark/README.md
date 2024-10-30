@@ -1,12 +1,24 @@
-Examples and tests using the Couchbase Spark Connector with PySpark.
+# Examples and tests using the Couchbase Spark Connector with PySpark.
 
-Requirements:
-* A running Couchbase cluster.  Both Operational and Columnar, but of course make sure you are running a test, notebook or example that is compatible with that cluster type.
-* With the `travel-sample` sample bucket loaded.
+## Requirements
+The only requirement is a running Couchbase cluster.  
 
-To get started:
+If you don't already have one, a great option is to use the [Couchbase Capella free tier](https://docs.couchbase.com/cloud/get-started/create-account.html).
+
+Any sort of cluster is supported including Columnar, but of course make sure you are running a test, notebook or example that is compatible with that cluster type.
+
+A running Spark cluster is _not_ required, as all examples will use `.master("local[*]")` by default - but this can be overridden in your `.env` file below to point at your actual Spark cluster, if you are using one.
+
+## Get started
+If you don't have the project cloned already:
 ```
-# Create a virtual environment (not essential but a good standard Python best practice)
+git clone https://github.com/couchbase/couchbase-spark-connector/
+cd couchbase-spark-connector/src/test/pyspark
+```
+
+Then create a virtual environment (not essential but a good standard Python best practice):
+
+```
 python -m venv venv
 
 # Windows
@@ -16,12 +28,28 @@ python -m venv venv
 source ./venv/bin/activate
 
 # Install the requirements
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+```
+(Of course, if you prefer Conda or similar, please feel free to use instead.)
 
+Now create the `.env` file:
+
+```
 cp .env.template .env
 ```
 
-Now edit the `.env` file to point at your cluster.
+And edit the `.env` file to point at your Couchbase cluster.
+
+## Running Jupyter notebooks
+Running a Jupyter notebook:
+```
+jupyter notebook ./examples/basic/pyspark_jupyter_notebook_example.ipynb
+```
+
+Jupyter can also be run from an IDE and from 3rd-party providers such as Databricks and AWS EMR.
+
+## Running tests
+Note that tests require the `travel-sample` sample bucket to be loaded.
 
 Running the tests:
 ```
