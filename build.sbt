@@ -1,18 +1,18 @@
 name := "spark-connector"
 
-version := "3.5.1"
+version := "3.5.2-SNAPSHOT"
 
 organization := "com.couchbase.client"
 
-crossScalaVersions := Seq("2.12.19", "2.13.14")
+crossScalaVersions := Seq("2.12.20", "2.13.15")
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 
-val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.1")
-val sdkVersion   = "1.7.2"
-val dcpVersion   = "0.51.0"
+val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.2")
+val sdkVersion   = "1.7.4"
+val dcpVersion   = "0.52.0"
 
 scalacOptions += "-feature"
 
@@ -35,7 +35,7 @@ libraryDependencies ++= Seq(
   "com.couchbase.client" %% "scala-client"      % sdkVersion,
   "com.couchbase.client"  % "dcp-client"        % dcpVersion,
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers"    % "couchbase"         % "1.20.0"                         % Test
+  "org.testcontainers"    % "couchbase"         % "1.20.3"                         % Test
 )
 
 homepage := Some(url("https://couchbase.com"))

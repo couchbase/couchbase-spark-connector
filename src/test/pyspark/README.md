@@ -18,7 +18,7 @@ cd couchbase-spark-connector/src/test/pyspark
 
 Download the connector (see [here](https://docs.couchbase.com/spark-connector/current/download-links.html) for the latest version):
 ```
-wget http://packages.couchbase.com/clients/connectors/spark/3.5.1/Couchbase-Spark-Connector_2.12-3.5.1.zip
+wget https://packages.couchbase.com/clients/connectors/spark/3.5.1/Couchbase-Spark-Connector_2.12-3.5.1.zip
 unzip Couchbase-Spark-Connector_2.12-3.5.1.zip -d connector
 ```
 
