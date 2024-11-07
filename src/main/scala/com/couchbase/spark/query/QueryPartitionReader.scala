@@ -266,12 +266,11 @@ class QueryPartitionReader(
       if (next != null) {
         isDone = true
         hasItem = true
+      } else if (isComplete.get) {
+        isDone = true
       } else {
-        if (isComplete.get) {
-          isDone = true
-        }
+        Thread.sleep(1)
       }
-      Thread.sleep(1)
     }
 
     hasItem
