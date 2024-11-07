@@ -100,51 +100,58 @@ class QueryPartitionReader(
   // We intentionally don't change the scheduler, leaving it on the SDK's.  This is largely an IO-bound task so is
   // not expected to cause issues.
   result
-    .flatMapMany(result => result.rowsAs[String](Passthrough.StringConvert))
-    .subscribe(new Subscriber[String]() {
+    .flatMapMany(result => result.rowsAs[String](Passthrough.StringConvert)
+      .doOnNext(r => processRow(r))
+      .`then`()
+      .`then`(result.metaData
+        .doOnNext(md => metaData.set(md))))
+    .`then`()
+    .subscribe(new Subscriber[Unit]() {
       override def onSubscribe(s: Subscription): Unit = {
         subscription.set(s)
       }
 
-      override def onNext(r: String): Unit = {
-        var row = r
-        try {
-          // Aggregates like MIN, MAX etc will end up as $1, $2 .. so they need to be replaced
-          // with their original field names from the schema so that the JSON parser can pick
-          // them up properly
-          if (hasAggregateFields) {
-            var idx = 1
-            schema.fields.foreach(field => {
-              if (!groupByColumns.contains(field.name)) {
-                row = row.replace("$" + idx, field.name)
-                idx = idx + 1
-              }
-            })
-          }
-          val x = parser.parse(row, createParser, UTF8String.fromString).toSeq
-          if (x.size != 1) {
-            throw new IllegalStateException(s"Expected 1 row, have ${x}")
-          }
-          queue.add(x.head)
-        } catch {
-          case e: Exception =>
-            error.set(
-              new IllegalStateException(
-                s"Could not parse row $row based on provided schema $schema.",
-                e
-              )
-            )
-        }
+      override def onNext(r: Unit): Unit = {}
+
+      override def onError(err: Throwable): Unit = {
+        error.set(err)
       }
 
-      override def onError(err: Throwable): Unit = error.set(err)
-
-      override def onComplete(): Unit = isComplete.set(true)
+      override def onComplete(): Unit = {
+        isComplete.set(true)
+      }
     })
 
-  result
-    .flatMap(result => result.metaData)
-    .subscribe(md => metaData.set(md))
+  private def processRow(r: String) = {
+    var row = r
+    try {
+      // Aggregates like MIN, MAX etc will end up as $1, $2 .. so they need to be replaced
+      // with their original field names from the schema so that the JSON parser can pick
+      // them up properly
+      if (hasAggregateFields) {
+        var idx = 1
+        schema.fields.foreach(field => {
+          if (!groupByColumns.contains(field.name)) {
+            row = row.replace("$" + idx, field.name)
+            idx = idx + 1
+          }
+        })
+      }
+      val x = parser.parse(row, createParser, UTF8String.fromString).toSeq
+      if (x.size != 1) {
+        throw new IllegalStateException(s"Expected 1 row, have ${x}")
+      }
+      queue.add(x.head)
+    } catch {
+      case e: Exception =>
+        error.set(
+          new IllegalStateException(
+            s"Could not parse row $row based on provided schema $schema.",
+            e
+          )
+        )
+    }
+  }
 
   def buildQuery(): String = {
     var fields = schema.fields
