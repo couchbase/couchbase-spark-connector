@@ -79,6 +79,7 @@ class QueryPartitionReader(
         .cluster(conf)
         .reactive
         .query(buildQuery(), buildOptions())
+        .subscribeOn(Schedulers.boundedElastic())
     } else {
       CouchbaseConnection(readConfig.connectionIdentifier)
         .cluster(conf)
@@ -86,6 +87,7 @@ class QueryPartitionReader(
         .scope(scopeName)
         .reactive
         .query(buildQuery(), buildOptions())
+        .subscribeOn(Schedulers.boundedElastic())
     }
   }
 
@@ -97,8 +99,6 @@ class QueryPartitionReader(
   private val subscription               = new AtomicReference[Subscription]()
   private val requestedButNotYetReceived = new AtomicInteger()
 
-  // We intentionally don't change the scheduler, leaving it on the SDK's.  This is largely an IO-bound task so is
-  // not expected to cause issues.
   result
     .flatMapMany(result => result.rowsAs[String](Passthrough.StringConvert)
       .doOnNext(r => processRow(r))
