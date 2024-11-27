@@ -31,6 +31,6 @@ case class QueryInputPartition(
   override def preferredLocations(): Array[String] = locations
 }
 
-case class QueryPartitionBound(whereClause: String)
+case class QueryPartitionBound(lowerBoundInclusive: Long, upperBoundExclusive: Long, whereClause: String)
 
 case class PartitioningConfig(partitionColumn: String, lowerBound: Long, upperBound: Long, numPartitions: Long)
