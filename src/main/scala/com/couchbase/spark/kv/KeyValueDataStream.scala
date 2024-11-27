@@ -97,7 +97,7 @@ class KeyValueDataStream(config: KeyValueStreamConfig, checkpointLocation: Strin
       })
       .toList
 
-    logDebug(s"Initial Offset is grouped into following partitions: $groupedOffsets")
+    logInfo(s"Initial Offset is grouped into following partitions: $groupedOffsets")
 
     KeyValueOffset(groupedOffsets)
   }
