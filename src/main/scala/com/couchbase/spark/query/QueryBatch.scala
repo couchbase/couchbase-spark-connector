@@ -83,7 +83,7 @@ class QueryBatch(
       "Operation not allowed: the lower bound of partitioning column is larger than the upper " +
         s"bound. Lower bound: $lowerBound; Upper bound: $upperBound")
 
-    val boundValueToString: Long => String = _.toString
+    val boundValueToString: BigDecimal => String = _.toString
     val numPartitions =
       if ((upperBound - lowerBound) >= partitioning.numPartitions || /* check for overflow */
         (upperBound - lowerBound) < 0) {
@@ -118,14 +118,16 @@ class QueryBatch(
 
     var i: Int = 0
     val column = partitioning.partitionColumn
-    var currentValue = lowerBoundWithStrideAlignment
+    var currentValue = BigDecimal(lowerBound)
     val ans = new ArrayBuffer[QueryInputPartition]()
     while (i < numPartitions) {
-      val lBoundValue = boundValueToString(currentValue)
-      val lBound = if (i != 0) s"$column >= $lBoundValue" else null
-      currentValue += stride
-      val uBoundValue = boundValueToString(currentValue)
-      val uBound = if (i != numPartitions - 1) s"$column < $uBoundValue" else null
+      val lBoundValue = Math.max(currentValue.setScale(0, RoundingMode.HALF_UP).toLong, lowerBound)
+      val lBoundFormatted = boundValueToString(lBoundValue)
+      val lBound = if (i != 0) s"$column >= $lBoundFormatted" else null
+      currentValue += preciseStride
+      val uBoundValue = Math.min(currentValue.setScale(0, RoundingMode.HALF_UP).toLong, upperBound)
+      val uBoundValueFormatted = boundValueToString(uBoundValue)
+      val uBound = if (i != numPartitions - 1) s"$column < $uBoundValueFormatted" else null
       val whereClause =
         if (uBound == null) {
           lBound
@@ -135,9 +137,28 @@ class QueryBatch(
           s"$lBound AND $uBound"
         }
       // Will apply the limit to each partition, but this is ok as Spark will also re-apply the limit at the global level
-      ans += QueryInputPartition(schema, filters, locations, aggregations, Some(QueryPartitionBound(whereClause)), limit)
+      ans += QueryInputPartition(schema, filters, locations, aggregations, Some(QueryPartitionBound(lBoundValue, uBoundValue, whereClause)), limit)
       i = i + 1
     }
+
+    // Sanity check
+    if (ans.length >= 2) {
+      // Check upper and lower bounds
+      require(ans.length == numPartitions, s"Partition count must match the number of partitions but did not for ${ans.length} ${numPartitions}")
+      require(ans.head.bound.isDefined, s"Partition bounds must be defined but were not for ${ans.head}")
+      require(ans.last.bound.isDefined, s"Partition bounds must be defined but were not for ${ans.last}")
+      require(ans.head.bound.get.lowerBoundInclusive == lowerBound, s"Partition bounds must match the lower bound but did not for ${ans.head}")
+      require(ans.last.bound.get.upperBoundExclusive == upperBound, s"Partition bounds must match the upper bound but did not for ${ans.last}")
+
+      // Check middle queries
+      for (i <- 0 until ans.length - 1) {
+        val ans1 = ans(i)
+        val ans2 = ans(i + 1)
+        require(ans1.bound.isDefined && ans2.bound.isDefined, s"Partition bounds must be defined but were not for ${ans1} ${ans2}")
+        require(ans1.bound.get.upperBoundExclusive == ans2.bound.get.lowerBoundInclusive, s"Partition bounds must be contiguous but were not for ${ans1} ${ans2}")
+      }
+    }
+
     ans.toArray
   }
 
