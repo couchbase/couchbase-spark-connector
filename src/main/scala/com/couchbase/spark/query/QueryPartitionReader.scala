@@ -24,13 +24,7 @@ import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
-import com.couchbase.client.scala.query.{
-  QueryMetaData,
-  QueryMetrics,
-  QueryScanConsistency,
-  ReactiveQueryResult,
-  QueryOptions => CouchbaseQueryOptions
-}
+import com.couchbase.client.scala.query.{QueryMetaData, QueryMetrics, QueryScanConsistency, ReactiveQueryResult, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
@@ -41,7 +35,7 @@ import reactor.core.scheduler.Schedulers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, NANOSECONDS}
 
 // Executes on the Spark worker.
 class QueryPartitionReader(
@@ -68,6 +62,7 @@ class QueryPartitionReader(
     case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
     case None      => Seq.empty
   }
+  private val query = buildQuery()
 
   private val result: SMono[ReactiveQueryResult] = {
     if (
@@ -78,7 +73,7 @@ class QueryPartitionReader(
       CouchbaseConnection(readConfig.connectionIdentifier)
         .cluster(conf)
         .reactive
-        .query(buildQuery(), buildOptions())
+        .query(query, buildOptions())
         .subscribeOn(Schedulers.boundedElastic())
     } else {
       CouchbaseConnection(readConfig.connectionIdentifier)
@@ -86,7 +81,7 @@ class QueryPartitionReader(
         .bucket(readConfig.bucket)
         .scope(scopeName)
         .reactive
-        .query(buildQuery(), buildOptions())
+        .query(query, buildOptions())
         .subscribeOn(Schedulers.boundedElastic())
     }
   }
@@ -98,6 +93,7 @@ class QueryPartitionReader(
   private val isComplete                 = new AtomicBoolean()
   private val subscription               = new AtomicReference[Subscription]()
   private val requestedButNotYetReceived = new AtomicInteger()
+  private val started                    = System.nanoTime
 
   result
     .flatMapMany(result => result.rowsAs[String](Passthrough.StringConvert)
@@ -114,10 +110,12 @@ class QueryPartitionReader(
       override def onNext(r: Unit): Unit = {}
 
       override def onError(err: Throwable): Unit = {
+        logInfo(s"Error: ${err} on query ${query} after ${NANOSECONDS.toMillis(System.nanoTime() - started)}ms")
         error.set(err)
       }
 
       override def onComplete(): Unit = {
+        logInfo(s"Completed query ${query} in ${NANOSECONDS.toMillis(System.nanoTime() - started)}ms.  Metrics from query service: ${currentMetricsValues().map(v => s"${v.name}=${v.value}").mkString(", ")}")
         isComplete.set(true)
       }
     })

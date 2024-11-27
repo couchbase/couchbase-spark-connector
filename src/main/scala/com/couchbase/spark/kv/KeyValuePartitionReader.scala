@@ -21,6 +21,7 @@ import com.couchbase.client.dcp.state.PartitionState
 import com.couchbase.client.dcp.{Authenticator, CertificateAuthenticator, Client, PasswordAuthenticator, StaticCredentialsProvider, StreamTo}
 import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.util.Version
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData
 import org.apache.spark.sql.connector.read.streaming.{ContinuousPartitionReader, PartitionOffset}
@@ -43,7 +44,8 @@ import scala.concurrent.duration.Duration
   *   if this is a continuous stream or microbatch.
   */
 class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boolean)
-    extends ContinuousPartitionReader[InternalRow] {
+    extends ContinuousPartitionReader[InternalRow]
+      with Logging  {
 
   private val streamConfig    = partition.config
   private val couchbaseConfig = partition.conf
@@ -60,6 +62,8 @@ class KeyValuePartitionReader(partition: KeyValueInputPartition, continuous: Boo
     couchbaseConfig.certAuthOptions.map(ca => CertificateAuthenticator.fromKeyStore(Paths.get(ca.keystorePath), ca.keystorePassword, ca.keystoreType))
       .orElse(couchbaseConfig.credentials.map(cr => new PasswordAuthenticator(new StaticCredentialsProvider(cr.username, cr.password)))).get
   }
+
+  logInfo(s"Starting DCP stream on partition ${partition}")
 
   private val dcpClient = Client
     .builder()

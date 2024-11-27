@@ -70,7 +70,7 @@ class KeyValueMicroBatchStream(
       })
       .toArray
 
-    logDebug(s"Offset is grouped into following input partitions: $groupedOffsets")
+    logInfo(s"Offset is grouped into following input partitions: $groupedOffsets")
 
     groupedOffsets
   }
