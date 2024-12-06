@@ -61,3 +61,5 @@ Running the tests:
 ```
 pytest
 ```
+
+(Set `COUCHBASE_SSL_INSECURE=true` in `.env` only for local development to disable SSL verification. Do not use in production.)

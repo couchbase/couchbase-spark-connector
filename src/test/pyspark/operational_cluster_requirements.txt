@@ -1,0 +1,5 @@
+pyspark
+jupyter
+python-dotenv
+pytest
+couchbase
