@@ -32,6 +32,9 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
 import reactor.core.scala.publisher.{SFlux, SMono}
 
+import java.util.UUID
+import scala.concurrent.duration.NANOSECONDS
+
 object KeyValueOperationRunner extends Logging {
 
   def upsert[T](
@@ -43,6 +46,8 @@ object KeyValueOperationRunner extends Logging {
   )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
+    val start      = System.nanoTime()
+    val opUUID     = UUID.randomUUID().toString.substring(0, 6)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -60,13 +65,26 @@ object KeyValueOperationRunner extends Logging {
       upsertOptions
     }
 
-    logDebug(s"Performing bulk upsert against ids ${upsert.map(_.id)} with options $options")
+    logInfo(
+      s"Performing bulk KV upsert op ${opUUID} against ${upsert.length} ids with options $options.  " +
+        s"See TRACE logging for all ids"
+    )
+    logTrace(
+      s"Performing bulk upsert op ${opUUID} against ids ${upsert.map(_.id)} with options $options"
+    )
 
-    SFlux
+    val out = SFlux
       .fromIterable(upsert)
       .flatMap(doc => collection.upsert(doc.id, doc.content, options))
       .collectSeq()
       .block()
+
+    logInfo(
+      s"Completed bulk KV upsert op ${opUUID} against ${upsert.length} ids in ${NANOSECONDS
+          .toMillis(System.nanoTime - start)}ms"
+    )
+
+    out
   }
 
   def insert[T](
@@ -79,6 +97,8 @@ object KeyValueOperationRunner extends Logging {
   )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
+    val start      = System.nanoTime()
+    val opUUID     = UUID.randomUUID().toString.substring(0, 6)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -96,12 +116,16 @@ object KeyValueOperationRunner extends Logging {
       insertOptions
     }
 
-    logDebug(
-      s"Performing bulk insert against ids ${insert.map(_.id)} with options $options and " +
+    logInfo(
+      s"Performing bulk KV insert op ${opUUID} against ${insert.length} ids with options $options and " +
+        s"ignoreIfExists $ignoreIfExists.  See TRACE logging for all ids"
+    )
+    logTrace(
+      s"Performing bulk KV insert op ${opUUID} against ids ${insert.map(_.id)} with options $options and " +
         s"ignoreIfExists $ignoreIfExists"
     )
 
-    SFlux
+    val out = SFlux
       .fromIterable(insert)
       .flatMap(doc => {
         collection
@@ -116,6 +140,13 @@ object KeyValueOperationRunner extends Logging {
       })
       .collectSeq()
       .block()
+
+    logInfo(
+      s"Completed bulk KV insert op ${opUUID} against ${insert.length} ids in ${NANOSECONDS
+          .toMillis(System.nanoTime - start)}ms"
+    )
+
+    out
   }
 
   def replace[T](
@@ -128,6 +159,8 @@ object KeyValueOperationRunner extends Logging {
   )(implicit serializer: JsonSerializer[T]): Seq[MutationResult] = {
     val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
+    val start      = System.nanoTime()
+    val opUUID     = UUID.randomUUID().toString.substring(0, 6)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -145,12 +178,16 @@ object KeyValueOperationRunner extends Logging {
       replaceOptions
     }
 
-    logDebug(
-      s"Performing bulk replace against ids ${replace.map(_.id)} with options $options and " +
+    logInfo(
+      s"Performing bulk KV replace against ${replace.length} ids with options $options and " +
+        s"ignoreIfExists $ignoreIfNotFound.  See TRACE logging for all ids"
+    )
+    logTrace(
+      s"Performing bulk KV replace against ids ${replace.map(_.id)} with options $options and " +
         s"ignoreIfNotFound $ignoreIfNotFound"
     )
 
-    SFlux
+    val out = SFlux
       .fromIterable(replace)
       .flatMap(doc => {
         collection
@@ -165,6 +202,13 @@ object KeyValueOperationRunner extends Logging {
       })
       .collectSeq()
       .block()
+
+    logInfo(
+      s"Completed bulk KV replace op ${opUUID} against ${replace.length} ids in ${NANOSECONDS
+          .toMillis(System.nanoTime - start)}ms"
+    )
+
+    out
   }
 
   def remove(
@@ -177,6 +221,8 @@ object KeyValueOperationRunner extends Logging {
   ): Seq[MutationResult] = {
     val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
+    val start      = System.nanoTime()
+    val opUUID     = UUID.randomUUID().toString.substring(0, 6)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -194,12 +240,16 @@ object KeyValueOperationRunner extends Logging {
       removeOptions
     }
 
-    logDebug(
-      s"Performing bulk remove against ids ${remove.map(_.id)} with options $options " +
+    logInfo(
+      s"Performing bulk KV remove against ${remove.length} ids with options $options " +
+        s"and ignoreIfNotFound $ignoreIfNotFound.  See TRACE logging for all ids"
+    )
+    logTrace(
+      s"Performing bulk KV remove against ids ${remove.map(_.id)} with options $options " +
         s"and ignoreIfNotFound $ignoreIfNotFound"
     )
 
-    SFlux
+    val out = SFlux
       .fromIterable(remove)
       .flatMap(doc => {
         collection
@@ -214,6 +264,13 @@ object KeyValueOperationRunner extends Logging {
       })
       .collectSeq()
       .block()
+
+    logInfo(
+      s"Completed bulk KV remove op ${opUUID} against ${remove.length} ids in ${NANOSECONDS
+          .toMillis(System.nanoTime - start)}ms"
+    )
+
+    out
   }
 
   def mutateIn(
@@ -225,6 +282,8 @@ object KeyValueOperationRunner extends Logging {
   ): Seq[MutateInResult] = {
     val connection = CouchbaseConnection(connectionIdentifier)
     val cluster    = connection.cluster(config)
+    val start      = System.nanoTime()
+    val opUUID     = UUID.randomUUID().toString.substring(0, 6)
 
     val bucketName = config
       .implicitBucketNameOr(keyspace.bucket.orNull)
@@ -242,12 +301,23 @@ object KeyValueOperationRunner extends Logging {
       mutateInOptions
     }
 
-    logDebug(s"Performing bulk MutateIn against ids ${mutateIn.map(_.id)} with options $options")
+    logInfo(
+      s"Performing bulk KV mutateIn against ${mutateIn.length} ids with options $options.  " +
+        s"See TRACE logging for all ids"
+    )
+    logTrace(s"Performing bulk KV mutateIn against ids ${mutateIn.map(_.id)} with options $options")
 
-    SFlux
+    val out = SFlux
       .fromIterable(mutateIn)
       .flatMap(doc => collection.mutateIn(doc.id, doc.specs, options.cas(doc.cas)))
       .collectSeq()
       .block()
+
+    logInfo(
+      s"Completed bulk KV mutateIn op ${opUUID} against ${mutateIn.length} ids in ${NANOSECONDS
+          .toMillis(System.nanoTime - start)}ms"
+    )
+
+    out
   }
 }

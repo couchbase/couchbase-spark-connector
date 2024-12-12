@@ -22,7 +22,7 @@ import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.query.{QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.query.QueryOptions.{PartitionColumn, PartitionLowerBound, PartitionUpperBound, PartitionCount}
+import com.couchbase.spark.query.QueryOptions.{PartitionColumn, PartitionCount, PartitionLowerBound, PartitionUpperBound}
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -34,7 +34,8 @@ import org.apache.spark.sql.{DataFrame, Encoders, SQLContext, SaveMode, SparkSes
 
 import scala.collection.JavaConverters._
 import java.util
-import scala.concurrent.duration.Duration
+import java.util.UUID
+import scala.concurrent.duration.{Duration, NANOSECONDS}
 
 class QueryTableProvider
     extends TableProvider
@@ -240,6 +241,10 @@ class QueryTableProvider
 
 }
 
+object RelationPartitionWriter {
+  val MaxStatementLengthChars = 2000
+}
+
 class RelationPartitionWriter(
     writeConfig: QueryWriteConfig,
     couchbaseConfig: CouchbaseConfig,
@@ -247,12 +252,26 @@ class RelationPartitionWriter(
 ) extends ForeachPartitionFunction[String]
     with Logging {
 
+  def truncateStatement(statement: String, maxLength: Int): String = {
+    if (statement.length <= maxLength) {
+      statement
+    } else {
+      val partLength = (maxLength - 3) / 2
+      statement.take(partLength) + "..." + statement.takeRight(partLength)
+    }
+  }
+
   override def call(t: util.Iterator[String]): Unit = {
+    val queryUuid      = UUID.randomUUID.toString.substring(0, 6)
     val scopeName      = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
     val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+    val started        = System.nanoTime()
+    var count          = 0
 
     val values = t.asScala
       .map(encoded => {
+        // Going non-functional to avoid iterating twice or buffering full `t` (which is of unknown size)
+        count += 1
         val decoded = JsonObject.fromJson(encoded)
         val id      = decoded.str(writeConfig.idFieldName)
         decoded.remove(writeConfig.idFieldName)
@@ -280,7 +299,14 @@ class RelationPartitionWriter(
         s"$prefix INTO `$collectionName` (KEY, VALUE) $values"
       }
 
-    logInfo("Building and running N1QL query " + statement)
+    // These write statements can be very large
+    if (statement.length > RelationPartitionWriter.MaxStatementLengthChars) {
+      logInfo(s"Building and running write SQL++ query ${queryUuid} for ${count} values (truncated statement - full statement available at trace level) "
+        + truncateStatement(statement, RelationPartitionWriter.MaxStatementLengthChars))
+      logTrace(s"Building and running write SQL++ query ${queryUuid} for ${count} values (full statement) " + statement)
+    } else {
+      logInfo(s"Building and running write SQL++ query ${queryUuid} for ${count} values (full statement) " + statement)
+    }
 
     val opts = buildOptions()
     try {
@@ -303,11 +329,12 @@ class RelationPartitionWriter(
             .get
         }
 
-      logDebug("Completed query in: " + result.metaData.metrics.get)
+      val m = result.metaData.metrics.get
+      logInfo(s"Completed write query ${queryUuid} in ${NANOSECONDS.toMillis(System.nanoTime() - started)}ms.  Metrics from query service: elapsedTime=${m.elapsedTime.toMillis}ms executionTime=${m.executionTime.toMillis}ms mutationCount=${m.mutationCount} errorCount=${m.errorCount} warningCount=${m.warningCount}")
     } catch {
       case e: DmlFailureException =>
         if (mode == SaveMode.Ignore) {
-          logDebug("Failed to run query, but ignoring because of SaveMode.Ignore: ", e)
+          logInfo("Failed to run query, but ignoring because of SaveMode.Ignore: ", e)
         } else {
           throw e
         }
