@@ -10,8 +10,8 @@ scalacOptions := Seq("-unchecked", "-deprecation")
 
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 
-val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.2")
-val sdkVersion   = "1.7.4"
+val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.3")
+val sdkVersion   = "1.7.6"
 val dcpVersion   = "0.52.0"
 
 scalacOptions += "-feature"
@@ -35,8 +35,11 @@ libraryDependencies ++= Seq(
   "com.couchbase.client" %% "scala-client"      % sdkVersion,
   "com.couchbase.client"  % "dcp-client"        % dcpVersion,
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers"    % "couchbase"         % "1.20.3"                         % Test
+  "org.testcontainers"    % "couchbase"         % "1.20.4"                         % Test,
+  // For structured streaming
+  "commons-codec"         % "commons-codec"     % "1.17.1"                        //   % Test
 )
+
 
 homepage := Some(url("https://couchbase.com"))
 

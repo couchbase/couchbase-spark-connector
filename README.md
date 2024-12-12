@@ -8,12 +8,12 @@ The connector is available through the following coordinates:
 
  - **Group:** `com.couchbase.client`
  - **Artifact:** `spark-connector_2.12`
- - **Version:** `3.5.0` 
+ - **Version:** `3.5.2`
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.5.0"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.5.2"
 ```
 
 ## Documentation
