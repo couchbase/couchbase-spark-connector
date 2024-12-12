@@ -55,7 +55,7 @@ class GetRDD(
       this.getOptions
     }
 
-    logDebug(s"Performing bulk get fetch against ids ${partition.ids} with options $options")
+    logInfo(s"Performing bulk get fetch against ids ${partition.ids} with options $options")
 
     SFlux
       .fromIterable(partition.ids)
