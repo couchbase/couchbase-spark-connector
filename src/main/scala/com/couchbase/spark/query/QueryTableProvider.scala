@@ -16,7 +16,7 @@
 
 package com.couchbase.spark.query
 
-import com.couchbase.client.core.error.{DmlFailureException, InvalidArgumentException}
+import com.couchbase.client.core.error.{DmlFailureException, InvalidArgumentException, DocumentExistsException}
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.client.scala.json.JsonObject
 import com.couchbase.client.scala.query.{QueryScanConsistency, QueryOptions => CouchbaseQueryOptions}
@@ -332,7 +332,7 @@ class RelationPartitionWriter(
       val m = result.metaData.metrics.get
       logInfo(s"Completed write query ${queryUuid} in ${NANOSECONDS.toMillis(System.nanoTime() - started)}ms.  Metrics from query service: elapsedTime=${m.elapsedTime.toMillis}ms executionTime=${m.executionTime.toMillis}ms mutationCount=${m.mutationCount} errorCount=${m.errorCount} warningCount=${m.warningCount}")
     } catch {
-      case e: DmlFailureException =>
+      case e @ (_: DmlFailureException | _: DocumentExistsException) =>
         if (mode == SaveMode.Ignore) {
           logInfo("Failed to run query, but ignoring because of SaveMode.Ignore: ", e)
         } else {
