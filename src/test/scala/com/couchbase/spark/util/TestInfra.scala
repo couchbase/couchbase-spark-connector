@@ -24,7 +24,7 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.kv.KeyValueOptions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.sql.functions.{col, lit, user}
+import org.apache.spark.sql.functions.{col, lit}
 
 import java.util
 import java.util.{Arrays, UUID}
