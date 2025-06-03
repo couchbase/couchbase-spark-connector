@@ -26,8 +26,8 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.analytics.{AnalyticsMetrics, AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
-import com.couchbase.spark.json.CouchbaseJsonUtils
 import org.apache.spark.SparkEnv.logInfo
+import org.apache.spark.sql.catalyst.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
 

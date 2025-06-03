@@ -22,9 +22,9 @@ import com.couchbase.spark.analytics.AnalyticsPartitionReader
 import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
 import com.couchbase.spark.columnar.ColumnarConstants.ColumnarEndpointIdx
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.json.CouchbaseJsonUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import org.apache.spark.sql.connector.read.PartitionReader

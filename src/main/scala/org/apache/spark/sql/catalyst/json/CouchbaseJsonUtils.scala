@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.couchbase.spark.json
+package org.apache.spark.sql.catalyst.json
 
 import com.fasterxml.jackson.core.{JsonFactory, JsonParser}
 import org.apache.spark.sql.catalyst.json.{JSONOptionsInRead, JacksonParser}

@@ -26,7 +26,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.query.{QueryMetaData, QueryMetrics, QueryScanConsistency, ReactiveQueryResult, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
-import com.couchbase.spark.json.CouchbaseJsonUtils
+import org.apache.spark.sql.catalyst.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import org.reactivestreams.{Subscriber, Subscription}

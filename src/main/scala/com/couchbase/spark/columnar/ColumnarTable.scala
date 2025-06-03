@@ -51,6 +51,7 @@ class ColumnarTable(
     new ColumnarScanBuilder(schema, readConfig)
 
       // Writing has been temporarily removed until server support increases.
+      // Check in history for previously existing files including ColumnarBatchWrite.scala
 //  override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
 //    new WriteBuilder() {
 //      override def build(): Write = {
