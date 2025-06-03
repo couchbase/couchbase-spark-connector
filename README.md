@@ -47,7 +47,7 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 Applying scalafmt (source code formatting) is done through `sbt scalafmtAll`.
 
 ## License
-Copyright 2015-2024 Couchbase Inc.
+Copyright 2015-2025 Couchbase Inc.
 
 Licensed under the Apache License, Version 2.0.
 
