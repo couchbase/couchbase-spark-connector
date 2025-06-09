@@ -2,7 +2,7 @@ import logging
 
 from couchbase_columnar.cluster import Cluster as ColumnarCluster
 from couchbase_columnar.credential import Credential as ColumnarCredential
-from src.test.pyspark.tests.util_and_resources import util_and_resources
+from . import util_and_resources
 
 from dotenv import load_dotenv
 

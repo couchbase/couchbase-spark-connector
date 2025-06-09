@@ -5,7 +5,7 @@ from pyspark.sql import SparkSession
 from dotenv import load_dotenv
 import pytest
 import os
-from src.test.pyspark.tests.util_and_resources import util_and_resources
+from utils import util_and_resources
 
 load_dotenv()
 
@@ -115,9 +115,8 @@ class TestPysparkSession:
 
             fetch_dataframe_and_assert_count(spark, curr_connection_id)
 
-        spark.stop()
         assert "IllegalArgumentException" in str(e.type)
-        assert str(e.value) == f'The value of property spark.couchbase.connectionString must not be null'
+        assert str(e.value) == f'requirement failed: value cannot be null for key: spark.couchbase.connectionString'
 
     def test_username_as_none(self, curr_connection_id):
         with pytest.raises(Exception) as e:
@@ -132,10 +131,9 @@ class TestPysparkSession:
 
             fetch_dataframe_and_assert_count(spark, curr_connection_id)
 
-        spark.stop()
         assert "IllegalArgumentException" in str(e.type)
         assert str(
-            e.value) == f'The value of property spark.couchbase.username{connection_identifier} must not be null'
+            e.value) == f'requirement failed: value cannot be null for key: spark.couchbase.username{connection_identifier}'
 
     def test_password_as_none(self, curr_connection_id):
         with pytest.raises(Exception) as e:
@@ -150,10 +148,9 @@ class TestPysparkSession:
 
             fetch_dataframe_and_assert_count(spark, curr_connection_id)
 
-        spark.stop()
         assert "IllegalArgumentException" in str(e.type)
         assert str(
-            e.value) == f'The value of property spark.couchbase.password{connection_identifier} must not be null'
+            e.value) == f'requirement failed: value cannot be null for key: spark.couchbase.password{connection_identifier}'
 
     def test_wrong_cred(self, curr_connection_id):
         with pytest.raises(Exception) as e:

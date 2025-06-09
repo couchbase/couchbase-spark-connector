@@ -2,7 +2,7 @@ import logging
 import uuid
 import pytest
 
-from src.test.pyspark.tests.util_and_resources import util_and_resources
+from utils import util_and_resources
 
 logger = logging.getLogger(__name__)
 

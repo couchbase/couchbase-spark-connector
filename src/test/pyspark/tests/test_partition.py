@@ -1,5 +1,5 @@
 import pytest
-from src.test.pyspark.tests.util_and_resources import util_and_resources
+from utils import util_and_resources
 
 PARTITION_ERROR = "If one of partitionColumn, partitionLowerBound, partitionUpperBound and partitionCount arguments are provided, then all must be"
 

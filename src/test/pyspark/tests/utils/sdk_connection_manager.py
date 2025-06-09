@@ -1,6 +1,7 @@
 import logging
 import os
-from src.test.pyspark.tests.util_and_resources import util_and_resources
+
+from . import util_and_resources, columnar_manager, operational_cluster_manager
 
 from dotenv import load_dotenv
 
@@ -17,11 +18,9 @@ class SdkConnectionManager:
 
     def __init__(self):
         if self.curr_cluster_is_columnar:
-            from src.test.pyspark.tests.util_and_resources.columnar_manager import ColumnarManager
-            self.cluster_manager = ColumnarManager()
+            self.cluster_manager = columnar_manager.ColumnarManager()
         else:
-            from src.test.pyspark.tests.util_and_resources.operational_cluster_manager import OperationalClusterManager
-            self.cluster_manager = OperationalClusterManager()
+            self.cluster_manager = operational_cluster_manager.OperationalClusterManager()
         self.initialize_connection_if_needed()
 
     def initialize_connection_if_needed(self):

@@ -1,19 +1,19 @@
 import pytest
 
-from src.test.pyspark.tests.util_and_resources.sdk_connection_manager import SdkConnectionManager
-from src.test.pyspark.tests.util_and_resources.util_and_resources import create_spark_session
+from utils import sdk_connection_manager
+from utils import util_and_resources
 
 
 @pytest.fixture(scope="session")
 def shared_sdk_connection():
-    conn = SdkConnectionManager()
+    conn = sdk_connection_manager.SdkConnectionManager()
     yield conn
     conn.close()
 
 
 @pytest.fixture(scope="session")
 def shared_spark_session():
-    session = create_spark_session()
+    session = util_and_resources.create_spark_session()
     yield session
     session.stop()
 

@@ -1,7 +1,7 @@
 import re
 import uuid
 import pytest
-from src.test.pyspark.tests.util_and_resources import util_and_resources
+from utils import util_and_resources
 
 if util_and_resources.get_curr_cluster_setup().df_type == util_and_resources.CB_COLUMNAR:
     pytestmark = pytest.mark.skip(reason="Write operations are not supported for columnar dataframes")

@@ -1,6 +1,6 @@
 import pytest
 import logging
-from src.test.pyspark.tests.util_and_resources import util_and_resources
+from utils import util_and_resources
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
 logger = logging.getLogger(__name__)
