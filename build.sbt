@@ -35,7 +35,6 @@ libraryDependencies ++= Seq(
   "com.couchbase.client" %% "scala-client"      % sdkVersion,
   "com.couchbase.client"  % "dcp-client"        % dcpVersion,
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers"    % "couchbase"         % "1.19.3"                         % Test
 )
 
 homepage := Some(url("https://couchbase.com"))
