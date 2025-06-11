@@ -15,11 +15,12 @@ class TestOptionsPropertyLoader extends CouchbaseClusterSettings {
   private val properties = new Properties()
 
   private val propertiesFile = List("integration.local.properties", "integration.properties")
-    .map(fileName => Try(getClass.getResourceAsStream("/" + fileName)))
-    .find(_.isSuccess)
+    .map(fileName => Option(getClass.getResourceAsStream("/" + fileName)))
+    .find(_.isDefined)
     .getOrElse(throw new RuntimeException("Neither 'integration.local.properties' nor 'integration.properties' found"))
+    .get
 
-  properties.load(propertiesFile.get)
+  properties.load(propertiesFile)
 
   def connectionString: String = properties.getProperty("connectionString", "localhost")
   def username: String = properties.getProperty("username", "Administrator")
