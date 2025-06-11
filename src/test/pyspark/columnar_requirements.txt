@@ -1,4 +1,5 @@
-pyspark
+# Pinned to avoid pyspark 4+
+pyspark==3.5.3
 jupyter
 python-dotenv
 pytest

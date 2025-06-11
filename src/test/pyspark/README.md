@@ -34,7 +34,10 @@ python -m venv venv
 source ./venv/bin/activate
 
 # Install the requirements
-python -m pip install -r requirements.txt
+python -m pip install -r operational_cluster_requirements.txt
+
+# Use this instead if you are on a Capella Columnar cluster:
+# python -m pip install -r columnar_requirements.txt
 ```
 (Of course, if you prefer Conda or similar, please feel free to use instead.)
 
