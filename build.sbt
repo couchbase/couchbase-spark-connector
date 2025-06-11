@@ -8,13 +8,13 @@ scalaVersion := "2.12.20"
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
+publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.3.4")
 val sdkVersion   = "1.8.1"
 val dcpVersion   = "0.54.0"
 
 scalacOptions += "-feature"
-
-resolvers += Resolver.mavenLocal
 
 credentials += Credentials("Sonatype Nexus Repository Manager",
   "oss.sonatype.org",
@@ -25,6 +25,8 @@ credentials += Credentials("Sonatype Nexus Repository Manager",
   sys.env.getOrElse("SONATYPE_USERNAME", ""),
   sys.env.getOrElse("SONATYPE_PASSWORD", ""))
 
+resolvers += Resolver.mavenLocal
+resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 libraryDependencies ++= Seq(
   "org.apache.spark"     %% "spark-core"        % sparkVersion                     % Provided,
@@ -33,7 +35,7 @@ libraryDependencies ++= Seq(
   "com.couchbase.client" %% "scala-client"      % sdkVersion,
   "com.couchbase.client"  % "dcp-client"        % dcpVersion,
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers"    % "couchbase"         % "1.17.6"                         % Test
+  "org.testcontainers"    % "couchbase"         % "1.19.3"                         % Test
 )
 
 homepage := Some(url("https://couchbase.com"))

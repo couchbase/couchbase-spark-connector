@@ -6,3 +6,6 @@ build/
 **/.DS_Store
 out/*
 .bsp/
+**/.txt
+**/.env
+*.txt
