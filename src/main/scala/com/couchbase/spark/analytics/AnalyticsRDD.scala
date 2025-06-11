@@ -99,6 +99,7 @@ class AnalyticsRDD[T: ClassTag](
                 p.hostname()
               }
             })
+            .toSeq
         )
       )
     } else {

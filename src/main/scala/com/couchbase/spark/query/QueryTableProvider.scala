@@ -116,7 +116,7 @@ class QueryTableProvider
           .query(statement, opts)
       }
 
-    val rows   = result.flatMap(result => result.rowsAs[String](Passthrough.StringConvert)).get
+    val rows   = result.flatMap(result => result.rowsAs[String](Passthrough.StringConvert)).get.toSeq
     val ds     = sparkSession.sqlContext.createDataset(rows)(Encoders.STRING)
     val schema = sparkSession.sqlContext.read.json(ds).schema
 

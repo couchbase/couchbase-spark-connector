@@ -145,7 +145,7 @@ object CouchbaseConfig {
     }
 
     def connectionString: String = schema + "://" + hosts
-      .map(v => v.hostname + (if (v.port == 0) "" else ":" + v.port))
+      .map(v => v.host + (if (v.port == 0) "" else ":" + v.port))
       .mkString(",")
   }
 
@@ -161,7 +161,7 @@ object CouchbaseConfig {
     import scala.collection.JavaConverters._
     ConnectionIdentifierParsed(connectionIdentifier,
       cs.scheme().name().toLowerCase,
-      cs.hosts.asScala,
+      cs.hosts.asScala.toSeq,
       if (cs.username() == null) None else Some(cs.username.split(":")(0)),
       if (cs.username() == null) None else Some(cs.username.split(":")(1)),
       cs.params.asScala.toSeq)

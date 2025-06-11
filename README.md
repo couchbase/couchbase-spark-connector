@@ -27,7 +27,8 @@ appropriate, please see [Maven Central](http://search.maven.org/#search%7Cga%7C1
 or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-connector) for releases to download.
 
 | Connector | Apache Spark | Couchbase Server |
-|-----------|--------------| ---------------- |
+|-----------|--------------|------------------|
+| 3.5.x     | 3.5          | 7.x              |
 | 3.3.x     | 3.3          | 6.x - 7.x        |
 | 3.2.x     | 3.2          | 6.x - 7.x        |
 | 3.1.x     | 3.1          | 6.x - 7.x        |
