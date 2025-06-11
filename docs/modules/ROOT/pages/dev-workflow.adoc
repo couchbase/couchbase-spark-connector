@@ -119,7 +119,7 @@ We need this to not include Spark in the shadowed jar but still allow it to run 
 Also, create `project/plugins.sbt` if it doesn't exist and add:
 
 ----
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.0.0")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.2.0")
 ----
 
 The code now is similar to the previous section, but you need to make sure that the class you run in your IDE is in the test namespace so that Spark is actually included during development:
