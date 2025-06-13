@@ -19,7 +19,7 @@ import com.couchbase.client.core.error.{CouchbaseException, DocumentExistsExcept
 import com.couchbase.client.scala.codec.RawJsonTranscoder
 import com.couchbase.client.scala.durability.Durability
 import com.couchbase.client.scala.json.JsonObject
-import com.couchbase.client.scala.kv.{InsertOptions, UpsertOptions}
+import com.couchbase.client.scala.kv.{InsertOptions, ReplaceOptions, UpsertOptions}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.api.java.function.ForeachPartitionFunction
@@ -88,6 +88,13 @@ class KeyValueTableProvider
       properties: util.Map[String, String],
       conf: CouchbaseConfig
   ): KeyValueWriteConfig = {
+    val writeMode = properties.get(KeyValueOptions.WriteMode) match {
+      case null => None
+      case KeyValueOptions.WriteModeReplace => Some(KeyValueOptions.WriteModeReplace)
+      case v => 
+        throw new IllegalArgumentException("Unknown KeyValueOptions.WriteMode option: " + v)
+    }
+    
     KeyValueWriteConfig(
       conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
@@ -100,7 +107,8 @@ class KeyValueTableProvider
       Option(properties.get(KeyValueOptions.ErrorHandler)),
       Option(properties.get(KeyValueOptions.ErrorBucket)),
       Option(properties.get(KeyValueOptions.ErrorScope)),
-      Option(properties.get(KeyValueOptions.ErrorCollection))
+      Option(properties.get(KeyValueOptions.ErrorCollection)),
+      writeMode
     )
   }
 
@@ -290,15 +298,20 @@ class RelationPartitionWriter(
         .fromIterable(keyValues)
         .flatMap(v => {
           val (id, content) = v
-          val baseMono = mode match {
-            case SaveMode.Overwrite =>
-              coll.reactive.upsert(id, content, buildUpsertOptions(durability))
-            case SaveMode.ErrorIfExists =>
-              coll.reactive.insert(id, content, buildInsertOptions(durability))
-            case SaveMode.Ignore =>
-              coll.reactive.insert(id, content, buildInsertOptions(durability))
+          val baseMono = writeConfig.writeMode match {
+            case Some(KeyValueOptions.WriteModeReplace) =>
+              coll.reactive.replace(id, content, buildReplaceOptions(durability))
             case _ =>
-              throw new RuntimeException("Unexpected save mode " + mode)
+              mode match {
+                case SaveMode.Overwrite =>
+                  coll.reactive.upsert(id, content, buildUpsertOptions(durability))
+                case SaveMode.ErrorIfExists =>
+                  coll.reactive.insert(id, content, buildInsertOptions(durability))
+                case SaveMode.Ignore =>
+                  coll.reactive.insert(id, content, buildInsertOptions(durability))
+                case _ =>
+                  throw new RuntimeException("Unexpected save mode " + mode)
+              }
           }
 
           baseMono.onErrorResume(t => handleWriteError(t, id, mode))
@@ -348,6 +361,12 @@ class RelationPartitionWriter(
 
   def buildUpsertOptions(durability: Durability): UpsertOptions = {
     var opts = UpsertOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
+    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    opts
+  }
+
+  def buildReplaceOptions(durability: Durability): ReplaceOptions = {
+    var opts = ReplaceOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
     writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
