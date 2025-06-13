@@ -211,4 +211,24 @@ object KeyValueOptions {
     */
   val StreamFromBeginning = "fromBeginning"
 
+  /** Option Key: Specifies the write mode for operations.
+   *
+   * Can be used with values like [[WriteModeReplace]] to specify the operation type.
+   * This is used when Spark's SaveMode is not sufficient for the required operation.
+   * When WriteMode is set, Spark's SaveMode will be ignored.
+   */
+  val WriteMode = "writeMode"
+
+  /** Option value: Use replace operation for writes - to be used with [[WriteMode]] as the key.
+    *
+    * IMPORTANT: Replace operations require that documents already exist in the target collection.
+    * If any document does not exist, the operation will fail with DocumentNotFoundException.
+    * This will generally result in job failure unless error handling is configured using either:
+    * - [[ErrorHandler]]: A custom error handler class to handle failures
+    * - [[ErrorBucket]]: Write failed operations to Couchbase for later analysis
+    *
+    * When WriteModeReplace is used, Spark's SaveMode is ignored and replace semantics are applied.
+    */
+  val WriteModeReplace = "replace"
+
 }

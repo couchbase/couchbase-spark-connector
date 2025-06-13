@@ -26,5 +26,6 @@ case class KeyValueWriteConfig(
     errorHandler: Option[String],
     errorBucket: Option[String],
     errorScope: Option[String],
-    errorCollection: Option[String]
+    errorCollection: Option[String],
+    writeMode: Option[String]
 )
