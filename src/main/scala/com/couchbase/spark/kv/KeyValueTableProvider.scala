@@ -15,7 +15,7 @@
  */
 package com.couchbase.spark.kv
 
-import com.couchbase.client.core.error.DocumentExistsException
+import com.couchbase.client.core.error.{CouchbaseException, DocumentExistsException}
 import com.couchbase.client.scala.codec.RawJsonTranscoder
 import com.couchbase.client.scala.durability.Durability
 import com.couchbase.client.scala.json.JsonObject
@@ -96,7 +96,11 @@ class KeyValueTableProvider
         .getOrElse(DefaultConstants.DefaultIdFieldName),
       Option(properties.get(KeyValueOptions.Durability)),
       Option(properties.get(KeyValueOptions.Timeout)),
-      Option(properties.get(KeyValueOptions.ConnectionIdentifier))
+      Option(properties.get(KeyValueOptions.ConnectionIdentifier)),
+      Option(properties.get(KeyValueOptions.ErrorHandler)),
+      Option(properties.get(KeyValueOptions.ErrorBucket)),
+      Option(properties.get(KeyValueOptions.ErrorScope)),
+      Option(properties.get(KeyValueOptions.ErrorCollection))
     )
   }
 
@@ -207,58 +211,133 @@ class RelationPartitionWriter(
     mode: SaveMode
 ) extends ForeachPartitionFunction[String]
     with Logging {
-  override def call(t: util.Iterator[String]): Unit = {
-    val scopeName      = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
-    val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
-    val keyValues = t.asScala
-      .map(encoded => {
-        val decoded = JsonObject.fromJson(encoded)
-        val id      = decoded.str(writeConfig.idFieldName)
-        decoded.remove(writeConfig.idFieldName)
-        (id, decoded.toString)
-      })
-      .toList
+  private val (errorHandler, errorDocumentHandler)
+      : (Option[KeyValueWriteErrorHandler], Option[KeyValueErrorDocumentHandler]) = {
+    val regularHandler = writeConfig.errorHandler.map(validateAndInstantiateCustomErrorHandler)
+    val documentHandler =
+      writeConfig.errorBucket.map(_ => new KeyValueErrorDocumentHandler(writeConfig, couchbaseConfig))
+    (regularHandler, documentHandler)
+  }
 
-    val coll = CouchbaseConnection(writeConfig.connectionIdentifier)
-      .cluster(couchbaseConfig)
-      .bucket(writeConfig.bucket)
-      .scope(scopeName)
-      .collection(collectionName)
+  // transient lazy defers this until it's run on the executor. Required as ErrorQueueManager is not serializable.
+  @transient private lazy val errorQueueManager = new ErrorQueueManager(errorHandler, errorDocumentHandler)
 
-    val durability = writeConfig.durability match {
-      case Some(v) if v == KeyValueOptions.MajorityDurability => Durability.Majority
-      case Some(v) if v == KeyValueOptions.MajorityAndPersistToActiveDurability =>
-        Durability.MajorityAndPersistToActive
-      case Some(v) if v == KeyValueOptions.PersistToMajorityDurability =>
-        Durability.PersistToMajority
-      case None => Durability.Disabled
-      case d => throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
+  private def validateAndInstantiateCustomErrorHandler(
+      className: String
+  ): KeyValueWriteErrorHandler = {
+    try {
+      val clazz    = Class.forName(className)
+      val instance = clazz.getDeclaredConstructor().newInstance()
+      if (!instance.isInstanceOf[KeyValueWriteErrorHandler]) {
+        throw new IllegalArgumentException(
+          s"Error handler class $className does not implement KeyValueWriteErrorHandler"
+        )
+      }
+      instance.asInstanceOf[KeyValueWriteErrorHandler]
+    } catch {
+      case _: ClassNotFoundException =>
+        throw new IllegalArgumentException(s"Error handler class not found: $className")
+      case _: InstantiationException =>
+        throw new IllegalArgumentException(
+          s"Error handler class $className cannot be instantiated (no default constructor?)"
+        )
+      case _: IllegalAccessException =>
+        throw new IllegalArgumentException(
+          s"Error handler class $className constructor is not accessible"
+        )
+      case e: IllegalArgumentException =>
+        throw e // Re-throw our custom messages
+      case e: Exception =>
+        throw new IllegalArgumentException(
+          s"Failed to validate error handler class $className: ${e.getMessage}",
+          e
+        )
     }
+  }
 
-    SFlux
-      .fromIterable(keyValues)
-      .flatMap(v => {
-        mode match {
-          case SaveMode.Overwrite =>
-            coll.reactive.upsert(v._1, v._2, buildUpsertOptions(durability))
-          case SaveMode.ErrorIfExists =>
-            coll.reactive.insert(v._1, v._2, buildInsertOptions(durability))
-          case SaveMode.Ignore =>
-            coll.reactive
-              .insert(v._1, v._2, buildInsertOptions(durability))
-              .onErrorResume(t => {
-                if (t.isInstanceOf[DocumentExistsException]) {
-                  SMono.empty
-                } else {
-                  SMono.error(t)
-                }
-              })
-          case m =>
-            throw new IllegalStateException("Unsupported SaveMode: " + m)
-        }
-      })
-      .blockLast()
+  override def call(t: util.Iterator[String]): Unit = {
+    try {
+      val scopeName      = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
+      val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
+
+      val keyValues = t.asScala
+        .map(encoded => {
+          val decoded = JsonObject.fromJson(encoded)
+          val id      = decoded.str(writeConfig.idFieldName)
+          decoded.remove(writeConfig.idFieldName)
+          (id, decoded.toString)
+        })
+        .toList
+
+      val coll = CouchbaseConnection(writeConfig.connectionIdentifier)
+        .cluster(couchbaseConfig)
+        .bucket(writeConfig.bucket)
+        .scope(scopeName)
+        .collection(collectionName)
+
+      val durability = writeConfig.durability match {
+        case Some(v) if v == KeyValueOptions.MajorityDurability => Durability.Majority
+        case Some(v) if v == KeyValueOptions.MajorityAndPersistToActiveDurability =>
+          Durability.MajorityAndPersistToActive
+        case Some(v) if v == KeyValueOptions.PersistToMajorityDurability =>
+          Durability.PersistToMajority
+        case None => Durability.Disabled
+        case d => throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
+      }
+
+      SFlux
+        .fromIterable(keyValues)
+        .flatMap(v => {
+          val (id, content) = v
+          val baseMono = mode match {
+            case SaveMode.Overwrite =>
+              coll.reactive.upsert(id, content, buildUpsertOptions(durability))
+            case SaveMode.ErrorIfExists =>
+              coll.reactive.insert(id, content, buildInsertOptions(durability))
+            case SaveMode.Ignore =>
+              coll.reactive.insert(id, content, buildInsertOptions(durability))
+            case _ =>
+              throw new RuntimeException("Unexpected save mode " + mode)
+          }
+
+          baseMono.onErrorResume(t => handleWriteError(t, id, mode))
+        })
+        .blockLast()
+    } finally {
+      errorQueueManager.shutdown()
+    }
+  }
+
+  private def handleWriteError(
+      throwable: Throwable,
+      documentId: String,
+      saveMode: SaveMode
+  ): SMono[_] = {
+    // Special case for SaveMode.Ignore: silently ignore DocumentExistsException
+    if (saveMode == SaveMode.Ignore && throwable.isInstanceOf[DocumentExistsException]) {
+      logInfo(s"Document $documentId already exists, ignoring as per SaveMode.Ignore")
+      SMono.empty
+    } else {
+      if (errorHandler.isDefined || errorDocumentHandler.isDefined) {
+        val errorInfo = createErrorInfo(documentId, throwable)
+        // Intentionally not part of the reactive chain and will not block
+        errorQueueManager.enqueueError(errorInfo)
+        SMono.empty
+      } else {
+        SMono.error(throwable)
+      }
+    }
+  }
+
+  private def createErrorInfo(documentId: String, throwable: Throwable): KeyValueWriteErrorInfo = {
+    KeyValueWriteErrorInfo(
+      bucket = writeConfig.bucket,
+      scope = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName),
+      collection = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName),
+      documentId = documentId,
+      throwable = Some(throwable)
+    )
   }
 
   def buildInsertOptions(durability: Durability): InsertOptions = {

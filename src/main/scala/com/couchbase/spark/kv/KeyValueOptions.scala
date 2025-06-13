@@ -108,6 +108,74 @@ object KeyValueOptions {
     */
   val StreamPersistencePollingInterval = "streamPersistencePollingInterval"
 
+  /** Option Key: Enables writing failed documents to a specified Couchbase collection.
+   *
+   * This handler creates error documents with the pattern:
+   * "error_{orig_doc_bucket}.{orig_doc_scope}.{orig_doc_collection}_{orig_doc_id}_{timestamp}"
+   *
+   * One will be created for each failing underlying KeyValue operation (e.g. an individual upsert,
+   * insert or similar).
+   *
+   * The error document currently contains JSON with the following fields:
+   *   - "timestamp": ISO 8601 timestamp when the error occurred
+   *   - "documentId": The original document ID that failed
+   *   - "bucket": The original bucket name
+   *   - "scope": The original scope name
+   *   - "collection": The original collection name
+   *   - "error": Nested object containing:
+   *     - "class": Full class name of the exception
+   *     - "simpleClass": Simple class name of the exception
+   *     - "context": Couchbase context map (for Couchbase errors)
+   *
+   * NOTE: these fields should be regarded as somewhat volatile. While the fields above are
+   * unlikely to be removed, additional fields may be added in future versions, and not all fields
+   * may be available on all every operation. Applications should handle missing fields gracefully.
+   * In particular the contents of the "context" field should not be relied upon.
+   *
+   * The bucket, scope, and collection must already exist, otherwise these error documents will be
+   * unable to be written.
+   *
+   * IMPORTANT: When ErrorBucket is specified, individual write operation failures will no longer
+   * cause the entire Spark job to fail.
+   *
+   * Both ErrorBucket and ErrorHandler may be used together.
+   *
+   * Note that error processing is handled by a bounded background queue, on the Spark executor.
+   * If this queue is exceeded, additional failures will be discarded with a warning logged in the executor logs.
+   * This prevents excessive memory usage during pathological error conditions.
+   */
+  val ErrorBucket = "errorBucket"
+
+  /** Option Key: The scope name where error documents should be stored.
+   *
+   * The scope must already exist. If not specified, uses default scope.
+   */
+  val ErrorScope = "errorScope"
+
+  /** Option Key: The collection name where error documents should be stored.
+   *
+   * The collection must already exist. If not specified, uses default collection.
+   */
+  val ErrorCollection = "errorCollection"
+
+  /** Option Key: an error handler class name for handling write operation errors.
+    *
+    * The value should be a fully qualified class name that implements KeyValueWriteErrorHandler.  The class code must be
+    * present on the classpath of what the Spark executor is given to run.
+    *
+    * When ErrorHandler is specified, individual write operation failures will no longer
+    * cause the entire Spark job to fail.
+    *
+    * Note the ErrorHandler will be run on the Spark executor - NOT the main application.  See
+    * [[com.couchbase.spark.kv.ErrorHandler]] for why this is important, and for the limitations it
+    * creates.  Users should prefer ErrorBucket for error handling.
+    *
+    * Note that error processing is handled by a bounded background queue, on the Spark executor.
+    * If this queue is exceeded, additional failures will be discarded with a warning logged in the executor logs.
+    * This prevents excessive memory usage during pathological error conditions.
+    */
+  val ErrorHandler = "errorHandler"
+
   /** Option value: Majority Durability - to be used with [[Durability]] as the key.
     */
   val MajorityDurability = "majority"
