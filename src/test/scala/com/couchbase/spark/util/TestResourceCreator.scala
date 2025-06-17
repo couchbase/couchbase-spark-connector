@@ -87,6 +87,7 @@ class TestResourceCreator(settings: CouchbaseClusterSettings) extends Logging {
       .format("couchbase.kv")
       .mode(SaveMode.Overwrite)
       .option(KeyValueOptions.Bucket, bucketName)
+      .option(KeyValueOptions.Timeout, "30s")
       .save()
 
     airports.write
@@ -94,6 +95,7 @@ class TestResourceCreator(settings: CouchbaseClusterSettings) extends Logging {
       .option(KeyValueOptions.Bucket, bucketName)
       .option(KeyValueOptions.Scope, scopeName)
       .option(KeyValueOptions.Collection, collectionName)
+      .option(KeyValueOptions.Timeout, "30s")
       .mode(SaveMode.Overwrite)
       .save()
   }
