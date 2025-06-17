@@ -6,6 +6,11 @@ build/
 **/.DS_Store
 out/*
 .bsp/
+<<<<<<< HEAD   (920963 Minor fixes for KeyValueDataFrameWriteExample)
 **/.txt
 **/.env
 *.txt
+=======
+**/.env
+**/*.local.properties
+>>>>>>> CHANGE (e5ae63 .gitignore)
