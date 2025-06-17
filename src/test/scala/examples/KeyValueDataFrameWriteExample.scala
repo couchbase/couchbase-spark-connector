@@ -19,7 +19,7 @@ import com.couchbase.spark.kv.KeyValueOptions
 import com.couchbase.spark.query.QueryOptions
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-object KeyValueSqlWriteExample {
+object KeyValueDataFrameWriteExample {
 
   def main(args: Array[String]): Unit = {
     val spark = SparkSession
@@ -41,9 +41,6 @@ object KeyValueSqlWriteExample {
     airlines.write
       .format("couchbase.kv")
       .option(KeyValueOptions.Bucket, "travel-sample")
-      .option(KeyValueOptions.Durability, KeyValueOptions.MajorityDurability)
-      .option(KeyValueOptions.StreamFrom, KeyValueOptions.StreamFromBeginning)
-      // .option(KeyValueOptions.Timeout, "10s")
       .mode(SaveMode.Ignore)
       .save()
   }
