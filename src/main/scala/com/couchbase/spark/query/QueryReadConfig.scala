@@ -21,6 +21,8 @@ case class QueryReadConfig(
     scope: Option[String],
     collection: Option[String],
     idFieldName: String,
+    casFieldName: String,
+    outputCas: Boolean,
     userFilter: Option[String],
     scanConsistency: String,
     timeout: Option[String],

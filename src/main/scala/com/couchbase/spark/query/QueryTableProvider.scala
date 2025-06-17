@@ -69,6 +69,10 @@ class QueryTableProvider
 
     val idFieldName =
       Option(options.get(QueryOptions.IdFieldName)).getOrElse(DefaultConstants.DefaultIdFieldName)
+    val casFieldName =
+      Option(options.get(QueryOptions.CasFieldName)).getOrElse(DefaultConstants.DefaultCasFieldName)
+    val outputCas =
+      Option(options.get(QueryOptions.OutputCas)).getOrElse("false").toBoolean
     val whereClause = Option(options.get(QueryOptions.Filter)).map(p => s" WHERE $p").getOrElse("")
     val bucketName  = conf.implicitBucketNameOr(options.get(QueryOptions.Bucket))
     val inferLimit =
@@ -93,6 +97,8 @@ class QueryTableProvider
       .implicitCollectionName(options.get(QueryOptions.Collection))
       .getOrElse(DefaultConstants.DefaultCollectionName)
 
+    val casSelect = if (outputCas) s", META().cas as $casFieldName" else ""
+    
     val result =
       if (
         scopeName.equals(DefaultConstants.DefaultScopeName) && collectionName.equals(
@@ -100,12 +106,12 @@ class QueryTableProvider
         )
       ) {
         val statement =
-          s"SELECT META().id as $idFieldName, `$bucketName`.* FROM `$bucketName`$whereClause LIMIT $inferLimit"
+          s"SELECT META().id as $idFieldName$casSelect, `$bucketName`.* FROM `$bucketName`$whereClause LIMIT $inferLimit"
         logDebug(s"Inferring schema from bucket $bucketName with query '$statement'")
         CouchbaseConnection(connectionIdentifier).cluster(conf).query(statement, opts)
       } else {
         val statement =
-          s"SELECT META().id as $idFieldName, `$collectionName`.* FROM `$collectionName`$whereClause LIMIT $inferLimit"
+          s"SELECT META().id as $idFieldName$casSelect, `$collectionName`.* FROM `$collectionName`$whereClause LIMIT $inferLimit"
         logDebug(
           s"Inferring schema from bucket/scope/collection $bucketName/$scopeName/$collectionName with query '$statement'"
         )
@@ -174,6 +180,9 @@ class QueryTableProvider
       conf.implicitCollectionName(properties.get(QueryOptions.Collection)),
       Option(properties.get(QueryOptions.IdFieldName))
         .getOrElse(DefaultConstants.DefaultIdFieldName),
+      Option(properties.get(QueryOptions.CasFieldName))
+        .getOrElse(DefaultConstants.DefaultCasFieldName),
+      Option(properties.get(QueryOptions.OutputCas)).getOrElse("false").toBoolean,
       Option(properties.get(QueryOptions.Filter)),
       Option(properties.get(QueryOptions.ScanConsistency))
         .getOrElse(DefaultConstants.DefaultQueryScanConsistency),

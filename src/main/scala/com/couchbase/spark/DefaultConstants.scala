@@ -25,6 +25,10 @@ object DefaultConstants {
     */
   val DefaultIdFieldName = "__META_ID"
 
+  /** The default field name used for the document CAS when used in queries.
+    */
+  val DefaultCasFieldName = "__META_CAS"
+
   /** The default query scan consistency to use if not provided by the user.
     */
   val DefaultQueryScanConsistency = "notBounded"

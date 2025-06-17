@@ -154,10 +154,14 @@ class QueryPartitionReader(
   def buildQuery(): String = {
     var fields = schema.fields
       .map(f => f.name)
-      .filter(f => !f.equals(readConfig.idFieldName))
+      .filter(f => !f.equals(readConfig.idFieldName) && !f.equals(readConfig.casFieldName))
       .map(f => maybeEscapeField(f))
     if (!hasAggregateFields) {
       fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
+      if (readConfig.outputCas) {
+        val fieldName = readConfig.casFieldName
+        fields = fields :+ s"META().cas as `$fieldName`"
+      }
     }
 
     var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")

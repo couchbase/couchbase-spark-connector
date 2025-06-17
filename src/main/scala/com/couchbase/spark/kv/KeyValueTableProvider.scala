@@ -28,23 +28,14 @@ import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, DataSourceRegister}
-import org.apache.spark.sql.types.{
-  BinaryType,
-  BooleanType,
-  IntegerType,
-  LongType,
-  MapType,
-  StringType,
-  StructField,
-  StructType,
-  TimestampType
-}
+import org.apache.spark.sql.types.{BinaryType, BooleanType, IntegerType, LongType, MapType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import reactor.core.scala.publisher.{SFlux, SMono}
 
 import scala.collection.JavaConverters._
 import java.util
 import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success}
 
 class KeyValueTableProvider
     extends Logging
@@ -101,6 +92,7 @@ class KeyValueTableProvider
       conf.implicitCollectionName(properties.get(KeyValueOptions.Collection)),
       Option(properties.get(KeyValueOptions.IdFieldName))
         .getOrElse(DefaultConstants.DefaultIdFieldName),
+      Option(properties.get(KeyValueOptions.CasFieldName)),
       Option(properties.get(KeyValueOptions.Durability)),
       Option(properties.get(KeyValueOptions.Timeout)),
       Option(properties.get(KeyValueOptions.ConnectionIdentifier)),
@@ -269,14 +261,38 @@ class RelationPartitionWriter(
       val scopeName      = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
       val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
+      logInfo("Starting JSON conversion of all documents")
+
       val keyValues = t.asScala
         .map(encoded => {
           val decoded = JsonObject.fromJson(encoded)
-          val id      = decoded.str(writeConfig.idFieldName)
+          val id = decoded.str(writeConfig.idFieldName)
           decoded.remove(writeConfig.idFieldName)
-          (id, decoded.toString)
+
+          val cas: Option[Long] = writeConfig.casFieldName match {
+            case Some(casFieldName) =>
+              decoded.safe.numLong(casFieldName) match {
+                case Failure(_) =>
+                  // Fail up front.  Usually if CAS is not present it's not going to be present for any doc, and we
+                  // don't want to invoke the error handler pointlessly N times.
+                  throw new IllegalArgumentException(s"CAS field '${casFieldName}' was specified but no valid CAS value found in that column for document '$id'")
+                case Success(cas) =>
+                  decoded.safe.remove(casFieldName)
+                  Some(cas)
+              }
+            case _ => None
+          }
+
+          // A query read can now easily add this CAS field.
+          // We'll assume the user doesn't want to write a column __META_CAS to their KV docs, regardless of whether
+          // they have explicitly requested CAS or not.
+          decoded.safe.remove(DefaultConstants.DefaultCasFieldName)
+
+          (id, decoded, cas)
         })
         .toList
+
+      logInfo("Completed JSON conversion of all documents")
 
       val coll = CouchbaseConnection(writeConfig.connectionIdentifier)
         .cluster(couchbaseConfig)
@@ -297,11 +313,20 @@ class RelationPartitionWriter(
       SFlux
         .fromIterable(keyValues)
         .flatMap(v => {
-          val (id, content) = v
+          val (id, decoded, cas) = v
+          
+          val content = decoded.toString
           val baseMono = writeConfig.writeMode match {
             case Some(KeyValueOptions.WriteModeReplace) =>
-              coll.reactive.replace(id, content, buildReplaceOptions(durability))
+              cas match {
+                case Some(casValue: Long) =>
+                  coll.reactive.replace(id, content, buildReplaceOptions(durability, Some(casValue)))
+                case _ =>
+                  coll.reactive.replace(id, content, buildReplaceOptions(durability, None))
+              }
+              
             case _ =>
+              val content = decoded.toString
               mode match {
                 case SaveMode.Overwrite =>
                   coll.reactive.upsert(id, content, buildUpsertOptions(durability))
@@ -365,8 +390,9 @@ class RelationPartitionWriter(
     opts
   }
 
-  def buildReplaceOptions(durability: Durability): ReplaceOptions = {
+  def buildReplaceOptions(durability: Durability, cas: Option[Long] = None): ReplaceOptions = {
     var opts = ReplaceOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
+    cas.foreach(casValue => opts = opts.cas(casValue))
     writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts
   }
