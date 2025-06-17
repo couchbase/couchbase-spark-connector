@@ -56,6 +56,17 @@ object KeyValueOptions {
     */
   val IdFieldName = "idFieldName"
 
+  /** Option Key: The field name of the document CAS, used to override the default.
+    *
+    * This both sets the column name and enables CAS-based operations, where that is supported
+    *
+    * CAS is supported for:
+    * - Replace operations ([[WriteModeReplace]])
+    *
+    * CAS is not supported for other operations (SaveMode.Overwrite, SaveMode.ErrorIfExists, SaveMode.Ignore).
+    */
+  val CasFieldName = "casFieldName"
+
   /** Option key: The durability level of write operations, used to override the default.
     *
     * The default is "none", so no durability applied on write operations.
@@ -138,6 +149,9 @@ object KeyValueOptions {
    * IMPORTANT: When ErrorBucket is specified, individual write operation failures will no longer
    * cause the entire Spark job to fail.
    *
+   * Some validation failures that occur before the write operations commence will intentionally continue to fast-fail
+   * the Spark job, and will not trigger this error handler.
+   *
    * Both ErrorBucket and ErrorHandler may be used together.
    *
    * Note that error processing is handled by a bounded background queue, on the Spark executor.
@@ -165,6 +179,9 @@ object KeyValueOptions {
     *
     * When ErrorHandler is specified, individual write operation failures will no longer
     * cause the entire Spark job to fail.
+    *
+    * Some validation failures that occur before the write operations commence will intentionally continue to fast-fail
+    * the Spark job, and will not trigger this error handler.
     *
     * Note the ErrorHandler will be run on the Spark executor - NOT the main application.  See
     * [[com.couchbase.spark.kv.ErrorHandler]] for why this is important, and for the limitations it
@@ -221,14 +238,24 @@ object KeyValueOptions {
 
   /** Option value: Use replace operation for writes - to be used with [[WriteMode]] as the key.
     *
-    * IMPORTANT: Replace operations require that documents already exist in the target collection.
+    * Replace operations require that documents already exist in the target collection.
     * If any document does not exist, the operation will fail with DocumentNotFoundException.
-    * This will generally result in job failure unless error handling is configured using either:
+    *
+    * CAS support:
+    * Couchbase's optimistic locking, CAS, is supported.
+    * This mode will automatically use CAS values if the CAS column (enabled and specified by [[CasFieldName]])
+    * is present in the DataFrame with valid values. If a custom CAS field name is specified
+    * and the column is missing or contains invalid values, the job will fast-fail.
+    *
+    * If the replace of the document fails because the document has changed since the read (e.g. the CAS has changed),
+    * that operation will fail with a CasMismatchException.
+    *
+    * Any operation failure, such as DocumentNotFoundException, CasMismatchException or other, will generally result in
+    * job failure unless error handling is configured using either:
     * - [[ErrorHandler]]: A custom error handler class to handle failures
     * - [[ErrorBucket]]: Write failed operations to Couchbase for later analysis
     *
     * When WriteModeReplace is used, Spark's SaveMode is ignored and replace semantics are applied.
     */
   val WriteModeReplace = "replace"
-
 }

@@ -59,6 +59,13 @@ object QueryOptions {
     */
   val IdFieldName = "idFieldName"
 
+  /** Option Key: The field name of the document CAS, used to override the default.
+    *
+    * Note: This option is only used when [[OutputCas]] is set to "true".
+    * The default can be located in [[DefaultConstants.DefaultCasFieldName]]
+    */
+  val CasFieldName = "casFieldName"
+
   /** Option Key: Allows to override the scan consistency for the query performed.
     */
   val ScanConsistency = "scanConsistency"
@@ -81,6 +88,12 @@ object QueryOptions {
     * there be any issues identified in the field.
     */
   val PushDownAggregate = "pushDownAggregate"
+
+  /** Option Key: If the CAS value should be included in the query results.
+    *
+    * The value is a "true" or "false", where "false" is the default (for backwards compatibility).
+    */
+  val OutputCas = "outputCas"
 
   /** Option Value: Not bounded scan consistency - to be used with [[ScanConsistency]] as the key.
     *
