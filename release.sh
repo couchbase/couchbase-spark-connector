@@ -25,7 +25,7 @@ vers=3.5.0-SNAPSHOT                                         # the version being 
 #  * Push all changes to Gerrit for review, including changes to this file.
 #  * Release on Jira.
 #  * Release notes.
-#  * Release the staged Sonatype repo.
+#  * Release the uploaded bundle via https://central.sonatype.com/publishing/deployments
 
 set -e
 set -x
@@ -38,7 +38,7 @@ if [[ "$vers" == *"-SNAPSHOT" ]]; then
   snapshot=true
 fi
 
-echo "Snapshot build: ${snapshot}"
+echo "Is snapshot build: ${snapshot}"
 
 # Git tagging.
 if ! $snapshot; then
@@ -46,18 +46,30 @@ if ! $snapshot; then
   git push gerrit $vers
 fi
 
-# Build and publish to the local Maven repo.
+# Build and publish to the local Maven repo (used by the zipfile).
 sbt clean +publishM2
 
 # Build fatjar (needed for Databricks).
 sbt +assembly
+
+# Publish to Maven Central Portal
+if $snapshot; then
+  # Publish snapshots directly
+  sbt clean +publishSigned
+else
+  # Creates a local staging dir
+  sbt clean +publishSigned
+  # Uploads the staging dir to Central Portal
+  sbt sonatypeCentralUpload
+  # Release via https://central.sonatype.com/publishing/deployments
+fi
 
 # Upload the docs.  We only upload 2.12, as there are no API differences in 2.13.
 if ! $snapshot; then
   s3cmd --acl-public --no-mime-magic -M -r put target/scala-2.12/api s3://docs.couchbase.com/sdk-api/couchbase-spark-connector-$vers/
 fi
 
-# Stage to Sonatype.  Not allowed to upload from local repo so need to copy to a staging dir.
+# Create and upload distribution zipfiles
 for scala_version in "2.12" "2.13"
 do
   mkdir -p $staging_dir/$scala_version
@@ -65,14 +77,6 @@ do
   cp target/scala-$scala_version/spark-connector-assembly-$vers.jar $staging_dir/$scala_version
 
   pushd $staging_dir/$scala_version
-
-  # Publishing to Sonatype not working for SNAPSHOT, but presumably could.
-  if ! $snapshot; then
-    name=spark-connector_$scala_version-$vers
-    mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=ossrh -DpomFile=$name.pom -Dfile=$name.jar -Dpackaging=jar
-    mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=ossrh -DpomFile=$name.pom -Dfile=$name-javadoc.jar -Dclassifier=javadoc -Dpackaging=jar
-    mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=ossrh -DpomFile=$name.pom -Dfile=$name-sources.jar -Dclassifier=sources -Dpackaging=jar
-  fi
 
   # Create and upload the zipfile.
   # We still do this for SNAPSHOT to make it easy for users to access.
