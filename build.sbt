@@ -16,17 +16,15 @@ val dcpVersion   = "0.54.0"
 
 scalacOptions += "-feature"
 
-credentials += Credentials("Sonatype Nexus Repository Manager",
-  "oss.sonatype.org",
-  sys.env.getOrElse("SONATYPE_USERNAME", ""),
-  sys.env.getOrElse("SONATYPE_PASSWORD", ""))
-credentials += Credentials("Sonatype Nexus Repository Manager",
-  "ossrh",
-  sys.env.getOrElse("SONATYPE_USERNAME", ""),
-  sys.env.getOrElse("SONATYPE_PASSWORD", ""))
+// Central Portal credentials
+credentials += Credentials(Path.userHome / ".sbt" / "central_portal_credentials")
+
+// Central Portal configuration
+import xerial.sbt.Sonatype.sonatypeCentralHost
+ThisBuild / sonatypeCredentialHost := sonatypeCentralHost
 
 resolvers += Resolver.mavenLocal
-resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+resolvers += "Central Portal Snapshots" at "https://central.sonatype.com/repository/maven-snapshots/"
 
 libraryDependencies ++= Seq(
   "org.apache.spark"     %% "spark-core"        % sparkVersion                     % Provided,
@@ -90,13 +88,16 @@ licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 
 publishMavenStyle := true
 
-// Add sonatype repository settings
-publishTo := Some(
+// Maven Central Portal publishing configuration
+ThisBuild / publishTo := {
   if (isSnapshot.value)
-    Opts.resolver.sonatypeSnapshots
+    Some("Central Portal Snapshots" at "https://central.sonatype.com/repository/maven-snapshots/")
   else
-    Opts.resolver.sonatypeStaging
-)
+    sonatypePublishToBundle.value
+}
+
+// Exclude repositories from POM
+pomIncludeRepository := { _ => false }
 
 ThisBuild / assemblyMergeStrategy := {
   case "META-INF/io.netty.versions.properties" => MergeStrategy.first
