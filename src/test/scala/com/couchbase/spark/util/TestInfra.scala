@@ -68,12 +68,14 @@ class TestInfraConnectedToSpark(
       .write
       .format("couchbase.kv")
       .mode(SaveMode.Overwrite)
+      .option(KeyValueOptions.Timeout, "30s")
       .save()
 
     airports.write
       .format("couchbase.kv")
       .option(KeyValueOptions.Scope, params.scopeName)
       .option(KeyValueOptions.Collection, params.collectionName)
+      .option(KeyValueOptions.Timeout, "30s")
       .mode(SaveMode.Overwrite)
       .save()
 
