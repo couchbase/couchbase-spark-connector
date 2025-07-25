@@ -64,5 +64,11 @@ object SparkSessionHelper {
       .config("spark.couchbase.connectionString", params.connectionString)
       .config("spark.couchbase.username", params.username)
       .config("spark.couchbase.password", params.password)
+
+    if (params.tlsInsecure) {
+      sparkBuilder.config("spark.ssl.insecure", params.tlsInsecure.toString)
+    }
+
+    sparkBuilder
   }
 }

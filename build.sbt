@@ -10,8 +10,10 @@ scalacOptions := Seq("-unchecked", "-deprecation")
 
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 
+// Important: when changing this, lookup the current Jackson dependency for Spark and update the dependencyOverrides below
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.6")
-val sdkVersion   = "1.8.1"
+val operationalSdkVersion   = "1.8.3"
+val enterpriseAnalyticsSdkVersion   = "1.0.0"
 val dcpVersion   = "0.54.0"
 
 scalacOptions += "-feature"
@@ -30,12 +32,21 @@ libraryDependencies ++= Seq(
   "org.apache.spark"     %% "spark-core"        % sparkVersion                     % Provided,
   "org.apache.spark"     %% "spark-sql"         % sparkVersion                     % Provided,
   "org.scala-lang"        % "scala-library"     % scalaVersion.value               % Provided,
-  "com.couchbase.client" %% "scala-client"      % sdkVersion,
+  "com.couchbase.client" %% "scala-client"      % operationalSdkVersion,
+  "com.couchbase.client"  % "couchbase-analytics-java-client"  % enterpriseAnalyticsSdkVersion,
   "com.couchbase.client"  % "dcp-client"        % dcpVersion,
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers"    % "couchbase"         % "1.21.1"                         % Test,
+  "org.testcontainers"    % "couchbase"         % "1.21.3"                         % Test,
   // For structured streaming testing
-  "commons-codec"         % "commons-codec"     % "1.17.1"                         % Test
+  "commons-codec"         % "commons-codec"     % "1.19.0"                         % Test
+)
+
+// The Java Enterprise Analytics SDK uses Jackson 2.19.1 but Spark 3.5.6 uses 2.15.2.
+// We have to pin to the earlier version.
+dependencyOverrides ++= Seq(
+  "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.2",
+  "com.fasterxml.jackson.core" % "jackson-core" % "2.15.2",
+  "com.fasterxml.jackson.core" % "jackson-annotations" % "2.15.2"
 )
 
 // Fix for JDK module system issues with Spark

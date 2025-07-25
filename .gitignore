@@ -8,3 +8,7 @@ out/*
 .bsp/
 **/.env
 **/*.local.properties
+*.txt
+src/test/scala/exploration/
+.metals/
+.vscode/

@@ -2,3 +2,4 @@ com.couchbase.spark.query.QueryTableProvider
 com.couchbase.spark.analytics.AnalyticsTableProvider
 com.couchbase.spark.columnar.ColumnarTableProvider
 com.couchbase.spark.kv.KeyValueTableProvider
+com.couchbase.spark.enterpriseanalytics.EnterpriseAnalyticsTableProvider
