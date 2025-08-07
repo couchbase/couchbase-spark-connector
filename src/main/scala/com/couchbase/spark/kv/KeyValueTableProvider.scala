@@ -18,8 +18,14 @@ package com.couchbase.spark.kv
 import com.couchbase.client.core.error.{CouchbaseException, DocumentExistsException}
 import com.couchbase.client.scala.codec.RawJsonTranscoder
 import com.couchbase.client.scala.durability.Durability
-import com.couchbase.client.scala.json.JsonObject
-import com.couchbase.client.scala.kv.{InsertOptions, ReplaceOptions, UpsertOptions}
+import com.couchbase.client.scala.json.{JsonObject}
+import com.couchbase.client.scala.kv.{
+  InsertOptions,
+  MutateInOptions,
+  ReplaceOptions,
+  StoreSemantics,
+  UpsertOptions
+}
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.api.java.function.ForeachPartitionFunction
@@ -28,11 +34,21 @@ import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, DataSourceRegister}
-import org.apache.spark.sql.types.{BinaryType, BooleanType, IntegerType, LongType, MapType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.types.{
+  BinaryType,
+  BooleanType,
+  IntegerType,
+  LongType,
+  MapType,
+  StringType,
+  StructField,
+  StructType,
+  TimestampType
+}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import reactor.core.scala.publisher.{SFlux, SMono}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import java.util
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success}
@@ -55,6 +71,23 @@ class KeyValueTableProvider
       ctx.sparkContext.getConf,
       parameters.get(KeyValueOptions.ConnectionIdentifier)
     )
+
+    val writeModeOpt = Option(parameters.get(KeyValueOptions.WriteMode))
+    val isSubdocMode = writeModeOpt.flatten.exists(m =>
+      m == KeyValueOptions.WriteModeSubdocInsert ||
+        m == KeyValueOptions.WriteModeSubdocReplace ||
+        m == KeyValueOptions.WriteModeSubdocUpsert
+    )
+    if (isSubdocMode) {
+      val idFieldName =
+        parameters.getOrElse(KeyValueOptions.IdFieldName, DefaultConstants.DefaultIdFieldName)
+      val casFieldOpt = parameters.get(KeyValueOptions.CasFieldName)
+      SubdocUtil.validate(
+        data.schema,
+        idFieldName,
+        casFieldOpt
+      )
+    }
     data.toJSON.foreachPartition(
       new RelationPartitionWriter(
         writeConfig(parameters.asJava, couchbaseConfig),
@@ -79,13 +112,19 @@ class KeyValueTableProvider
       properties: util.Map[String, String],
       conf: CouchbaseConfig
   ): KeyValueWriteConfig = {
-    val writeMode = properties.get(KeyValueOptions.WriteMode) match {
-      case null => None
-      case KeyValueOptions.WriteModeReplace => Some(KeyValueOptions.WriteModeReplace)
-      case v => 
+    val writeMode = Option(properties.get(KeyValueOptions.WriteMode)) match {
+      case None                                   => None
+      case Some(KeyValueOptions.WriteModeReplace) => Some(KeyValueOptions.WriteModeReplace)
+      case Some(KeyValueOptions.WriteModeSubdocInsert) =>
+        Some(KeyValueOptions.WriteModeSubdocInsert)
+      case Some(KeyValueOptions.WriteModeSubdocReplace) =>
+        Some(KeyValueOptions.WriteModeSubdocReplace)
+      case Some(KeyValueOptions.WriteModeSubdocUpsert) =>
+        Some(KeyValueOptions.WriteModeSubdocUpsert)
+      case Some(v) =>
         throw new IllegalArgumentException("Unknown KeyValueOptions.WriteMode option: " + v)
     }
-    
+
     KeyValueWriteConfig(
       conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
@@ -216,12 +255,15 @@ class RelationPartitionWriter(
       : (Option[KeyValueWriteErrorHandler], Option[KeyValueErrorDocumentHandler]) = {
     val regularHandler = writeConfig.errorHandler.map(validateAndInstantiateCustomErrorHandler)
     val documentHandler =
-      writeConfig.errorBucket.map(_ => new KeyValueErrorDocumentHandler(writeConfig, couchbaseConfig))
+      writeConfig.errorBucket.map(_ =>
+        new KeyValueErrorDocumentHandler(writeConfig, couchbaseConfig)
+      )
     (regularHandler, documentHandler)
   }
 
   // transient lazy defers this until it's run on the executor. Required as ErrorQueueManager is not serializable.
-  @transient private lazy val errorQueueManager = new ErrorQueueManager(errorHandler, errorDocumentHandler)
+  @transient private lazy val errorQueueManager =
+    new ErrorQueueManager(errorHandler, errorDocumentHandler)
 
   private def validateAndInstantiateCustomErrorHandler(
       className: String
@@ -266,7 +308,7 @@ class RelationPartitionWriter(
       val keyValues = t.asScala
         .map(encoded => {
           val decoded = JsonObject.fromJson(encoded)
-          val id = decoded.str(writeConfig.idFieldName)
+          val id      = decoded.str(writeConfig.idFieldName)
           decoded.remove(writeConfig.idFieldName)
 
           val cas: Option[Long] = writeConfig.casFieldName match {
@@ -275,7 +317,9 @@ class RelationPartitionWriter(
                 case Failure(_) =>
                   // Fail up front.  Usually if CAS is not present it's not going to be present for any doc, and we
                   // don't want to invoke the error handler pointlessly N times.
-                  throw new IllegalArgumentException(s"CAS field '${casFieldName}' was specified but no valid CAS value found in that column for document '$id'")
+                  throw new IllegalArgumentException(
+                    s"CAS field '${casFieldName}' was specified but no valid CAS value found in that column for document '$id'"
+                  )
                 case Success(cas) =>
                   decoded.safe.remove(casFieldName)
                   Some(cas)
@@ -307,24 +351,41 @@ class RelationPartitionWriter(
         case Some(v) if v == KeyValueOptions.PersistToMajorityDurability =>
           Durability.PersistToMajority
         case None => Durability.Disabled
-        case d => throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
+        case d =>
+          throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
       }
 
       SFlux
         .fromIterable(keyValues)
         .flatMap(v => {
           val (id, decoded, cas) = v
-          
+
           val content = decoded.toString
           val baseMono = writeConfig.writeMode match {
+            case Some(KeyValueOptions.WriteModeSubdocInsert) |
+                Some(KeyValueOptions.WriteModeSubdocReplace) |
+                Some(KeyValueOptions.WriteModeSubdocUpsert) => {
+              val (specs, debugInfo) = SubdocUtil.buildSubdocSpecs(decoded)
+              val storeSemantics = writeConfig.writeMode.get match {
+                case KeyValueOptions.WriteModeSubdocInsert  => StoreSemantics.Insert
+                case KeyValueOptions.WriteModeSubdocReplace => StoreSemantics.Replace
+                case _                                      => StoreSemantics.Upsert
+              }
+
+              logInfo(s"Performing subdoc mutation with ${storeSemantics} and specs: ${debugInfo}")
+
+              val opts = buildMutateInOptions(durability, storeSemantics, cas)
+              coll.reactive.mutateIn(id, specs, opts)
+            }
             case Some(KeyValueOptions.WriteModeReplace) =>
               cas match {
                 case Some(casValue: Long) =>
-                  coll.reactive.replace(id, content, buildReplaceOptions(durability, Some(casValue)))
+                  coll.reactive
+                    .replace(id, content, buildReplaceOptions(durability, Some(casValue)))
                 case _ =>
                   coll.reactive.replace(id, content, buildReplaceOptions(durability, None))
               }
-              
+
             case _ =>
               val content = decoded.toString
               mode match {
@@ -392,6 +453,17 @@ class RelationPartitionWriter(
 
   def buildReplaceOptions(durability: Durability, cas: Option[Long] = None): ReplaceOptions = {
     var opts = ReplaceOptions().transcoder(RawJsonTranscoder.Instance).durability(durability)
+    cas.foreach(casValue => opts = opts.cas(casValue))
+    writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
+    opts
+  }
+
+  def buildMutateInOptions(
+      durability: Durability,
+      storeSemantics: StoreSemantics,
+      cas: Option[Long]
+  ): MutateInOptions = {
+    var opts = MutateInOptions().durability(durability).document(storeSemantics)
     cas.foreach(casValue => opts = opts.cas(casValue))
     writeConfig.timeout.foreach(t => opts = opts.timeout(Duration(t)))
     opts

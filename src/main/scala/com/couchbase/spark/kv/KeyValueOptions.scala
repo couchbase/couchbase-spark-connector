@@ -243,7 +243,7 @@ object KeyValueOptions {
     *
     * CAS support:
     * Couchbase's optimistic locking, CAS, is supported.
-    * This mode will automatically use CAS values if the CAS column (enabled and specified by [[CasFieldName]])
+    * This mode will use CAS values if the [[CasFieldName]] option is specified and if such a CAS column
     * is present in the DataFrame with valid values. If a custom CAS field name is specified
     * and the column is missing or contains invalid values, the job will fast-fail.
     *
@@ -258,4 +258,67 @@ object KeyValueOptions {
     * When WriteModeReplace is used, Spark's SaveMode is ignored and replace semantics are applied.
     */
   val WriteModeReplace = "replace"
+
+  /** Option value: Use sub-document insert semantics for writes - to be used with [[WriteMode]] as the key.
+    *
+    * Sub-document operations
+    * -----------------------
+    * Sub-document writes are a powerful Couchbase feature that allows specific parts of a document to be
+    * updated without having to replace the entire document.
+    * In the context of a Spark DataFrame:
+    * Each row will become a single write to a particular document, as usual.
+    * Each column will become a sub-document operation for that write.
+    * The operation is specified by the heading of the column.
+    * The heading of the column is a string that looks like this:
+    * "upsert:foo"
+    * The operation would be "upsert" and the path would be "foo".
+    * The value would be the content of the DataFrame at that cell.
+    *
+    * More complex operations are supported:
+    * "arrayAppend:reviews[0].ratings.Rooms"
+    * The operation would be "arrayAppend" and the path would be "reviews[0].ratings.Rooms".
+    * The value would be the content of the DataFrame at that cell.
+    *
+    * The path is passed verbatim to the SDK.  See this documentation for more details on the path syntax
+    * and the supported operations:
+    * https://docs.couchbase.com/scala-sdk/current/howtos/subdocument-operations.html
+    * All operations are supported: upsert, insert, replace, remove, arrayAppend, arrayPrepend,
+    * arrayInsert, arrayAddUnique, increment, decrement.
+    *
+    * Failures
+    * --------
+    * Sub-document insert operations require that documents do not already exist in the target collection.
+    * If any document already exists, the operation will fail with DocumentExistsException.
+    *
+    * Any operation failure will generally result in job failure unless error handling is configured
+    * using either ErrorHandler or ErrorBucket.
+    */
+  val WriteModeSubdocInsert = "subdocInsert"
+
+  /** Option value: Use sub-document replace semantics for writes - to be used with [[WriteMode]] as the key.
+    *
+    * See the [[WriteModeSubdocInsert]] documentation for more details.
+    *
+    * The key difference is that operations will fail if the doc does not already exist.  Every document
+    * written is required to exist.
+    *
+    * CAS support
+    * -----------
+    * Couchbase's optimistic locking, CAS, is supported for subdocReplace operations.
+    * This mode will use CAS values if the [[CasFieldName]] option is specified and if such a CAS column
+    * is present in the DataFrame with valid values. If a custom CAS field name is specified
+    * and the column is missing or contains invalid values, the job will fast-fail.
+    * If the operation fails because the document has changed since the read (e.g. the CAS has changed),
+    * that operation will fail with a CasMismatchException.
+    */
+  val WriteModeSubdocReplace = "subdocReplace"
+
+  /** Option value: Use sub-document upsert semantics for writes - to be used with [[WriteMode]] as the key.
+    *
+    * See the [[WriteModeSubdocInsert]] documentation for more details.
+    *
+    * The key difference from replace and insert mode, is that upsert will create the document if it does not already
+    * exist.
+    */
+  val WriteModeSubdocUpsert = "subdocUpsert"
 }

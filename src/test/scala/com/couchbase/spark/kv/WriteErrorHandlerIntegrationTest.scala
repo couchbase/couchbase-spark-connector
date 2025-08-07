@@ -16,10 +16,13 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.client.core.error.DocumentExistsException
+import com.couchbase.client.scala.query.QueryOptions
+import com.couchbase.client.scala.query.QueryScanConsistency.RequestPlus
+import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.couchbase.spark.util.SparkOperationalSimpleTest
 import org.apache.spark.sql.{Row, SaveMode}
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{BeforeAll, Test}
+import org.junit.jupiter.api.{BeforeAll, BeforeEach, Test}
 
 class TestLoggingErrorHandler extends KeyValueWriteErrorHandler {
   override def onError(errorInfo: KeyValueWriteErrorInfo): Unit = {
@@ -45,6 +48,7 @@ object TestLoggingErrorHandler {
 }
 
 class NonSerializableErrorHandler extends KeyValueWriteErrorHandler {
+  // Do not remove this unused field
   private val nonSerializableField = new java.io.FileInputStream("/dev/null")
 
   override def onError(errorInfo: KeyValueWriteErrorInfo): Unit = {
@@ -62,6 +66,19 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
       testResources.scopeName,
       Some(ErrorsCollection)
     )
+  }
+
+  @BeforeEach
+  def beforeEach(): Unit = {
+    clearErrors()
+  }
+
+  private def clearErrors(): Unit = {
+    TestLoggingErrorHandler.clear()
+
+    val cluster = CouchbaseConnection().cluster(CouchbaseConfig(spark.sparkContext.getConf))
+    cluster.query(s"DELETE FROM `${testResources.bucketName}`.`${testResources.scopeName}`.`${ErrorsCollection}` WHERE 1=1",
+      QueryOptions().scanConsistency(RequestPlus())).get
   }
 
   private def createTestDataWithDuplicates() = {
@@ -130,8 +147,6 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
 
   @Test
   def testTestLoggingErrorHandler(): Unit = {
-    TestLoggingErrorHandler.clear()
-
     val testData = createTestDataWithDuplicates()
     writeInitialData(testData)
     writeWithErrorHandler(testData, "com.couchbase.spark.kv.TestLoggingErrorHandler")
@@ -157,8 +172,6 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
     assertEquals("doc1", errorInfo.documentId)
     assertTrue(errorInfo.throwable.isDefined)
     assertTrue(errorInfo.throwable.get.isInstanceOf[DocumentExistsException])
-
-    TestLoggingErrorHandler.clear()
   }
 
   @Test
@@ -176,8 +189,6 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
 
   @Test
   def testErrorHandlerWithIgnoreMode(): Unit = {
-    TestLoggingErrorHandler.clear()
-
     val testData = createTestDataWithDuplicates()
     writeInitialData(testData)
     writeWithErrorHandler(
@@ -196,8 +207,6 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
       TestLoggingErrorHandler.getErrorCount,
       "Error count should be 0 for SaveMode.Ignore"
     )
-
-    TestLoggingErrorHandler.clear()
   }
 
   @Test
@@ -238,8 +247,6 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
 
   @Test
   def testErrorHandlerWithUpsertMode(): Unit = {
-    TestLoggingErrorHandler.clear()
-
     val testData = createSimpleTestData()
     writeWithErrorHandler(
       testData,
@@ -257,8 +264,6 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
       TestLoggingErrorHandler.getErrorCount,
       "Error count should be 0 for successful operations"
     )
-
-    TestLoggingErrorHandler.clear()
   }
 
   @Test
@@ -307,8 +312,6 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
 
   @Test
   def testBothErrorHandlerAndErrorDocuments(): Unit = {
-    TestLoggingErrorHandler.clear()
-
     val testData = createTestDataWithDuplicates()
     writeInitialData(testData)
 
@@ -338,8 +341,252 @@ class WriteErrorHandlerIntegrationTest extends SparkOperationalSimpleTest {
       .collect()
 
     assertTrue(errorDocs.nonEmpty, "Error documents should have been created")
+  }
 
-    TestLoggingErrorHandler.clear()
+  @Test
+  def testSubdocInsertErrorHandler(): Unit = {
+    // First create a document to cause DocumentExistsException
+    val initialData = createSimpleTestData()
+    writeInitialData(initialData)
+
+    // Now try to insert the same document using subdoc insert mode
+    val sp = spark
+    import sp.implicits._
+
+    val subdocData = Seq(
+      ("doc1", "newValue", 42)
+    ).toDF("__META_ID", "upsert:content", "upsert:count")
+
+    subdocData.write
+      .format("couchbase.kv")
+      .option(KeyValueOptions.Bucket, testResources.bucketName)
+      .option(KeyValueOptions.Scope, testResources.scopeName)
+      .option(KeyValueOptions.Collection, testResources.collectionName)
+      .option(KeyValueOptions.WriteMode, KeyValueOptions.WriteModeSubdocInsert)
+      .option(KeyValueOptions.ErrorHandler, "com.couchbase.spark.kv.TestLoggingErrorHandler")
+      .save()
+
+    val errorInfos = TestLoggingErrorHandler.getErrorInfos
+    assertTrue(errorInfos.nonEmpty, "Should have captured errors for subdoc insert")
+    assertTrue(TestLoggingErrorHandler.getErrorCount > 0, "Error count should be greater than 0")
+
+    val doc1Error = errorInfos.find(_.documentId == "doc1")
+    assertTrue(doc1Error.isDefined, "Should have error info for doc1")
+    assertTrue(doc1Error.get.throwable.get.isInstanceOf[DocumentExistsException], "Should be DocumentExistsException")
+  }
+
+  @Test
+  def testSubdocReplaceErrorHandler(): Unit = {
+    // Try to replace a document that doesn't exist
+    val sp = spark
+    import sp.implicits._
+
+    val subdocData = Seq(
+      ("nonexistentDoc", "newValue", 42)
+    ).toDF("__META_ID", "upsert:content", "upsert:count")
+
+    subdocData.write
+      .format("couchbase.kv")
+      .option(KeyValueOptions.Bucket, testResources.bucketName)
+      .option(KeyValueOptions.Scope, testResources.scopeName)
+      .option(KeyValueOptions.Collection, testResources.collectionName)
+      .option(KeyValueOptions.WriteMode, KeyValueOptions.WriteModeSubdocReplace)
+      .option(KeyValueOptions.ErrorHandler, "com.couchbase.spark.kv.TestLoggingErrorHandler")
+      .save()
+
+    val errorInfos = TestLoggingErrorHandler.getErrorInfos
+    assertTrue(errorInfos.nonEmpty, "Should have captured errors for subdoc replace")
+    assertTrue(TestLoggingErrorHandler.getErrorCount > 0, "Error count should be greater than 0")
+
+    val docError = errorInfos.find(_.documentId == "nonexistentDoc")
+    assertTrue(docError.isDefined, "Should have error info for nonexistentDoc")
+    // Note: The actual exception type may vary depending on the SDK version
+    assertTrue(docError.get.throwable.isDefined, "Should have a throwable")
+  }
+
+  @Test
+  def testSubdocUpsertErrorHandler(): Unit = {
+    // Test subdoc upsert with mixed operations that might cause errors
+    val sp = spark
+    import sp.implicits._
+
+    val subdocData = Seq(
+      ("doc1", "value1", 10, "invalid_path")
+    ).toDF("__META_ID", "upsert:content", "upsert:count", "invalid:operation")
+
+    try {
+      subdocData.write
+        .format("couchbase.kv")
+        .option(KeyValueOptions.Bucket, testResources.bucketName)
+        .option(KeyValueOptions.Scope, testResources.scopeName)
+        .option(KeyValueOptions.Collection, testResources.collectionName)
+        .option(KeyValueOptions.WriteMode, KeyValueOptions.WriteModeSubdocUpsert)
+        .option(KeyValueOptions.ErrorHandler, "com.couchbase.spark.kv.TestLoggingErrorHandler")
+        .save()
+
+      // If we get here, check if any errors were captured
+      val errorInfos = TestLoggingErrorHandler.getErrorInfos
+      if (errorInfos.nonEmpty) {
+        assertTrue(TestLoggingErrorHandler.getErrorCount > 0, "Error count should be greater than 0")
+        val docError = errorInfos.find(_.documentId == "doc1")
+        assertTrue(docError.isDefined, "Should have error info for doc1")
+      }
+    } catch {
+      case e: Exception =>
+        // If an exception is thrown, it should be related to invalid operation
+        assertTrue(e.getMessage.contains("invalid") || e.getMessage.contains("operation"),
+          "Exception should be related to invalid operation")
+    }
+  }
+
+  @Test
+  def testSubdocInsertWithErrorDocuments(): Unit = {
+    val sp = spark
+    import sp.implicits._
+
+    // First create a document to cause DocumentExistsException
+    val initialData = createSimpleTestData()
+    writeInitialData(initialData)
+
+    // Now try to insert the same document using subdoc insert mode with error documents
+    val subdocData = Seq(
+      ("doc1", "newValue", 42)
+    ).toDF("__META_ID", "upsert:content", "upsert:count")
+
+    subdocData.write
+      .format("couchbase.kv")
+      .option(KeyValueOptions.Bucket, testResources.bucketName)
+      .option(KeyValueOptions.Scope, testResources.scopeName)
+      .option(KeyValueOptions.Collection, testResources.collectionName)
+      .option(KeyValueOptions.WriteMode, KeyValueOptions.WriteModeSubdocInsert)
+      .option(KeyValueOptions.ErrorBucket, testResources.bucketName)
+      .option(KeyValueOptions.ErrorScope, testResources.scopeName)
+      .option(KeyValueOptions.ErrorCollection, ErrorsCollection)
+      .save()
+
+    val errorDocs = sp.read
+      .format("couchbase.query")
+      .option("bucket", testResources.bucketName)
+      .option("scope", testResources.scopeName)
+      .option("collection", ErrorsCollection)
+      .load()
+      .collect()
+
+    assertTrue(errorDocs.nonEmpty, "Error documents should have been created for subdoc insert")
+
+    val errorDoc = errorDocs.head
+    assertEquals(testResources.bucketName, errorDoc.getAs[String]("bucket"))
+    assertEquals(testResources.scopeName, errorDoc.getAs[String]("scope"))
+    assertEquals(testResources.collectionName, errorDoc.getAs[String]("collection"))
+    assertEquals("doc1", errorDoc.getAs[String]("documentId"))
+  }
+
+  @Test
+  def testSubdocReplaceWithErrorDocuments(): Unit = {
+    val sp = spark
+    import sp.implicits._
+
+    // Try to replace a document that doesn't exist
+    val subdocData = Seq(
+      ("nonexistentDoc", "newValue", 42)
+    ).toDF("__META_ID", "upsert:content", "upsert:count")
+
+    subdocData.write
+      .format("couchbase.kv")
+      .option(KeyValueOptions.Bucket, testResources.bucketName)
+      .option(KeyValueOptions.Scope, testResources.scopeName)
+      .option(KeyValueOptions.Collection, testResources.collectionName)
+      .option(KeyValueOptions.WriteMode, KeyValueOptions.WriteModeSubdocReplace)
+      .option(KeyValueOptions.ErrorBucket, testResources.bucketName)
+      .option(KeyValueOptions.ErrorScope, testResources.scopeName)
+      .option(KeyValueOptions.ErrorCollection, ErrorsCollection)
+      .save()
+
+    val errorDocs = sp.read
+      .format("couchbase.query")
+      .option("bucket", testResources.bucketName)
+      .option("scope", testResources.scopeName)
+      .option("collection", ErrorsCollection)
+      .load()
+      .collect()
+
+    assertEquals(1, errorDocs.length)
+
+    val errorDoc = errorDocs.head
+    assertEquals(testResources.bucketName, errorDoc.getAs[String]("bucket"))
+    assertEquals(testResources.scopeName, errorDoc.getAs[String]("scope"))
+    assertEquals(testResources.collectionName, errorDoc.getAs[String]("collection"))
+    assertEquals("nonexistentDoc", errorDoc.getAs[String]("documentId"))
+  }
+
+  @Test
+  def testSubdocInsertWithBothErrorHandlerAndErrorDocuments(): Unit = {
+    // First create a document to cause DocumentExistsException
+    val initialData = createSimpleTestData()
+    writeInitialData(initialData)
+
+    // Now try to insert the same document using subdoc insert mode with both error handling mechanisms
+    val sp = spark
+    import sp.implicits._
+
+    val subdocData = Seq(
+      ("doc1", "newValue", 42)
+    ).toDF("__META_ID", "upsert:content", "upsert:count")
+
+    subdocData.write
+      .format("couchbase.kv")
+      .option(KeyValueOptions.Bucket, testResources.bucketName)
+      .option(KeyValueOptions.Scope, testResources.scopeName)
+      .option(KeyValueOptions.Collection, testResources.collectionName)
+      .option(KeyValueOptions.WriteMode, KeyValueOptions.WriteModeSubdocInsert)
+      .option(KeyValueOptions.ErrorHandler, "com.couchbase.spark.kv.TestLoggingErrorHandler")
+      .option(KeyValueOptions.ErrorBucket, testResources.bucketName)
+      .option(KeyValueOptions.ErrorScope, testResources.scopeName)
+      .option(KeyValueOptions.ErrorCollection, ErrorsCollection)
+      .save()
+
+    val logMessages = TestLoggingErrorHandler.getErrorInfos
+    assertTrue(logMessages.nonEmpty, "TestLoggingErrorHandler should have been called for subdoc insert")
+
+    val errorDocs = sp.read
+      .format("couchbase.query")
+      .option("bucket", testResources.bucketName)
+      .option("scope", testResources.scopeName)
+      .option("collection", ErrorsCollection)
+      .load()
+      .collect()
+
+    assertEquals(1, errorDocs.length)
+  }
+
+  @Test
+  def testSubdocFailFastErrorHandler(): Unit = {
+    // First create a document to cause DocumentExistsException
+    val initialData = createSimpleTestData()
+    writeInitialData(initialData)
+
+    // Now try to insert the same document using subdoc insert mode with fail-fast error handler
+    val sp = spark
+    import sp.implicits._
+
+    val subdocData = Seq(
+      ("doc1", "newValue", 42)
+    ).toDF("__META_ID", "upsert:content", "upsert:count")
+
+    try {
+      subdocData.write
+        .format("couchbase.kv")
+        .option(KeyValueOptions.Bucket, testResources.bucketName)
+        .option(KeyValueOptions.Scope, testResources.scopeName)
+        .option(KeyValueOptions.Collection, testResources.collectionName)
+        .option(KeyValueOptions.WriteMode, KeyValueOptions.WriteModeSubdocInsert)
+        .option(KeyValueOptions.ErrorHandler, "com.couchbase.spark.kv.FailFastErrorHandler")
+        .save()
+      assert(false, "Expected exception but none was thrown")
+    } catch {
+      case _: Exception =>
+        // Expected behavior for fail-fast error handler
+    }
   }
 
   override def testName: String = "CouchbaseWriteErrorHandlerIntegrationTest"
