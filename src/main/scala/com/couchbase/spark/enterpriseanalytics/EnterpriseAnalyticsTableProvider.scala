@@ -35,7 +35,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.{Encoders, SparkSession}
 
 import java.util
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters._
 
 class EnterpriseAnalyticsTableProvider extends TableProvider with Logging with DataSourceRegister {
 
@@ -97,7 +97,7 @@ class EnterpriseAnalyticsTableProvider extends TableProvider with Logging with D
       )
 
     val rows   = result.rows().asScala.map(_.toString)
-    val ds     = sparkSession.sqlContext.createDataset(rows)(Encoders.STRING)
+    val ds     = sparkSession.sqlContext.createDataset(rows.toSeq)(Encoders.STRING)
     val schema = sparkSession.sqlContext.read.json(ds).schema
 
     logDebug(s"Inferred schema is $schema")

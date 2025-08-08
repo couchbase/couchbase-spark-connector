@@ -9,6 +9,8 @@ crossScalaVersions := Seq("2.12.20", "2.13.16")
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+publishConfiguration := publishConfiguration.value.withOverwrite(true)
+publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
 
 // Important: when changing this, lookup the current Jackson dependency for Spark and update the dependencyOverrides below
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.6")
@@ -111,7 +113,29 @@ ThisBuild / publishTo := {
 pomIncludeRepository := { _ => false }
 
 ThisBuild / assemblyMergeStrategy := {
+  // Drop manifests, signatures, and index files
+  case PathList("META-INF", "MANIFEST.MF")                                   => MergeStrategy.discard
+  case PathList("META-INF", "INDEX.LIST")                                    => MergeStrategy.discard
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.endsWith(".sf"))  => MergeStrategy.discard
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.endsWith(".rsa")) => MergeStrategy.discard
+
+  // Duplicate legal/notice files (e.g., FastDoubleParser-NOTICE) can be safely discarded
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.startsWith("notice"))  => MergeStrategy.discard
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.startsWith("license")) => MergeStrategy.discard
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.contains("fastdoubleparser-notice")) => MergeStrategy.discard
+
+  // Drop Java 9+ multi-release module descriptors which commonly collide
+  case PathList("META-INF", "versions", _*) => MergeStrategy.discard
+  case "module-info.class"                   => MergeStrategy.discard
+  case x if x.endsWith("module-info.class")  => MergeStrategy.discard
+
+  // Keep only first for specific known duplicate properties
   case "META-INF/io.netty.versions.properties" => MergeStrategy.first
+
+  // Merge Java service provider files
+  case PathList("META-INF", "services", _*) => MergeStrategy.concat
+
+  // Fallback to previous strategy
   case x =>
     val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
     oldStrategy(x)
