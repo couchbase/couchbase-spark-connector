@@ -1,6 +1,6 @@
 name := "spark-connector"
 
-version := "3.3.6"
+version := "3.3.7"
 
 organization := "com.couchbase.client"
 
@@ -11,7 +11,7 @@ scalacOptions := Seq("-unchecked", "-deprecation")
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.3.4")
-val sdkVersion   = "1.8.1"
+val sdkVersion   = "1.9.1"
 val dcpVersion   = "0.54.0"
 
 scalacOptions += "-feature"
