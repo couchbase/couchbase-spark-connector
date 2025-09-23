@@ -1,7 +1,7 @@
 import logging
 import os
 
-from . import util_and_resources, columnar_manager, operational_cluster_manager
+from . import util_and_resources
 
 from dotenv import load_dotenv
 
@@ -17,9 +17,12 @@ class SdkConnectionManager:
     cluster_manager = None
 
     def __init__(self):
+        # Import concrete manager lazily to avoid loading both SDK extensions simultaneously.
         if self.curr_cluster_is_columnar:
+            from . import columnar_manager
             self.cluster_manager = columnar_manager.ColumnarManager()
         else:
+            from . import operational_cluster_manager
             self.cluster_manager = operational_cluster_manager.OperationalClusterManager()
         self.initialize_connection_if_needed()
 
