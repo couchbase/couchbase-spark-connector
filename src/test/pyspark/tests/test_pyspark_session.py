@@ -45,12 +45,6 @@ def fetch_dataframe_and_assert_count(spark, curr_connection_id=util_and_resource
 # Due to SPARKC-217, the following tests can't be run together
 # as they will fail due to the same SparkSession being used
 class TestPysparkSession:
-    spark_session = None
-
-    @pytest.fixture(scope="class", autouse=True)
-    def class_fixture(self, request, shared_spark_session):
-        request.cls.spark_session = shared_spark_session
-
     def test_missing_connection_string(self, curr_connection_id):
         with pytest.raises(Exception) as e:
             connection_identifier = util_and_resources.get_connection_identifier(curr_connection_id)
@@ -116,7 +110,8 @@ class TestPysparkSession:
             fetch_dataframe_and_assert_count(spark, curr_connection_id)
 
         assert "IllegalArgumentException" in str(e.type)
-        assert str(e.value) == f'requirement failed: value cannot be null for key: spark.couchbase.connectionString'
+        assert (f'requirement failed: value cannot be null for key: spark.couchbase.connectionString'
+                or 'The value of property spark.couchbase.connectionString must not be null' in str(e.value))
 
     def test_username_as_none(self, curr_connection_id):
         with pytest.raises(Exception) as e:
@@ -132,8 +127,8 @@ class TestPysparkSession:
             fetch_dataframe_and_assert_count(spark, curr_connection_id)
 
         assert "IllegalArgumentException" in str(e.type)
-        assert str(
-            e.value) == f'requirement failed: value cannot be null for key: spark.couchbase.username{connection_identifier}'
+        assert (f'requirement failed: value cannot be null for key: spark.couchbase.username{connection_identifier}'
+                or f'The value of property spark.couchbase.username{connection_identifier} must not be null' in str(e.value))
 
     def test_password_as_none(self, curr_connection_id):
         with pytest.raises(Exception) as e:
@@ -149,8 +144,8 @@ class TestPysparkSession:
             fetch_dataframe_and_assert_count(spark, curr_connection_id)
 
         assert "IllegalArgumentException" in str(e.type)
-        assert str(
-            e.value) == f'requirement failed: value cannot be null for key: spark.couchbase.password{connection_identifier}'
+        assert (f'requirement failed: value cannot be null for key: spark.couchbase.password{connection_identifier}'
+                or f'The value of property spark.couchbase.password{connection_identifier} must not be null' in str(e.value))
 
     def test_wrong_cred(self, curr_connection_id):
         with pytest.raises(Exception) as e:

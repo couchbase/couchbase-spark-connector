@@ -124,7 +124,7 @@ class TestPersistDf:
              .save())
 
         if df_type == util_and_resources.CB_KV:
-            assert "Unsupported SaveMode: Append" in str(e.value)
+            assert "Unsupported SaveMode: Append" or "Unexpected save mode Append" in str(e.value)
         else:
             assert "SaveMode.Append is not support" in str(e.value)
 

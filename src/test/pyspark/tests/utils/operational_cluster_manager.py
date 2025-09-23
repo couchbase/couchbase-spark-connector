@@ -37,7 +37,7 @@ class OperationalClusterManager:
             return query_result
 
         except Exception as e:
-            logger.info(f"Error executing query: {e}")
+            logger.info(f"Error executing query: {query}\nError:{e}")
 
     def create_collection(self, collection_name, scope_name, bucket_name):
         self.execute_query(f'CREATE COLLECTION `{bucket_name}`.`{scope_name}`.`{collection_name}`')
