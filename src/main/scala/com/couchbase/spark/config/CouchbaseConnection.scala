@@ -111,7 +111,10 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
 
         val waitUntilReadyTimeout =
           cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
-        clusterRef.get.waitUntilReady(waitUntilReadyTimeout)
+        val clusterRefRes = clusterRef.get.waitUntilReady(waitUntilReadyTimeout)
+        if (clusterRefRes.isFailure) {
+          throw clusterRefRes.failed.get
+        }
       }
 
       if (cfg.bucketName.isDefined) {
@@ -146,7 +149,10 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
 
       val waitUntilReadyTimeout =
         cfg.waitUntilReadyTimeout.map(s => Duration(s)).getOrElse(1.minutes)
-      bucket.waitUntilReady(waitUntilReadyTimeout)
+      val bucketRes = bucket.waitUntilReady(waitUntilReadyTimeout)
+      if (bucketRes.isFailure) {
+        throw bucketRes.failed.get
+      }
       bucket
     }
   }
