@@ -1,10 +1,11 @@
 name := "spark-connector"
 
-version := "3.5.3"
+version := "3.5.4"
 
 organization := "com.couchbase.client"
 
-crossScalaVersions := Seq("2.12.20", "2.13.16")
+// Latest: https://www.scala-lang.org/download/all.html
+crossScalaVersions := Seq("2.12.20", "2.13.17")
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
@@ -12,11 +13,16 @@ publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
 
+// Latest: https://spark.apache.org/downloads.html
 // Important: when changing this, lookup the current Jackson dependency for Spark and update the dependencyOverrides below
-val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.6")
-val operationalSdkVersion   = "1.8.3"
+// Find it here: https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.13/<spark version>
+val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.7")
+// Latest here https://docs.couchbase.com/scala-sdk/current/project-docs/sdk-release-notes.html
+val operationalSdkVersion   = "3.10.0"
+// Latest here https://docs.couchbase.com/java-analytics-sdk/current/project-docs/analytics-sdk-release-notes.html
 val enterpriseAnalyticsSdkVersion   = "1.0.0"
-val dcpVersion   = "0.54.0"
+// Latest here https://mvnrepository.com/artifact/com.couchbase.client/dcp-client
+val dcpVersion   = "0.56.0"
 
 scalacOptions += "-feature"
 
@@ -40,10 +46,10 @@ libraryDependencies ++= Seq(
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
   "org.testcontainers"    % "couchbase"         % "1.21.3"                         % Test,
   // For structured streaming testing
-  "commons-codec"         % "commons-codec"     % "1.19.0"                         % Test
+  "commons-codec"         % "commons-codec"     % "1.20.0"                         % Test
 )
 
-// The Java Enterprise Analytics SDK uses Jackson 2.19.1 but Spark 3.5.6 uses 2.15.2.
+// The Java Enterprise Analytics 1.0.0 SDK uses Jackson 2.19.1 but Spark 3.5.7 uses 2.15.2.
 // We have to pin to the earlier version.
 dependencyOverrides ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.2",
