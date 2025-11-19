@@ -255,6 +255,7 @@ class SubdocIntegrationTest extends SparkOperationalSimpleTest {
 
     initialDataWithNested.write
       .format("couchbase.kv")
+      .option(KeyValueOptions.Timeout, "30s")
       .option(KeyValueOptions.Bucket, testResources.bucketName)
       .option(KeyValueOptions.Scope, testResources.scopeName)
       .option(KeyValueOptions.Collection, TestCollection)
@@ -265,6 +266,7 @@ class SubdocIntegrationTest extends SparkOperationalSimpleTest {
     // Read the documents with CAS values included
     val docsWithCas = spark.read
       .format("couchbase.query")
+      .option(KeyValueOptions.Timeout, "30s")
       .option(QueryOptions.Scope, testResources.scopeName)
       .option(QueryOptions.Collection, TestCollection)
       .option(QueryOptions.OutputCas, "true")
@@ -276,17 +278,18 @@ class SubdocIntegrationTest extends SparkOperationalSimpleTest {
       .select(
         docsWithCas("__META_ID"),
         docsWithCas("__META_CAS"),
-        docsWithCas("name"),
-        docsWithCas("age"),
-        docsWithCas("role")
+        docsWithCas("profile.name"),
+        docsWithCas("profile.age"),
+        docsWithCas("profile.role")
       )
-      .withColumnRenamed("name", "replace:profile.name")
-      .withColumnRenamed("age", "replace:profile.age")
-      .withColumnRenamed("role", "replace:profile.role")
+      .withColumnRenamed("profile.name", "replace:profile.name")
+      .withColumnRenamed("profile.age", "replace:profile.age")
+      .withColumnRenamed("profile.role", "replace:profile.role")
 
     // Write the transformed data back using subdoc replace with CAS
     transformedData.write
       .format("couchbase.kv")
+      .option(KeyValueOptions.Timeout, "30s")
       .option(KeyValueOptions.Bucket, testResources.bucketName)
       .option(KeyValueOptions.Scope, testResources.scopeName)
       .option(KeyValueOptions.Collection, TestCollection)
