@@ -18,7 +18,8 @@ publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
 // Find it here: https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.13/<spark version>
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.7")
 // Latest here https://docs.couchbase.com/scala-sdk/current/project-docs/sdk-release-notes.html
-val operationalSdkVersion   = "3.10.0"
+// Need https://jira.issues.couchbase.com/browse/SCBC-502 to be fixed before can pick up 3.X series
+val operationalSdkVersion   = "1.8.3"
 // Latest here https://docs.couchbase.com/java-analytics-sdk/current/project-docs/analytics-sdk-release-notes.html
 val enterpriseAnalyticsSdkVersion   = "1.0.0"
 // Latest here https://mvnrepository.com/artifact/com.couchbase.client/dcp-client
