@@ -17,11 +17,18 @@
 package org.apache.spark.sql.catalyst.json
 
 import com.fasterxml.jackson.core.{JsonFactory, JsonParser}
-import org.apache.spark.sql.catalyst.json.{JSONOptionsInRead, JacksonParser}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 
 /** Internal utilities to access the JSON spark functionality.
+  *
+  * It's needed because Spark requires we return rows in its own `InternalRow` format, and the best way to produce these
+  * is to use these Spark-internal Jackson-based classes.
+  *
+  * @note
+  *   JacksonParser and JSONOptionsInRead are Spark-internal (not part of Spark's public/stable
+  *   API), so their constructor signatures need re-checking whenever the Spark dependency is
+  *   upgraded.
   */
 object CouchbaseJsonUtils {
 

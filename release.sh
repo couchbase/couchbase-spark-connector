@@ -65,13 +65,13 @@ fi
 # Build fatjar (possibly needed for Databricks)
 sbt +assembly
 
-# Upload the docs.  We only upload 2.12, as there are no API differences in 2.13.
+# Upload the docs.
 if ! $SKIP_REMOTE && ! $snapshot; then
-  s3cmd --acl-public --no-mime-magic -M -r put target/scala-2.12/api s3://docs.couchbase.com/sdk-api/couchbase-spark-connector-$vers/
+  s3cmd --acl-public --no-mime-magic -M -r put target/scala-2.13/api s3://docs.couchbase.com/sdk-api/couchbase-spark-connector-$vers/
 fi
 
 # Create and upload distribution zipfiles
-for scala_version in "2.12" "2.13"
+for scala_version in "2.13"
 do
   mkdir -p $staging_dir/$scala_version
   m2_dir=$maven_repo/com/couchbase/client/spark-connector_$scala_version/$vers

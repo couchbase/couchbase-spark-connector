@@ -16,12 +16,13 @@
 package com.couchbase.spark.analytics
 
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
-import com.couchbase.spark.util.{Params, SparkOperationalTest, TestInfraBuilder, TestInfraConnectedToSpark}
+import com.couchbase.spark.util.{Params, RequiresAnalyticsService, SparkOperationalTest}
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull}
-import org.junit.jupiter.api.TestInstance.Lifecycle
-import org.junit.jupiter.api.{AfterAll, BeforeAll, Test, TestInstance}
+import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.{BeforeAll, Test}
 
+@ExtendWith(Array(classOf[RequiresAnalyticsService]))
 class AnalyticsDataFrameCustomConnectionIntegrationTest extends SparkOperationalTest {
 
   override def testName: String = super.testName

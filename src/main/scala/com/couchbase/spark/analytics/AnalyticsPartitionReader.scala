@@ -21,7 +21,7 @@ import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
-import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, CollatedFilter, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.analytics.{AnalyticsMetrics, AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
@@ -273,6 +273,8 @@ object AnalyticsPartitionReader {
         s" ${attrToFilter(attr)} LIKE '%" + escapeForLike(value) + "'"
       case StringStartsWith(attr, value) =>
         s" ${attrToFilter(attr)} LIKE '" + escapeForLike(value) + "%'"
+      case _: CollatedFilter =>
+        throw new UnsupportedOperationException("Collated filters are not supported")
     }
   }
 

@@ -1,11 +1,12 @@
 name := "spark-connector"
 
-version := "3.5.4"
+version := "4.1.0"
 
 organization := "com.couchbase.client"
 
 // Latest: https://www.scala-lang.org/download/all.html
-crossScalaVersions := Seq("2.12.20", "2.13.17")
+crossScalaVersions := Seq("2.13.17")
+scalaVersion := "2.13.17"
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
@@ -13,17 +14,36 @@ publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
 
+// # Dependency: Spark
 // Latest: https://spark.apache.org/downloads.html
 // Important: when changing this, lookup the current Jackson dependency for Spark and update the dependencyOverrides below
 // Find it here: https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.13/<spark version>
-val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.7")
+val sparkVersion = sys.props.get("spark.testVersion").getOrElse("4.1.2")
+// Need to depend on Hadoop explicitly for testing.
+// Find the correcct version here: https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.13/<spark version> (look for hadoop-client-api/-runtime)
+val hadoopClientVersion = "3.4.2"
+
+// # Dependency: Operational Couchbase SDK
 // Latest here https://docs.couchbase.com/scala-sdk/current/project-docs/sdk-release-notes.html
-// Need https://jira.issues.couchbase.com/browse/SCBC-502 to be fixed before can pick up 3.X series
-val operationalSdkVersion   = "1.8.3"
+// https://jira.issues.couchbase.com/browse/SCBC-502 is still open (3.x jars bundle unshaded
+// upickle classes), so we shade upickle ourselves below rather than waiting on it.
+val operationalSdkVersion   = "3.12.1"
+
+// # Dependency: Analytics Couchbase SDK
 // Latest here https://docs.couchbase.com/java-analytics-sdk/current/project-docs/analytics-sdk-release-notes.html
-val enterpriseAnalyticsSdkVersion   = "1.0.0"
+// When updating this, also update the "The Java Enterprise Analytics 1.1.0 SDK" comment below and possibly the Jackson version.
+val enterpriseAnalyticsSdkVersion   = "1.1.0"
+
+// The Java Enterprise Analytics 1.1.0 SDK uses Jackson 2.21.4 and Spark 4.1.2 uses 2.21.2.
+// In general we need to pin to the earliest version to ensure compatibility with both.
+dependencyOverrides ++= Seq(
+  "com.fasterxml.jackson.core" % "jackson-databind" % "2.21.2",
+  "com.fasterxml.jackson.core" % "jackson-core" % "2.21.2",
+  "com.fasterxml.jackson.core" % "jackson-annotations" % "2.21"
+)
+
 // Latest here https://mvnrepository.com/artifact/com.couchbase.client/dcp-client
-val dcpVersion   = "0.56.0"
+val dcpVersion   = "0.57.0"
 
 scalacOptions += "-feature"
 
@@ -45,17 +65,12 @@ libraryDependencies ++= Seq(
   "com.couchbase.client"  % "couchbase-analytics-java-client"  % enterpriseAnalyticsSdkVersion,
   "com.couchbase.client"  % "dcp-client"        % dcpVersion,
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
-  "org.testcontainers"    % "couchbase"         % "1.21.3"                         % Test,
+  "org.testcontainers"    % "couchbase"         % "1.21.4"                         % Test,
   // For structured streaming testing
-  "commons-codec"         % "commons-codec"     % "1.20.0"                         % Test
-)
-
-// The Java Enterprise Analytics 1.0.0 SDK uses Jackson 2.19.1 but Spark 3.5.7 uses 2.15.2.
-// We have to pin to the earlier version.
-dependencyOverrides ++= Seq(
-  "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.2",
-  "com.fasterxml.jackson.core" % "jackson-core" % "2.15.2",
-  "com.fasterxml.jackson.core" % "jackson-annotations" % "2.15.2"
+  "commons-codec"         % "commons-codec"     % "1.22.0"                         % Test,
+  // Needed for SparkSession to work in tests; see comment on hadoopClientVersion above.
+  "org.apache.hadoop"     % "hadoop-client-api"     % hadoopClientVersion          % Test,
+  "org.apache.hadoop"     % "hadoop-client-runtime" % hadoopClientVersion          % Test
 )
 
 // Fix for JDK module system issues with Spark
@@ -149,5 +164,9 @@ ThisBuild / assemblyMergeStrategy := {
 }
 
 ThisBuild / assemblyShadeRules := Seq(
-  ShadeRule.rename("reactor.**" -> "com.couchbase.spark.deps.reactor.@1").inAll
+  ShadeRule.rename("reactor.**" -> "com.couchbase.spark.deps.reactor.@1").inAll,
+  // scala-client bundles its own copy of upickle unshaded (SCBC-502); shade here.
+  ShadeRule
+    .rename("upickle.**" -> "com.couchbase.spark.deps.upickle.@1")
+    .inLibrary("com.couchbase.client" % "scala-client_2.13" % operationalSdkVersion)
 )

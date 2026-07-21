@@ -20,6 +20,7 @@ import org.apache.spark.sql.sources.{
   AlwaysFalse,
   AlwaysTrue,
   And,
+  CollatedFilter,
   EqualNullSafe,
   EqualTo,
   Filter,
@@ -117,6 +118,8 @@ object QueryFilters extends Logging {
         s" ${attrToFilter(attr)} LIKE '%" + escapeForLike(value) + "'"
       case StringStartsWith(attr, value) =>
         s" ${attrToFilter(attr)} LIKE '" + escapeForLike(value) + "%'"
+      case _: CollatedFilter =>
+        throw new UnsupportedOperationException("Collated filters are not supported")
     }
   }
 

@@ -8,16 +8,16 @@ The connector is available through the following coordinates:
 
  - **Group:** `com.couchbase.client`
  - **Artifact:** `spark-connector_2.12`
- - **Version:** `3.5.2`
+ - **Version:** `4.1.0`
 
 If you are using SBT:
 
 ```
-libraryDependencies += "com.couchbase.client" %% "spark-connector" % "3.5.2"
+libraryDependencies += "com.couchbase.client" %% "spark-connector" % "4.1.0"
 ```
 
 ## Documentation
-The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/3.3/index.html).
+The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/current/index.html).
 
 ## Version Compatibility
 
@@ -28,6 +28,7 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 
 | Connector | Apache Spark | Couchbase Server |
 |-----------|--------------|------------------|
+| 4.1.x     | 4.1          | 7.x              |
 | 3.5.x     | 3.5          | 7.x              |
 | 3.3.x     | 3.3          | 6.x - 7.x        |
 | 3.2.x     | 3.2          | 6.x - 7.x        |
@@ -45,6 +46,14 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 ## Development Tasks
 
 Applying scalafmt (source code formatting) is done through `sbt scalafmtAll`.
+
+Testing: `sbt test` and see `src/test/pyspark/README.md` for PySpark tests.  Note here you will need to use:
+
+```
+sbt assembly
+# then set COUCHBASE_SPARK_JAR in src/test/pyspark/.env to:
+#   <repo-root>/target/scala-2.13/spark-connector-assembly-<version>.jar
+```
 
 ## License
 Copyright 2015-2025 Couchbase Inc.

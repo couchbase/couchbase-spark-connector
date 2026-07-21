@@ -5,7 +5,7 @@ The only requirement is a running Couchbase cluster.
 
 If you don't already have one, a great option is to use the [Couchbase Capella free tier](https://docs.couchbase.com/cloud/get-started/create-account.html).
 
-Any sort of cluster is supported including Columnar, but of course make sure you are running a test, notebook or example that is compatible with that cluster type.
+Any sort of cluster is supported including Analytics, but of course make sure you are running a test, notebook or example that is compatible with that cluster type.
 
 A running Spark cluster is _not_ required, as all examples will use `.master("local[*]")` by default - but this can be overridden in your `.env` file below to point at your actual Spark cluster, if you are using one.
 
@@ -18,8 +18,8 @@ cd couchbase-spark-connector/src/test/pyspark
 
 Download the connector (see [here](https://docs.couchbase.com/spark-connector/current/download-links.html) for the latest version):
 ```
-wget https://packages.couchbase.com/clients/connectors/spark/3.5.2/Couchbase-Spark-Connector_2.12-3.5.2.zip
-unzip Couchbase-Spark-Connector_2.12-3.5.2.zip -d connector
+wget https://packages.couchbase.com/clients/connectors/spark/4.1.0/Couchbase-Spark-Connector_2.13-4.1.0.zip
+unzip Couchbase-Spark-Connector_2.13-4.1.0.zip -d connector
 ```
 
 Then create a virtual environment (not essential but a good standard Python best practice):
@@ -36,7 +36,7 @@ source ./venv/bin/activate
 # Install the requirements
 python -m pip install -r operational_cluster_requirements.txt
 
-# Use this instead if you are on a Capella Columnar cluster:
+# Use this instead if you are on a Capella Analytics cluster:
 # python -m pip install -r columnar_requirements.txt
 ```
 (Of course, if you prefer Conda or similar, please feel free to use instead.)
@@ -45,7 +45,7 @@ Now create the `.env` file:
 
 ```
 cp .env.template .env
-```
+````
 
 And edit the `.env` file to point at your Couchbase cluster.
 

@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark.connections.alternateaddress.streaming
 
+import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.kv.KeyValueOptions
 import com.couchbase.spark.util.ClusterVersions.testContainer
 import com.couchbase.spark.util.{SparkTest, TestInfraBuilder}
@@ -44,6 +45,7 @@ class AlternateAddressIntegrationTest {
 
   @AfterAll
   def teardown(): Unit = {
+    CouchbaseConnection.stopAll()
     container.stop()
   }
 
