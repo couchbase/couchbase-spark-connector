@@ -18,8 +18,9 @@ publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
 // Find it here: https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.13/<spark version>
 val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.9")
 // Latest here https://docs.couchbase.com/scala-sdk/current/project-docs/sdk-release-notes.html
-// https://jira.issues.couchbase.com/browse/SCBC-502 is still open (3.x jars bundle unshaded
-// upickle classes), so we shade upickle ourselves below rather than waiting on it.
+// https://jira.issues.couchbase.com/browse/SCBC-502 is still open (3.x jars bundle their own
+// unshaded copy of upickle's classes), so we drop the separately-resolved upickle jar from the
+// assembly below and rely solely on the copy bundled inside scala-client.
 val operationalSdkVersion   = "3.12.2"
 // Latest here https://docs.couchbase.com/java-analytics-sdk/current/project-docs/analytics-sdk-release-notes.html
 val enterpriseAnalyticsSdkVersion   = "1.1.0"
@@ -127,10 +128,9 @@ ThisBuild / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.endsWith(".sf"))  => MergeStrategy.discard
   case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.endsWith(".rsa")) => MergeStrategy.discard
 
-  // Duplicate legal/notice files (e.g., FastDoubleParser-NOTICE) can be safely discarded
-  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.startsWith("notice"))  => MergeStrategy.discard
-  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.startsWith("license")) => MergeStrategy.discard
-  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.contains("fastdoubleparser-notice")) => MergeStrategy.discard
+  // Duplicate legal/notice files (e.g., FastDoubleParser-NOTICE/LICENSE) can be safely discarded
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.contains("notice"))  => MergeStrategy.discard
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.contains("license")) => MergeStrategy.discard
 
   // Drop Java 9+ multi-release module descriptors which commonly collide
   case PathList("META-INF", "versions", _*) => MergeStrategy.discard
@@ -150,9 +150,13 @@ ThisBuild / assemblyMergeStrategy := {
 }
 
 ThisBuild / assemblyShadeRules := Seq(
-  ShadeRule.rename("reactor.**" -> "com.couchbase.spark.deps.reactor.@1").inAll,
-  // scala-client bundles its own copy of upickle unshaded (SCBC-502); shade here.
-  ShadeRule
-    .rename("upickle.**" -> "com.couchbase.spark.deps.upickle.@1")
-    .inLibrary("com.couchbase.client" %% "scala-client" % operationalSdkVersion)
+  ShadeRule.rename("reactor.**" -> "com.couchbase.spark.deps.reactor.@1").inAll
 )
+
+// scala-client bundles its own unshaded copy of upickle's classes (SCBC-502), which collides
+// with the separately-resolved upickle jar during assembly. Drop the standalone jar and rely on
+// the copy bundled inside scala-client.
+assembly / assemblyExcludedJars := {
+  val cp = (assembly / fullClasspath).value
+  cp filter { _.data.getName.startsWith("upickle_") }
+}
