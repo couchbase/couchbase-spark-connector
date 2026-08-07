@@ -6,6 +6,7 @@ organization := "com.couchbase.client"
 
 // Latest: https://www.scala-lang.org/download/all.html
 crossScalaVersions := Seq("2.12.20", "2.13.18")
+scalaVersion := "2.12.20"
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
