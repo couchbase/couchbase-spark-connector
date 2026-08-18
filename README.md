@@ -19,7 +19,12 @@ libraryDependencies += "com.couchbase.client" %% "spark-connector" % "4.1.0"
 ## Documentation
 The official documentation, including a quickstart guide, can be found [here](https://docs.couchbase.com/spark-connector/current/index.html).
 
-## Version Compatibility
+## Version Compatibility (from 4.X)
+Couchbase Spark Connector 4.X changes the versioning model so that each 4.X release is compatible with multiple
+Apache Spark 4.X versions.  See the release notes for the combinations that have been tested and are fully
+supported.
+
+## Version Compatibility (prior to 4.X)
 
 Each minor release is targeted for a specific spark version and once released
 branched away. Couchbase maintains bugfix releases for the branches where
@@ -28,7 +33,6 @@ or [Spark Packages](http://spark-packages.org/package/couchbase/couchbase-spark-
 
 | Connector | Apache Spark | Couchbase Server |
 |-----------|--------------|------------------|
-| 4.1.x     | 4.1          | 7.x              |
 | 3.5.x     | 3.5          | 7.x              |
 | 3.3.x     | 3.3          | 6.x - 7.x        |
 | 3.2.x     | 3.2          | 6.x - 7.x        |
