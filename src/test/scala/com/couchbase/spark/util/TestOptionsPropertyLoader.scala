@@ -10,6 +10,7 @@ trait CouchbaseClusterSettings {
   def tlsEnabled: Boolean
   def tlsInsecure: Boolean
   def clusterType: String
+  def analyticsEnabled: Boolean
 }
 
 class TestOptionsPropertyLoader extends CouchbaseClusterSettings {
@@ -29,4 +30,5 @@ class TestOptionsPropertyLoader extends CouchbaseClusterSettings {
   def tlsEnabled: Boolean = properties.getProperty("tlsEnabled", "false").toBoolean
   def tlsInsecure: Boolean = properties.getProperty("tlsInsecure", "false").toBoolean
   def clusterType: String = properties.getProperty("clusterType", "operational")
+  def analyticsEnabled: Boolean = properties.getProperty("analyticsEnabled", "false").toBoolean
 }
