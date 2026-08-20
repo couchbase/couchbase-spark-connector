@@ -181,10 +181,8 @@ ThisBuild / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.endsWith(".sf"))  => MergeStrategy.discard
   case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.endsWith(".rsa")) => MergeStrategy.discard
 
-  // Duplicate legal/notice files (e.g., FastDoubleParser-NOTICE) can be safely discarded
-  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.startsWith("notice"))  => MergeStrategy.discard
-  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.startsWith("license")) => MergeStrategy.discard
-  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.contains("fastdoubleparser-notice")) => MergeStrategy.discard
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.contains("notice"))  => MergeStrategy.concat
+  case PathList("META-INF", xs @ _*) if xs.exists(_.toLowerCase.contains("license")) => MergeStrategy.concat
 
   // Drop Java 9+ multi-release module descriptors which commonly collide
   case PathList("META-INF", "versions", _*) => MergeStrategy.discard
