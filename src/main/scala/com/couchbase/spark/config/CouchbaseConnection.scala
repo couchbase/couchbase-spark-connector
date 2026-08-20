@@ -26,6 +26,8 @@ import com.couchbase.client.core.util.ConnectionString
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.spark.config.CouchbaseConnection.connections
+import com.couchbase.spark.util.Version
+import dev.reo.census.ReoEventLogger
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
 import reactor.core.publisher.Flux
@@ -114,6 +116,13 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
         val clusterRefRes = clusterRef.get.waitUntilReady(waitUntilReadyTimeout)
         if (clusterRefRes.isFailure) {
           throw clusterRefRes.failed.get
+        }
+
+        try {
+          new ReoEventLogger(ReoEventLogger.DEFAULT_ENDPOINT, 3.0, Version.productName, Version.version)
+            .logEvent()
+        } catch {
+          case _: Throwable =>
         }
       }
 
