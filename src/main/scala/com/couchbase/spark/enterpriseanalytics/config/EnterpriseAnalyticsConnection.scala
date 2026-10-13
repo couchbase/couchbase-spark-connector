@@ -58,9 +58,9 @@ class EnterpriseAnalyticsConnection() extends Serializable with Logging {
 
   def stop(): Unit = {
     this.synchronized {
-      logInfo(s"Stopping EnterpriseAnalyticsConnection")
       try {
         if (clusterRef.isDefined) {
+          logInfo(s"Stopping EnterpriseAnalyticsConnection")
           clusterRef.get.close()
           clusterRef = None
         }
