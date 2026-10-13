@@ -189,8 +189,14 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
 
   def stop(): Unit = {
     this.synchronized {
-      logInfo(s"Stopping CouchbaseConnection $identifier")
       try {
+        // Only log if there is actually something to tear down. stop() is also reached from the
+        // JVM shutdown hook, where logging can fail outright - the log4j appenders, or the socket
+        // a test runner logs over, may already be closed - so an unconditional log here produced
+        // spurious stack traces on every clean exit.
+        if (clusterRef.isDefined || envRef.isDefined) {
+          logInfo(s"Stopping CouchbaseConnection $identifier")
+        }
         if (clusterRef.isDefined) {
           clusterRef.get.disconnect()
           clusterRef = None
