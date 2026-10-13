@@ -1,6 +1,6 @@
 name := "spark-connector"
 
-version := "3.5.5"
+version := "3.5.6"
 
 organization := "com.couchbase.client"
 
@@ -22,7 +22,7 @@ val sparkVersion = sys.props.get("spark.testVersion").getOrElse("3.5.9")
 // https://jira.issues.couchbase.com/browse/SCBC-502 is still open (3.x jars bundle their own
 // unshaded copy of upickle's classes), so we drop the separately-resolved upickle jar from the
 // assembly below and rely solely on the copy bundled inside scala-client.
-val operationalSdkVersion   = "3.12.2"
+val operationalSdkVersion   = "3.13.0"
 // Latest here https://docs.couchbase.com/java-analytics-sdk/current/project-docs/analytics-sdk-release-notes.html
 val enterpriseAnalyticsSdkVersion   = "1.1.0"
 // Latest here https://mvnrepository.com/artifact/com.couchbase.client/dcp-client
