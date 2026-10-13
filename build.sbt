@@ -1,6 +1,6 @@
 name := "spark-connector"
 
-version := "4.0.0"
+version := "4.0.1"
 
 organization := "com.couchbase.client"
 
@@ -66,7 +66,7 @@ buildVersions := {
 // Latest here https://docs.couchbase.com/scala-sdk/current/project-docs/sdk-release-notes.html
 // https://jira.issues.couchbase.com/browse/SCBC-502 is still open (3.x jars bundle unshaded
 // upickle classes), so we shade upickle ourselves below rather than waiting on it.
-val operationalSdkVersion   = "3.12.2"
+val operationalSdkVersion   = "3.13.0"
 
 // # Dependency: Analytics Couchbase SDK
 // Latest here https://docs.couchbase.com/java-analytics-sdk/current/project-docs/analytics-sdk-release-notes.html
