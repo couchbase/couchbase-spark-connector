@@ -179,14 +179,13 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
 
   }
 
-  def stop(): Unit = {
+  def stop(): Unit = stop(fromShutdownHook = false)
+
+  private[couchbase] def stop(fromShutdownHook: Boolean): Unit = {
     this.synchronized {
       try {
-        // Only log if there is actually something to tear down. stop() is also reached from the
-        // JVM shutdown hook, where logging can fail outright - the log4j appenders, or the socket
-        // a test runner logs over, may already be closed - so an unconditional log here produced
-        // spurious stack traces on every clean exit.
-        if (clusterRef.isDefined || envRef.isDefined) {
+        // Only log if there is actually something to tear down.
+        if (!fromShutdownHook && (clusterRef.isDefined || envRef.isDefined)) {
           logInfo(s"Stopping CouchbaseConnection $identifier")
         }
         if (clusterRef.isDefined) {
@@ -199,7 +198,8 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
         }
         connections.remove(identifier)
       } catch {
-        case e: Throwable => logDebug(s"Encountered error during shutdown $e")
+        case e: Throwable =>
+          if (!fromShutdownHook) logDebug(s"Encountered error during shutdown $e")
       }
     }
   }
@@ -337,7 +337,7 @@ object CouchbaseConnection {
   private val shutdownHook: Thread = {
     val thread = new Thread(
       () => {
-        try stopAll()
+        try stopAll(fromShutdownHook = true)
         catch { case _: Throwable => () }
       },
       "couchbase-shutdown"
@@ -359,8 +359,8 @@ object CouchbaseConnection {
     )
   }
 
-  private[couchbase] def stopAll(): Unit = {
-    connections.values.forEach(c => c.stop())
+  private[couchbase] def stopAll(fromShutdownHook: Boolean = false): Unit = {
+    connections.values.forEach(c => c.stop(fromShutdownHook))
   }
 }
 

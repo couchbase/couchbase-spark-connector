@@ -48,17 +48,20 @@ class EnterpriseAnalyticsConnection() extends Serializable with Logging {
     }
   }
 
-  def stop(): Unit = {
+  def stop(): Unit = stop(fromShutdownHook = false)
+
+  private[couchbase] def stop(fromShutdownHook: Boolean): Unit = {
     this.synchronized {
       try {
         if (clusterRef.isDefined) {
-          logInfo(s"Stopping EnterpriseAnalyticsConnection")
+          if (!fromShutdownHook) logInfo(s"Stopping EnterpriseAnalyticsConnection")
           clusterRef.get.close()
           clusterRef = None
         }
         EnterpriseAnalyticsConnection.connections.remove("default")
       } catch {
-        case e: Throwable => logDebug(s"Encountered error during shutdown $e")
+        case e: Throwable =>
+          if (!fromShutdownHook) logDebug(s"Encountered error during shutdown $e")
       }
     }
   }
@@ -71,7 +74,7 @@ object EnterpriseAnalyticsConnection {
   private val shutdownHook: Thread = {
     val thread = new Thread(
       () => {
-        try stopAll()
+        try stopAll(fromShutdownHook = true)
         catch { case _: Throwable => () }
       },
       "couchbase-analytics-shutdown"
@@ -94,7 +97,7 @@ object EnterpriseAnalyticsConnection {
     )
   }
 
-  private[couchbase] def stopAll(): Unit = {
-    connections.values.forEach(c => c.stop())
+  private[couchbase] def stopAll(fromShutdownHook: Boolean = false): Unit = {
+    connections.values.forEach(c => c.stop(fromShutdownHook))
   }
 }
