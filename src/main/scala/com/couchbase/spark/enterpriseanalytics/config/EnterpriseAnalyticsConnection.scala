@@ -25,14 +25,6 @@ class EnterpriseAnalyticsConnection() extends Serializable with Logging {
 
   @transient var clusterRef: Option[Cluster] = None
 
-  Runtime.getRuntime.addShutdownHook(new Thread {
-    override def run(): Unit = {
-      Thread.currentThread().setName(s"couchbase-shutdown-in-progress")
-      EnterpriseAnalyticsConnection().stop()
-      Thread.currentThread().setName(s"couchbase-shutdown-complete")
-    }
-  })
-
   def cluster(cfg: EnterpriseAnalyticsConfig): Cluster = {
     this.synchronized {
       val creds = cfg.credentials
@@ -75,6 +67,21 @@ class EnterpriseAnalyticsConnection() extends Serializable with Logging {
 object EnterpriseAnalyticsConnection {
 
   private val connections = new ConcurrentHashMap[String, EnterpriseAnalyticsConnection]()
+
+  private val shutdownHook: Thread = {
+    val thread = new Thread(
+      () => {
+        try stopAll()
+        catch { case _: Throwable => () }
+      },
+      "couchbase-analytics-shutdown"
+    )
+    try Runtime.getRuntime.addShutdownHook(thread)
+    catch {
+      case _: IllegalStateException => ()
+    }
+    thread
+  }
 
   def apply(): EnterpriseAnalyticsConnection = {
     // We only support a single connection today, but leaving door open to future

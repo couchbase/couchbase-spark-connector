@@ -46,14 +46,6 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
 
   @transient var bucketsRef: mutable.Map[String, Bucket] = mutable.HashMap()
 
-  Runtime.getRuntime.addShutdownHook(new Thread {
-    override def run(): Unit = {
-      Thread.currentThread().setName(s"couchbase-shutdown-in-progress-$identifier")
-      CouchbaseConnection(Some(identifier)).stop()
-      Thread.currentThread().setName(s"couchbase-shutdown-complete-$identifier")
-    }
-  })
-
   def cluster(cfg: CouchbaseConfig): Cluster = {
     this.synchronized {
       if (envRef.isEmpty) {
@@ -341,6 +333,21 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
 object CouchbaseConnection {
 
   private val connections = new ConcurrentHashMap[String, CouchbaseConnection]()
+
+  private val shutdownHook: Thread = {
+    val thread = new Thread(
+      () => {
+        try stopAll()
+        catch { case _: Throwable => () }
+      },
+      "couchbase-shutdown"
+    )
+    try Runtime.getRuntime.addShutdownHook(thread)
+    catch {
+      case _: IllegalStateException => ()
+    }
+    thread
+  }
 
   def apply(connectionIdentifier: Option[String] = None): CouchbaseConnection = {
     val i = connectionIdentifier.getOrElse("default")
