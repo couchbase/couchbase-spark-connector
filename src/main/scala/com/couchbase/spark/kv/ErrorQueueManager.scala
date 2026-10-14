@@ -32,16 +32,17 @@ import scala.util.{Failure, Success, Try}
  */
 class ErrorQueueManager(
     customErrorHandler: Option[KeyValueWriteErrorHandler],
-    documentErrorHandler: Option[KeyValueErrorDocumentHandler]
+    documentErrorHandler: Option[KeyValueErrorDocumentHandler],
+    partition: String
 ) extends Logging {
 
   private val MaxQueueSize = 10000
   private val queue: BlockingQueue[KeyValueWriteErrorInfo] =
     new LinkedBlockingQueue[KeyValueWriteErrorInfo](MaxQueueSize)
   private val shutdownFlag = new AtomicBoolean(false)
-  private val errorCount = new AtomicInteger()
+  private val errorCount   = new AtomicInteger()
   private val executor = Executors.newSingleThreadExecutor(r => {
-    val thread = new Thread(r, "couchbase-error-queue")
+    val thread = new Thread(r, s"couchbase-error-queue-${partition.replace(' ', '-')}")
     thread.setDaemon(true)
     thread
   })
@@ -69,10 +70,13 @@ class ErrorQueueManager(
   def enqueueError(errorInfo: KeyValueWriteErrorInfo): Unit = {
     val newErrorCount = errorCount.incrementAndGet()
     if (shutdownFlag.get()) {
-      logWarning(s"Error queue is shut down, dropping error ${errorInfo}. Have seen ${newErrorCount} total errors")
-    }
-    else if (!queue.offer(errorInfo)) {
-      logWarning(s"Error queue is full (${MaxQueueSize} items), dropping ${errorInfo}. Have seen ${newErrorCount} total errors")
+      logWarning(
+        s"Partition $partition: error queue is shut down, dropping error ${errorInfo}. Have seen ${newErrorCount} total errors in this partition"
+      )
+    } else if (!queue.offer(errorInfo)) {
+      logWarning(
+        s"Partition $partition: error queue is full (${MaxQueueSize} items), dropping ${errorInfo}. Have seen ${newErrorCount} total errors in this partition"
+      )
     }
   }
 
@@ -108,7 +112,9 @@ class ErrorQueueManager(
   }
 
   def shutdown(): Unit = {
-    logInfo(s"Main operation has ended.  Have ${queue.size()} errors queued to process. Have seen ${errorCount} total errors")
+    logInfo(
+      s"Partition $partition: main operation has ended.  Have ${queue.size()} errors queued to process. Have seen ${errorCount} total errors in this partition"
+    )
     shutdownFlag.set(true)
     executor.shutdown()
     try {
@@ -118,6 +124,6 @@ class ErrorQueueManager(
         Thread.currentThread().interrupt()
         executor.shutdownNow()
     }
-    logInfo("Finished processing all errors")
+    logInfo(s"Partition $partition: finished processing errors")
   }
 }
