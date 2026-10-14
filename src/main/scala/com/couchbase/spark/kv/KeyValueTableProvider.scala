@@ -28,6 +28,7 @@ import com.couchbase.client.scala.kv.{
 }
 import com.couchbase.spark.DefaultConstants
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
+import org.apache.spark.TaskContext
 import org.apache.spark.api.java.function.ForeachPartitionFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
@@ -263,7 +264,11 @@ class RelationPartitionWriter(
 
   // transient lazy defers this until it's run on the executor. Required as ErrorQueueManager is not serializable.
   @transient private lazy val errorQueueManager =
-    new ErrorQueueManager(errorHandler, errorDocumentHandler)
+    new ErrorQueueManager(
+      errorHandler,
+      errorDocumentHandler,
+      RelationPartitionWriter.partitionLabel(TaskContext.get())
+    )
 
   private def validateAndInstantiateCustomErrorHandler(
       className: String
@@ -469,4 +474,15 @@ class RelationPartitionWriter(
     opts
   }
 
+}
+
+object RelationPartitionWriter {
+
+  /** Identifies which Spark task a log line came from, as "3 of 128".
+    *
+    * The count is taken from the TaskContext rather than passed down from the driver, as under AQE
+    * the number of partitions actually executed can differ from the number the driver planned.
+    */
+  private[kv] def partitionLabel(ctx: TaskContext): String =
+    if (ctx == null) "unknown" else s"${ctx.partitionId()} of ${ctx.numPartitions()}"
 }
