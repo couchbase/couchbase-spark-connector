@@ -16,6 +16,7 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.client.core.error.{CouchbaseException, DocumentExistsException}
+import com.couchbase.client.scala.Collection
 import com.couchbase.client.scala.codec.RawJsonTranscoder
 import com.couchbase.client.scala.durability.Durability
 import com.couchbase.client.scala.json.{JsonObject}
@@ -375,53 +376,62 @@ class RelationPartitionWriter(
         .fromIterable(keyValues)
         .flatMap(v => {
           val (id, decoded, cas) = v
-
-          val content = decoded.toString
-          val baseMono = writeConfig.writeMode match {
-            case Some(KeyValueOptions.WriteModeSubdocInsert) |
-                Some(KeyValueOptions.WriteModeSubdocReplace) |
-                Some(KeyValueOptions.WriteModeSubdocUpsert) => {
-              val (specs, debugInfo) = SubdocUtil.buildSubdocSpecs(decoded)
-              val storeSemantics = writeConfig.writeMode.get match {
-                case KeyValueOptions.WriteModeSubdocInsert  => StoreSemantics.Insert
-                case KeyValueOptions.WriteModeSubdocReplace => StoreSemantics.Replace
-                case _                                      => StoreSemantics.Upsert
-              }
-
-              logInfo(s"Performing subdoc mutation with ${storeSemantics} and specs: ${debugInfo}")
-
-              val opts = buildMutateInOptions(durability, storeSemantics, cas)
-              coll.reactive.mutateIn(id, specs, opts)
-            }
-            case Some(KeyValueOptions.WriteModeReplace) =>
-              cas match {
-                case Some(casValue: Long) =>
-                  coll.reactive
-                    .replace(id, content, buildReplaceOptions(durability, Some(casValue)))
-                case _ =>
-                  coll.reactive.replace(id, content, buildReplaceOptions(durability, None))
-              }
-
-            case _ =>
-              val content = decoded.toString
-              mode match {
-                case SaveMode.Overwrite =>
-                  coll.reactive.upsert(id, content, buildUpsertOptions(durability))
-                case SaveMode.ErrorIfExists =>
-                  coll.reactive.insert(id, content, buildInsertOptions(durability))
-                case SaveMode.Ignore =>
-                  coll.reactive.insert(id, content, buildInsertOptions(durability))
-                case _ =>
-                  throw new RuntimeException("Unexpected save mode " + mode)
-              }
-          }
-
-          baseMono.onErrorResume(t => handleWriteError(t, id, mode))
+          write(coll, durability, id, decoded, cas)
         }, writeConfig.maxConcurrentOps)
         .blockLast()
     } finally {
       errorQueueManager.shutdown()
     }
+  }
+
+  private def write(
+      coll: Collection,
+      durability: Durability,
+      id: String,
+      decoded: JsonObject,
+      cas: Option[Long]
+  ): SMono[_] = {
+    val content = decoded.toString
+    val baseMono = writeConfig.writeMode match {
+      case Some(KeyValueOptions.WriteModeSubdocInsert) |
+          Some(KeyValueOptions.WriteModeSubdocReplace) |
+          Some(KeyValueOptions.WriteModeSubdocUpsert) => {
+        val (specs, debugInfo) = SubdocUtil.buildSubdocSpecs(decoded)
+        val storeSemantics = writeConfig.writeMode.get match {
+          case KeyValueOptions.WriteModeSubdocInsert  => StoreSemantics.Insert
+          case KeyValueOptions.WriteModeSubdocReplace => StoreSemantics.Replace
+          case _                                      => StoreSemantics.Upsert
+        }
+
+        logInfo(s"Performing subdoc mutation with ${storeSemantics} and specs: ${debugInfo}")
+
+        val opts = buildMutateInOptions(durability, storeSemantics, cas)
+        coll.reactive.mutateIn(id, specs, opts)
+      }
+      case Some(KeyValueOptions.WriteModeReplace) =>
+        cas match {
+          case Some(casValue: Long) =>
+            coll.reactive
+              .replace(id, content, buildReplaceOptions(durability, Some(casValue)))
+          case _ =>
+            coll.reactive.replace(id, content, buildReplaceOptions(durability, None))
+        }
+
+      case _ =>
+        val content = decoded.toString
+        mode match {
+          case SaveMode.Overwrite =>
+            coll.reactive.upsert(id, content, buildUpsertOptions(durability))
+          case SaveMode.ErrorIfExists =>
+            coll.reactive.insert(id, content, buildInsertOptions(durability))
+          case SaveMode.Ignore =>
+            coll.reactive.insert(id, content, buildInsertOptions(durability))
+          case _ =>
+            throw new RuntimeException("Unexpected save mode " + mode)
+        }
+    }
+
+    baseMono.onErrorResume(t => handleWriteError(t, id, mode))
   }
 
   private def handleWriteError(
