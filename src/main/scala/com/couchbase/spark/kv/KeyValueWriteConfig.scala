@@ -28,5 +28,6 @@ case class KeyValueWriteConfig(
     errorBucket: Option[String],
     errorScope: Option[String],
     errorCollection: Option[String],
-    writeMode: Option[String]
+    writeMode: Option[String],
+    maxConcurrentOps: Int
 )

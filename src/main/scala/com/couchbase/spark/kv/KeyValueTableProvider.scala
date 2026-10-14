@@ -126,6 +126,16 @@ class KeyValueTableProvider
         throw new IllegalArgumentException("Unknown KeyValueOptions.WriteMode option: " + v)
     }
 
+    val maxConcurrentOps = Option(properties.get(KeyValueOptions.MaxConcurrentOps)) match {
+      case None => RelationPartitionWriter.DefaultMaxConcurrentOps
+      case Some(v) =>
+        scala.util.Try(v.trim.toInt).toOption.filter(_ > 0).getOrElse(
+          throw new IllegalArgumentException(
+            s"KeyValueOptions.MaxConcurrentOps must be a positive integer, but was: $v"
+          )
+        )
+    }
+
     KeyValueWriteConfig(
       conf.implicitBucketNameOr(properties.get(KeyValueOptions.Bucket)),
       conf.implicitScopeNameOr(properties.get(KeyValueOptions.Scope)),
@@ -140,7 +150,8 @@ class KeyValueTableProvider
       Option(properties.get(KeyValueOptions.ErrorBucket)),
       Option(properties.get(KeyValueOptions.ErrorScope)),
       Option(properties.get(KeyValueOptions.ErrorCollection)),
-      writeMode
+      writeMode,
+      maxConcurrentOps
     )
   }
 
@@ -406,7 +417,7 @@ class RelationPartitionWriter(
           }
 
           baseMono.onErrorResume(t => handleWriteError(t, id, mode))
-        })
+        }, writeConfig.maxConcurrentOps)
         .blockLast()
     } finally {
       errorQueueManager.shutdown()
@@ -477,6 +488,11 @@ class RelationPartitionWriter(
 }
 
 object RelationPartitionWriter {
+
+  /** The default for how many KV operations each partition - and so each Spark task - keeps
+    * in-flight at once. Can be overridden with [[KeyValueOptions.MaxConcurrentOps]].
+    */
+  val DefaultMaxConcurrentOps: Int = 16
 
   /** Identifies which Spark task a log line came from, as "3 of 128".
     *
