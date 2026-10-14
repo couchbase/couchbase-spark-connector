@@ -193,6 +193,20 @@ object KeyValueOptions {
     */
   val ErrorHandler = "errorHandler"
 
+  /** Option Key: How many KV write operations each Spark partition keeps in-flight at once.
+    *
+    * The value must be a positive integer, and defaults to 16.
+    *
+    * Note the total concurrency against the cluster is this value multiplied by the number of Spark tasks
+    * running concurrently, which is bounded by the executor cores available.
+    * The value should be selected carefully, based on the number of Spark cores and the expected capacity of the
+    * Couchbase cluster.
+    * To give a worked example with the default value of 16: 8 cores will be performing a total of 128 operations in
+    * parallel (assuming 8 partitions are available to process), and if each operation takes 1ms, this will create
+    * 128,000 operations per second.
+    */
+  val MaxConcurrentOps = "maxConcurrentOps"
+
   /** Option value: Majority Durability - to be used with [[Durability]] as the key.
     */
   val MajorityDurability = "majority"
