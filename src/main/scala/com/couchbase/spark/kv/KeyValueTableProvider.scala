@@ -48,12 +48,14 @@ import org.apache.spark.sql.types.{
   TimestampType
 }
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import reactor.core.scala.publisher.{SFlux, SMono}
 
 import scala.jdk.CollectionConverters._
 import java.util
+import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
+import java.util.concurrent.atomic.AtomicReference
+import scala.collection.mutable
 import scala.concurrent.duration.Duration
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class KeyValueTableProvider
     extends Logging
@@ -316,44 +318,15 @@ class RelationPartitionWriter(
   }
 
   override def call(t: util.Iterator[String]): Unit = {
+    // Force creation here on the task thread, as it labels itself from Spark's ThreadLocal TaskContext.
+    errorQueueManager
+
+    val partitionId = Option(TaskContext.get()).map(_.partitionId()).getOrElse(-1)
+    logInfo(s"KV dataframe write of partition ${partitionId} starting")
+
     try {
       val scopeName      = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
       val collectionName = writeConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
-
-      logInfo("Starting JSON conversion of all documents")
-
-      val keyValues = t.asScala
-        .map(encoded => {
-          val decoded = JsonObject.fromJson(encoded)
-          val id      = decoded.str(writeConfig.idFieldName)
-          decoded.remove(writeConfig.idFieldName)
-
-          val cas: Option[Long] = writeConfig.casFieldName match {
-            case Some(casFieldName) =>
-              decoded.safe.numLong(casFieldName) match {
-                case Failure(_) =>
-                  // Fail up front.  Usually if CAS is not present it's not going to be present for any doc, and we
-                  // don't want to invoke the error handler pointlessly N times.
-                  throw new IllegalArgumentException(
-                    s"CAS field '${casFieldName}' was specified but no valid CAS value found in that column for document '$id'"
-                  )
-                case Success(cas) =>
-                  decoded.safe.remove(casFieldName)
-                  Some(cas)
-              }
-            case _ => None
-          }
-
-          // A query read can now easily add this CAS field.
-          // We'll assume the user doesn't want to write a column __META_CAS to their KV docs, regardless of whether
-          // they have explicitly requested CAS or not.
-          decoded.safe.remove(DefaultConstants.DefaultCasFieldName)
-
-          (id, decoded, cas)
-        })
-        .toList
-
-      logInfo("Completed JSON conversion of all documents")
 
       val coll = CouchbaseConnection(writeConfig.connectionIdentifier)
         .cluster(couchbaseConfig)
@@ -372,16 +345,57 @@ class RelationPartitionWriter(
           throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
       }
 
-      SFlux
-        .fromIterable(keyValues)
-        .flatMap(v => {
-          val (id, decoded, cas) = v
-          write(coll, durability, id, decoded, cas)
-        }, writeConfig.maxConcurrentOps)
-        .blockLast()
+      logInfo(s"KV dataframe write of partition ${partitionId} using config ${writeConfig}")
+
+      val count = RelationPartitionWriter.writeAll(
+        t.asScala,
+        writeConfig.maxConcurrentOps,
+        i => s"couchbase-kv-writer-partition-$partitionId-$i"
+      ) { encoded =>
+        val (id, decoded, cas) = toKeyValue(encoded)
+        write(coll, durability, id, decoded, cas)
+      }
+
+      logInfo(s"Completed writing $count documents")
+    } catch {
+      case err: Throwable =>
+        logError(s"KV dataframe write of partition ${partitionId} failed due to ${err}")
+        // Must be rethrown, so that Spark fails (and retries) the task.
+        throw err
     } finally {
+      logInfo(s"KV dataframe write of partition ${partitionId} finishing")
       errorQueueManager.shutdown()
     }
+  }
+
+  private def toKeyValue(encoded: String): (String, JsonObject, Option[Long]) = {
+    val decoded = JsonObject.fromJson(encoded)
+    val id      = decoded.str(writeConfig.idFieldName)
+    decoded.remove(writeConfig.idFieldName)
+
+    val cas: Option[Long] = writeConfig.casFieldName match {
+      case Some(casFieldName) =>
+        decoded.safe.numLong(casFieldName) match {
+          case Failure(_) =>
+            // Fail the job rather than invoking the error handler.  Usually if CAS is not present it's not
+            // going to be present for any doc, and we don't want to invoke the error handler pointlessly N
+            // times.  Note that documents earlier in the partition may already have been written.
+            throw new IllegalArgumentException(
+              s"CAS field '${casFieldName}' was specified but no valid CAS value found in that column for document '$id'"
+            )
+          case Success(cas) =>
+            decoded.safe.remove(casFieldName)
+            Some(cas)
+        }
+      case _ => None
+    }
+
+    // A query read can now easily add this CAS field.
+    // We'll assume the user doesn't want to write a column __META_CAS to their KV docs, regardless of whether
+    // they have explicitly requested CAS or not.
+    decoded.safe.remove(DefaultConstants.DefaultCasFieldName)
+
+    (id, decoded, cas)
   }
 
   private def write(
@@ -390,9 +404,9 @@ class RelationPartitionWriter(
       id: String,
       decoded: JsonObject,
       cas: Option[Long]
-  ): SMono[_] = {
+  ): Unit = {
     val content = decoded.toString
-    val baseMono = writeConfig.writeMode match {
+    val result: Try[_] = writeConfig.writeMode match {
       case Some(KeyValueOptions.WriteModeSubdocInsert) |
           Some(KeyValueOptions.WriteModeSubdocReplace) |
           Some(KeyValueOptions.WriteModeSubdocUpsert) => {
@@ -406,51 +420,48 @@ class RelationPartitionWriter(
         logInfo(s"Performing subdoc mutation with ${storeSemantics} and specs: ${debugInfo}")
 
         val opts = buildMutateInOptions(durability, storeSemantics, cas)
-        coll.reactive.mutateIn(id, specs, opts)
+        coll.mutateIn(id, specs, opts)
       }
       case Some(KeyValueOptions.WriteModeReplace) =>
         cas match {
           case Some(casValue: Long) =>
-            coll.reactive
-              .replace(id, content, buildReplaceOptions(durability, Some(casValue)))
+            coll.replace(id, content, buildReplaceOptions(durability, Some(casValue)))
           case _ =>
-            coll.reactive.replace(id, content, buildReplaceOptions(durability, None))
+            coll.replace(id, content, buildReplaceOptions(durability, None))
         }
 
       case _ =>
         val content = decoded.toString
         mode match {
           case SaveMode.Overwrite =>
-            coll.reactive.upsert(id, content, buildUpsertOptions(durability))
+            coll.upsert(id, content, buildUpsertOptions(durability))
           case SaveMode.ErrorIfExists =>
-            coll.reactive.insert(id, content, buildInsertOptions(durability))
+            coll.insert(id, content, buildInsertOptions(durability))
           case SaveMode.Ignore =>
-            coll.reactive.insert(id, content, buildInsertOptions(durability))
+            coll.insert(id, content, buildInsertOptions(durability))
           case _ =>
             throw new RuntimeException("Unexpected save mode " + mode)
         }
     }
 
-    baseMono.onErrorResume(t => handleWriteError(t, id, mode))
+    result.failed.foreach(t => handleWriteError(t, id, mode))
   }
 
   private def handleWriteError(
       throwable: Throwable,
       documentId: String,
       saveMode: SaveMode
-  ): SMono[_] = {
+  ): Unit = {
     // Special case for SaveMode.Ignore: silently ignore DocumentExistsException
     if (saveMode == SaveMode.Ignore && throwable.isInstanceOf[DocumentExistsException]) {
       logInfo(s"Document $documentId already exists, ignoring as per SaveMode.Ignore")
-      SMono.empty
     } else {
       if (errorHandler.isDefined || errorDocumentHandler.isDefined) {
         val errorInfo = createErrorInfo(documentId, throwable)
-        // Intentionally not part of the reactive chain and will not block
+        // Will not block
         errorQueueManager.enqueueError(errorInfo)
-        SMono.empty
       } else {
-        SMono.error(throwable)
+        throw throwable
       }
     }
   }
@@ -511,4 +522,86 @@ object RelationPartitionWriter {
     */
   private[kv] def partitionLabel(ctx: TaskContext): String =
     if (ctx == null) "unknown" else s"${ctx.partitionId()} of ${ctx.numPartitions()}"
+
+  /** SPARKC-240: Read and convert documents while we stream
+    * Runs `process` on each item using `numThreads` threads, and returns how many items were
+    * processed.
+    *
+    * `items` is only ever advanced on the calling thread - the Spark task thread. Spark's iterator
+    * may drive upstream work (reading files, fetching shuffle blocks, ...) that expects the task's
+    * thread-local TaskContext, so it must not be advanced from any other thread. Items are handed
+    * to the threads through a small bounded queue, so only around `2 * numThreads` items are held
+    * in memory at once.
+    *
+    * The first exception thrown by `process` (or by `items`) fails the whole write. No further
+    * items are processed, those already being processed are allowed to finish, and then the
+    * exception is rethrown.
+    */
+  private[kv] def writeAll[T <: AnyRef](
+      items: Iterator[T],
+      numThreads: Int,
+      threadName: Int => String
+  )(process: T => Unit): Long = {
+    val queue      = new ArrayBlockingQueue[T](numThreads)
+    val firstError = new AtomicReference[Throwable]()
+
+    @volatile var producerDone = false
+
+    val threads = mutable.ArrayBuffer.empty[Thread]
+    var count   = 0L
+    try {
+      for (i <- 0 until numThreads) {
+        val thread = new Thread(
+          () => {
+            // A worker exits when no more work can arrive, which is triggered by producerDone (the incoming items
+            // stream has been fully consumed), and the work queue being empty.
+            while (!(producerDone && queue.isEmpty)) {
+              val item = queue.poll(100, TimeUnit.MILLISECONDS)
+              // After a failure keep draining the queue, so the producer cannot block on it,
+              // but skip the work.
+              if (item != null && firstError.get() == null) {
+                try process(item)
+                // The first thrown error triggers task failure as is the normal Spark model.  Spark by default will
+                // retry the full task (partition) 4 times.  It is now recommended that users apply the failure handling to have better handling
+                // of e.g. occasional KV timeouts:
+                // https://docs.couchbase.com/spark-connector/current/spark-sql.html#failure-handling-during-persistence
+                catch { case e: Throwable => firstError.compareAndSet(null, e) }
+              }
+            }
+          },
+          threadName(i)
+        )
+        thread.setDaemon(true)
+        thread.start()
+        threads += thread
+      }
+
+      while (firstError.get() == null && items.hasNext) {
+        // Each call to .next() here is executing the upstream Spark code, e.g. it may block as it reads from file etc.
+        // The aim is to keep the queue ahead of the workers by ~numThreads items, which should ensure a smooth flow.
+        queue.put(items.next())
+        count += 1
+      }
+    } catch {
+      case e: Throwable => firstError.compareAndSet(null, e)
+    } finally {
+      producerDone = true
+      var interrupted = false
+      threads.foreach { thread =>
+        while (thread.isAlive) {
+          try thread.join()
+          // If Spark kills the task, it interrupts the task thread.  We handle that here and let the worker threads
+          // finish cleanly first (they are setup to skip remaining work as an error has occurred).
+          // We will re-interrupt after all workers are done. The while loop also ensures that we still join the
+          // interrupted worker.
+          catch { case _: InterruptedException => interrupted = true }
+        }
+      }
+      if (interrupted) Thread.currentThread().interrupt()
+    }
+
+    val e = firstError.get()
+    if (e != null) throw e
+    count
+  }
 }
