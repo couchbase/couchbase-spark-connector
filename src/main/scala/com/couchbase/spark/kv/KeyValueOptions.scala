@@ -195,6 +195,9 @@ object KeyValueOptions {
 
   /** Option Key: How many KV write operations each Spark partition keeps in-flight at once.
     *
+    * Each partition uses this many threads to write, each performing one blocking KV operation at a
+    * time.
+    *
     * The value must be a positive integer, and defaults to 16.
     *
     * Note the total concurrency against the cluster is this value multiplied by the number of Spark tasks
