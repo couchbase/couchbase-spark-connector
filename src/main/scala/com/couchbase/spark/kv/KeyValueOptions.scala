@@ -121,9 +121,9 @@ object KeyValueOptions {
 
   /** Option Key: Enables writing failed documents to a specified Couchbase collection.
    *
-   * This handler creates error documents with the pattern:
-   * "error_{orig_doc_bucket}.{orig_doc_scope}.{orig_doc_collection}_{orig_doc_id}_{timestamp}"
-   *
+   * This handler creates error documents with IDs of the pattern "error_{hash}_{timestamp}", where the hash is
+   * of the original document's bucket, scope, collection and ID.
+   * 
    * One will be created for each failing underlying KeyValue operation (e.g. an individual upsert,
    * insert or similar).
    *

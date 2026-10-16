@@ -24,6 +24,7 @@ import reactor.core.scala.publisher.SMono
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import scala.concurrent.duration.DurationInt
 
 class KeyValueErrorDocumentHandler(
@@ -56,8 +57,13 @@ class KeyValueErrorDocumentHandler(
       originalCollection: String,
       error: Throwable
   ): Unit = {
-    val errorDocId =
-      s"error_${originalBucket}.${originalScope}.${originalCollection}_${documentId}_${System.currentTimeMillis()}"
+    val errorDocId = KeyValueErrorDocumentHandler.errorDocumentId(
+      originalBucket,
+      originalScope,
+      originalCollection,
+      documentId,
+      System.currentTimeMillis()
+    )
 
     val errorJson = JsonObject.create
       .put("class", error.getClass.getName)
@@ -78,10 +84,36 @@ class KeyValueErrorDocumentHandler(
       .put("error", errorJson)
 
     try {
-      errorCollection.upsert(errorDocId, errorDocJson)
+      errorCollection.upsert(errorDocId, errorDocJson).get
     } catch {
       case e: Exception =>
         logWarning(s"Failed to write error document for $documentId: ${e.getMessage}")
     }
+  }
+}
+
+object KeyValueErrorDocumentHandler {
+
+  /** SPARKC-243: The ID of the error document for one failed operation.
+    *
+    * The original document's location and ID are hashed, rather than included verbatim, so the ID is always
+    * well within the 250-byte key limit whatever the length of the original ID.  All of them are in the error
+    * document's body.  All failures of one document share the same hash, and the timestamp separates them.
+    *
+    * '/' cannot appear in bucket, scope or collection names, so it separates them unambiguously.
+    */
+  private[kv] def errorDocumentId(
+      bucket: String,
+      scope: String,
+      collection: String,
+      documentId: String,
+      timestampMillis: Long
+  ): String = {
+    val digest = MessageDigest
+      .getInstance("SHA-256")
+      .digest(s"$bucket/$scope/$collection/$documentId".getBytes(StandardCharsets.UTF_8))
+    // 128 bits is plenty to avoid collisions.
+    val hash = digest.take(16).map(b => f"${b & 0xff}%02x").mkString
+    s"error_${hash}_$timestampMillis"
   }
 }
