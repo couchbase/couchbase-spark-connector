@@ -52,7 +52,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import scala.jdk.CollectionConverters._
 import java.util
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
@@ -259,6 +259,7 @@ class KeyValueTableProvider
 
 }
 
+// Each Spark task deserializes its own copy of this class.
 class RelationPartitionWriter(
     writeConfig: KeyValueWriteConfig,
     couchbaseConfig: CouchbaseConfig,
@@ -275,6 +276,8 @@ class RelationPartitionWriter(
       )
     (regularHandler, documentHandler)
   }
+
+  private val loggedSubdocSpecs = new AtomicBoolean(false)
 
   // transient lazy defers this until it's run on the executor. Required as ErrorQueueManager is not serializable.
   @transient private lazy val errorQueueManager =
@@ -322,7 +325,10 @@ class RelationPartitionWriter(
     errorQueueManager
 
     val partitionId = Option(TaskContext.get()).map(_.partitionId()).getOrElse(-1)
-    logInfo(s"KV dataframe write of partition ${partitionId} starting")
+    val partition   = RelationPartitionWriter.partitionLabel(TaskContext.get())
+    logInfo(s"Partition ${partition}: KV dataframe write starting")
+
+    val stats = new PartitionWriteStats(partition, s"couchbase-kv-stats-partition-$partitionId")
 
     try {
       val scopeName      = writeConfig.scope.getOrElse(DefaultConstants.DefaultScopeName)
@@ -345,25 +351,31 @@ class RelationPartitionWriter(
           throw new IllegalArgumentException("Unknown/Unsupported durability provided: " + d)
       }
 
-      logInfo(s"KV dataframe write of partition ${partitionId} using config ${writeConfig}")
+      logInfo(s"Partition ${partition}: KV dataframe write using config ${writeConfig} saveMode ${mode}")
+
+      stats.start()
 
       val count = RelationPartitionWriter.writeAll(
         t.asScala,
         writeConfig.maxConcurrentOps,
-        i => s"couchbase-kv-writer-partition-$partitionId-$i"
+        i => s"couchbase-kv-writer-partition-$partitionId-$i",
+        stats
       ) { encoded =>
-        val (id, decoded, cas) = toKeyValue(encoded)
-        write(coll, durability, id, decoded, cas)
+        write(coll, durability, encoded, stats)
       }
 
-      logInfo(s"Completed writing $count documents")
+      logInfo(s"Partition ${partition}: KV dataframe write completed processing $count documents")
     } catch {
       case err: Throwable =>
-        logError(s"KV dataframe write of partition ${partitionId} failed due to ${err}")
+        logError(
+          s"Partition ${partition}: KV dataframe write failed due to " +
+            PartitionWriteStats.describe(err)
+        )
         // Must be rethrown, so that Spark fails (and retries) the task.
         throw err
     } finally {
-      logInfo(s"KV dataframe write of partition ${partitionId} finishing")
+      logInfo(s"Partition ${partition}: KV dataframe write finishing")
+      stats.close()
       errorQueueManager.shutdown()
     }
   }
@@ -401,12 +413,13 @@ class RelationPartitionWriter(
   private def write(
       coll: Collection,
       durability: Durability,
-      id: String,
-      decoded: JsonObject,
-      cas: Option[Long]
+      encoded: String,
+      stats: PartitionWriteStats
   ): Unit = {
-    val content = decoded.toString
-    val result: Try[_] = writeConfig.writeMode match {
+    val conversionStarted  = System.nanoTime()
+    val (id, decoded, cas) = toKeyValue(encoded)
+
+    val op: () => Try[_] = writeConfig.writeMode match {
       case Some(KeyValueOptions.WriteModeSubdocInsert) |
           Some(KeyValueOptions.WriteModeSubdocReplace) |
           Some(KeyValueOptions.WriteModeSubdocUpsert) => {
@@ -417,45 +430,57 @@ class RelationPartitionWriter(
           case _                                      => StoreSemantics.Upsert
         }
 
-        logInfo(s"Performing subdoc mutation with ${storeSemantics} and specs: ${debugInfo}")
+        // Log only the first to avoid spam.  The specs come from the column names so are usually the same for every document.
+        if (loggedSubdocSpecs.compareAndSet(false, true)) {
+          logInfo(
+            s"Partition ${stats.partition}: performing subdoc mutations with ${storeSemantics}, " +
+              s"specs for the first document: ${debugInfo}"
+          )
+        }
 
         val opts = buildMutateInOptions(durability, storeSemantics, cas)
-        coll.mutateIn(id, specs, opts)
+        () => coll.mutateIn(id, specs, opts)
       }
-      case Some(KeyValueOptions.WriteModeReplace) =>
-        cas match {
-          case Some(casValue: Long) =>
-            coll.replace(id, content, buildReplaceOptions(durability, Some(casValue)))
-          case _ =>
-            coll.replace(id, content, buildReplaceOptions(durability, None))
-        }
 
       case _ =>
         val content = decoded.toString
-        mode match {
-          case SaveMode.Overwrite =>
-            coll.upsert(id, content, buildUpsertOptions(durability))
-          case SaveMode.ErrorIfExists =>
-            coll.insert(id, content, buildInsertOptions(durability))
-          case SaveMode.Ignore =>
-            coll.insert(id, content, buildInsertOptions(durability))
+        (writeConfig.writeMode, mode) match {
+          case (Some(KeyValueOptions.WriteModeReplace), _) =>
+            val opts = buildReplaceOptions(durability, cas)
+            () => coll.replace(id, content, opts)
+          case (_, SaveMode.Overwrite) =>
+            val opts = buildUpsertOptions(durability)
+            () => coll.upsert(id, content, opts)
+          case (_, SaveMode.ErrorIfExists | SaveMode.Ignore) =>
+            val opts = buildInsertOptions(durability)
+            () => coll.insert(id, content, opts)
           case _ =>
             throw new RuntimeException("Unexpected save mode " + mode)
         }
     }
 
-    result.failed.foreach(t => handleWriteError(t, id, mode))
+    val opStarted = System.nanoTime()
+    stats.recordConversion(opStarted - conversionStarted)
+
+    // Execute the KV op here.
+    op() match {
+      case Success(_) => stats.recordSuccess(System.nanoTime() - opStarted)
+      case Failure(t) => handleWriteError(t, id, mode, stats)
+    }
   }
 
   private def handleWriteError(
       throwable: Throwable,
       documentId: String,
-      saveMode: SaveMode
+      saveMode: SaveMode,
+      stats: PartitionWriteStats
   ): Unit = {
     // Special case for SaveMode.Ignore: silently ignore DocumentExistsException
     if (saveMode == SaveMode.Ignore && throwable.isInstanceOf[DocumentExistsException]) {
+      stats.recordIgnored()
       logInfo(s"Document $documentId already exists, ignoring as per SaveMode.Ignore")
     } else {
+      stats.recordFailure(documentId, throwable)
       if (errorHandler.isDefined || errorDocumentHandler.isDefined) {
         val errorInfo = createErrorInfo(documentId, throwable)
         // Will not block
@@ -508,7 +533,7 @@ class RelationPartitionWriter(
 
 }
 
-object RelationPartitionWriter {
+object RelationPartitionWriter extends Logging {
 
   /** The default for how many KV operations each partition - and so each Spark task - keeps
     * in-flight at once. Can be overridden with [[KeyValueOptions.MaxConcurrentOps]].
@@ -540,12 +565,22 @@ object RelationPartitionWriter {
   private[kv] def writeAll[T <: AnyRef](
       items: Iterator[T],
       numThreads: Int,
-      threadName: Int => String
+      threadName: Int => String,
+      stats: PartitionWriteStats
   )(process: T => Unit): Long = {
+    val partition  = stats.partition
     val queue      = new ArrayBlockingQueue[T](numThreads)
     val firstError = new AtomicReference[Throwable]()
 
     @volatile var producerDone = false
+
+    def fail(e: Throwable, context: String): Unit =
+      if (firstError.compareAndSet(null, e)) {
+        logError(
+          s"Partition $partition: $context, so the write will fail and remaining items will be " +
+            s"skipped: ${PartitionWriteStats.describe(e)}"
+        )
+      }
 
     val threads = mutable.ArrayBuffer.empty[Thread]
     var count   = 0L
@@ -553,6 +588,7 @@ object RelationPartitionWriter {
       for (i <- 0 until numThreads) {
         val thread = new Thread(
           () => {
+            var processed = 0L
             // A worker exits when no more work can arrive, which is triggered by producerDone (the incoming items
             // stream has been fully consumed), and the work queue being empty.
             while (!(producerDone && queue.isEmpty)) {
@@ -565,9 +601,14 @@ object RelationPartitionWriter {
                 // retry the full task (partition) 4 times.  It is now recommended that users apply the failure handling to have better handling
                 // of e.g. occasional KV timeouts:
                 // https://docs.couchbase.com/spark-connector/current/spark-sql.html#failure-handling-during-persistence
-                catch { case e: Throwable => firstError.compareAndSet(null, e) }
+                catch { case e: Throwable => fail(e, s"worker ${Thread.currentThread().getName} failed") }
+                processed += 1
               }
             }
+            logInfo(
+              s"Partition $partition: worker ${Thread.currentThread().getName} finished after " +
+                s"processing $processed items"
+            )
           },
           threadName(i)
         )
@@ -576,27 +617,66 @@ object RelationPartitionWriter {
         threads += thread
       }
 
+      // hasNext() as well as next() is timed, as Spark iterators often do the upstream work in hasNext().
+      var readStarted = System.nanoTime()
       while (firstError.get() == null && items.hasNext) {
         // Each call to .next() here is executing the upstream Spark code, e.g. it may block as it reads from file etc.
         // The aim is to keep the queue ahead of the workers by ~numThreads items, which should ensure a smooth flow.
-        queue.put(items.next())
+        val item = items.next()
+        stats.recordUpstreamRead(System.nanoTime() - readStarted, queue.size())
+        queue.put(item)
         count += 1
+        readStarted = System.nanoTime()
       }
     } catch {
-      case e: Throwable => firstError.compareAndSet(null, e)
+      case e: Throwable => fail(e, "reading the next item from Spark failed")
     } finally {
+      if (firstError.get() == null) {
+        logInfo(
+          s"Partition $partition: finished reading all $count items from Spark, " +
+            s"${queue.size()} are still queued.  Waiting for ${threads.size} worker threads to finish"
+        )
+      } else {
+        logInfo(
+          s"Partition $partition: stopped reading from Spark after $count items due to an error.  " +
+            s"Waiting for ${threads.size} worker threads to finish their in-flight items"
+        )
+      }
+
       producerDone = true
-      var interrupted = false
+      val joinStarted    = System.nanoTime()
+      var lastWaitingLog = joinStarted
+      var interrupted    = false
       threads.foreach { thread =>
         while (thread.isAlive) {
-          try thread.join()
+          try thread.join(1000)
           // If Spark kills the task, it interrupts the task thread.  We handle that here and let the worker threads
-          // finish cleanly first (they are setup to skip remaining work as an error has occurred).
+          // finish cleanly first (recording the interrupt as the error makes them skip any remaining queued items).
           // We will re-interrupt after all workers are done. The while loop also ensures that we still join the
           // interrupted worker.
-          catch { case _: InterruptedException => interrupted = true }
+          catch {
+            case e: InterruptedException =>
+              interrupted = true
+              fail(e, "interrupted while waiting for worker threads (likely the task was killed) - will continue")
+          }
+
+          val now = System.nanoTime()
+          if (now - lastWaitingLog >= PartitionWriteStats.DefaultInterval.toNanos) {
+            lastWaitingLog = now
+            val alive = threads.filter(_.isAlive)
+            if (alive.nonEmpty) {
+              logInfo(
+                s"Partition $partition: still waiting after ${(now - joinStarted) / 1000000}ms " +
+                  s"for ${alive.size} worker threads: ${alive.map(_.getName).mkString(", ")}"
+              )
+            }
+          }
         }
       }
+      logInfo(
+        s"Partition $partition: all ${threads.size} worker threads finished, after waiting " +
+          s"${(System.nanoTime() - joinStarted) / 1000000}ms"
+      )
       if (interrupted) Thread.currentThread().interrupt()
     }
 

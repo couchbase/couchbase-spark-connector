@@ -27,6 +27,9 @@ class WriteAllTest {
 
   private def threadName(i: Int) = s"write-all-test-$i"
 
+  // Not started, so it records but never reports on its own.
+  private def stats = new PartitionWriteStats("test", "write-all-test-stats")
+
   /** Simulates a blocking write, tracking how many are running at once. */
   private def blockingOp(inFlight: AtomicInteger, maxSeen: AtomicInteger): Unit = {
     val now = inFlight.incrementAndGet()
@@ -47,7 +50,7 @@ class WriteAllTest {
       i.toString
     })
 
-    val count = RelationPartitionWriter.writeAll(items, 8, threadName) { item =>
+    val count = RelationPartitionWriter.writeAll(items, 8, threadName, stats) { item =>
       assertTrue(Thread.currentThread().getName.startsWith("write-all-test-"))
       blockingOp(inFlight, maxSeen)
       processed.add(item)
@@ -62,7 +65,7 @@ class WriteAllTest {
 
   @Test
   def emptyInput(): Unit = {
-    assertEquals(0L, RelationPartitionWriter.writeAll(Iterator[String](), 4, threadName)(_ => ()))
+    assertEquals(0L, RelationPartitionWriter.writeAll(Iterator[String](), 4, threadName, stats)(_ => ()))
   }
 
   @Test
@@ -77,7 +80,7 @@ class WriteAllTest {
     val thrown = assertThrows(
       classOf[IllegalStateException],
       () =>
-        RelationPartitionWriter.writeAll(items, 4, threadName) { item =>
+        RelationPartitionWriter.writeAll(items, 4, threadName, stats) { item =>
           if (item == "10") throw failure
           blockingOp(inFlight, maxSeen)
         }
@@ -100,7 +103,7 @@ class WriteAllTest {
 
     assertThrows(
       classOf[IllegalArgumentException],
-      () => RelationPartitionWriter.writeAll(items, 4, threadName)(_ => blockingOp(inFlight, maxSeen))
+      () => RelationPartitionWriter.writeAll(items, 4, threadName, stats)(_ => blockingOp(inFlight, maxSeen))
     )
     assertEquals(0, inFlight.get())
   }
