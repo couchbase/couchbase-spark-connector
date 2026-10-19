@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark.connections.alternateaddress.streaming
 
+import com.couchbase.spark.config.CouchbaseConnection
 import com.couchbase.spark.kv.KeyValueOptions
 import com.couchbase.spark.util.ClusterVersions.testContainer
 import com.couchbase.spark.util.{SparkTest, TestInfraBuilder}
@@ -78,6 +79,8 @@ class AlternateAddressIntegrationTest {
       query.awaitTermination()
     }
     finally {
+      // The cached connection points at the container, so must not leak into later tests.
+      CouchbaseConnection.stopAll()
       spark.stop()
     }
   }
