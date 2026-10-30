@@ -98,7 +98,7 @@ class EnterpriseAnalyticsTableProvider extends TableProvider with Logging with D
 
     val rows   = result.rows().asScala.map(_.toString)
     val ds     = sparkSession.sqlContext.createDataset(rows.toSeq)(Encoders.STRING)
-    val schema = sparkSession.sqlContext.read.json(ds).schema
+    val schema = sparkSession.sqlContext.read.json(ds.coalesce(1)).schema
 
     logDebug(s"Inferred schema is $schema")
 

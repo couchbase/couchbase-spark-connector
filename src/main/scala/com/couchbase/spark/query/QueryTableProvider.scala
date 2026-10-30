@@ -124,7 +124,7 @@ class QueryTableProvider
 
     val rows   = result.flatMap(result => result.rowsAs[String](Passthrough.StringConvert)).get.toSeq
     val ds     = sparkSession.sqlContext.createDataset(rows)(Encoders.STRING)
-    val schema = sparkSession.sqlContext.read.json(ds).schema
+    val schema = sparkSession.sqlContext.read.json(ds.coalesce(1)).schema
 
     logDebug(s"Inferred schema is $schema")
 

@@ -80,7 +80,7 @@ class ColumnarTableProvider extends TableProvider with Logging with DataSourceRe
 
     val rows   = result.flatMap(result => result.rowsAs[String](Passthrough.StringConvert)).get
     val ds     = sparkSession.sqlContext.createDataset(rows.toSeq)(Encoders.STRING)
-    val schema = sparkSession.sqlContext.read.json(ds).schema
+    val schema = sparkSession.sqlContext.read.json(ds.coalesce(1)).schema
 
     logDebug(s"Inferred schema is $schema")
 
