@@ -26,6 +26,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.query.{QueryMetaData, QueryMetrics, QueryScanConsistency, ReactiveQueryResult, QueryOptions => CouchbaseQueryOptions}
 import com.couchbase.spark.DefaultConstants
+import com.couchbase.spark.util.WhereClause
 import org.apache.spark.sql.catalyst.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
@@ -148,24 +149,11 @@ class QueryPartitionReader(
       }
     }
 
-    var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
-    val compiledFilters = QueryFilters.compile(filters)
-    if (compiledFilters.nonEmpty && predicate.nonEmpty) {
-      predicate = predicate + " AND " + compiledFilters
-    } else if (compiledFilters.nonEmpty) {
-      predicate = " WHERE " + compiledFilters
-    }
-
-    partition.bound match {
-      case Some(value) =>
-        if (predicate.contains("WHERE")) {
-          predicate = predicate + s" AND (${value.whereClause})"
-        }  else {
-          predicate = predicate + s" WHERE (${value.whereClause})"
-        }
-
-      case None =>
-    }
+    val predicate = WhereClause.build(
+      readConfig.userFilter,
+      Some(QueryFilters.compile(filters)),
+      partition.bound.map(_.whereClause)
+    )
 
     val groupBy = if (hasAggregateGroupBy) {
       " GROUP BY " + aggregations.get

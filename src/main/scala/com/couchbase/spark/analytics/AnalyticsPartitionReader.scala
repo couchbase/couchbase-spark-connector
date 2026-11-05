@@ -19,6 +19,7 @@ package com.couchbase.spark.analytics
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import com.fasterxml.jackson.core.io.JsonStringEncoder
+import com.couchbase.spark.util.WhereClause
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.read.PartitionReader
@@ -106,13 +107,7 @@ class AnalyticsPartitionReader(
       fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
     }
 
-    var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
-    val compiledFilters = compileFilter(filters)
-    if (compiledFilters.nonEmpty && predicate.nonEmpty) {
-      predicate = predicate + " AND " + compiledFilters
-    } else if (compiledFilters.nonEmpty) {
-      predicate = " WHERE " + compiledFilters
-    }
+    val predicate = WhereClause.build(readConfig.userFilter, Some(compileFilter(filters)))
 
     val groupBy = if (hasAggregateGroupBy) {
       " GROUP BY " + aggregations.get

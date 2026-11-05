@@ -196,8 +196,43 @@ class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
       })
   }
 
-  def partitionedQuery(lowerBound: Long, upperBound: Long, partitionCount: Long): DataFrame = {
-    spark.read
+  // The partitions are "runways < 5" (SFO, VIE, FRA) and "runways >= 5" (ORD).  A user filter containing OR must not
+  // bind with the partition bound, else rows matching the left side of the OR are returned by every partition.
+  @Test
+  def userFilterWithOrIsNotDuplicatedAcrossPartitions(): Unit = {
+    val ids = partitionedQuery(1, 8, 2, Some("country = 'United States' OR country = 'Germany'"))
+      .collect()
+      .map(_.getAs[String]("__META_ID"))
+      .sorted
+      .toSeq
+    assertEquals(Seq("airport::fra", "airport::ord", "airport::sfo"), ids)
+  }
+
+  // Spark pushes elevation > 150 (and IsNotNull(elevation)) down to the connector.  These must be applied to the whole
+  // user filter, not just to the right side of its OR.
+  @Test
+  def userFilterWithOrIsCombinedCorrectlyWithPushedFilters(): Unit = {
+    val ids = spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .option(QueryOptions.Filter, "country = 'United States' OR country = 'Germany'")
+      .load()
+      .filter(col("elevation") > 150)
+      .collect()
+      .map(_.getAs[String]("__META_ID"))
+      .toSeq
+    assertEquals(Seq("airport::ord"), ids)
+  }
+
+  def partitionedQuery(
+      lowerBound: Long,
+      upperBound: Long,
+      partitionCount: Long,
+      userFilter: Option[String] = None
+  ): DataFrame = {
+    val reader = spark.read
       .format("couchbase.query")
       .option(QueryOptions.Scope, testResources.scopeName)
       .option(QueryOptions.Collection, testResources.collectionName)
@@ -206,7 +241,7 @@ class QueryPartitioningIntegrationTest extends SparkOperationalSimpleTest {
       .option(QueryOptions.PartitionLowerBound, lowerBound.toString)
       .option(QueryOptions.PartitionUpperBound, upperBound.toString)
       .option(QueryOptions.PartitionCount, partitionCount.toString)
-      .load()
+    userFilter.fold(reader)(f => reader.option(QueryOptions.Filter, f)).load()
   }
 
   def readDocumentsFromCollectionHelper(lowerBound: Long, upperBound: Long, partitionCount: Long): Long = {
