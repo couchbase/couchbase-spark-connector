@@ -173,4 +173,32 @@ class QueryDataFrameIntegrationTest extends SparkOperationalSimpleTest {
 
     assertEquals(Seq("airport::ord", "airport::sfo"), ids)
   }
+
+  private def airportIdsWhere(condition: org.apache.spark.sql.Column): Seq[String] =
+    spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+      .filter(condition)
+      .collect()
+      .map(_.getAs[String]("__META_ID"))
+      .sorted
+      .toSeq
+
+  @Test
+  def testFilterOnValueContainingQuote(): Unit = {
+    assertEquals(
+      Seq("airport::ord"),
+      airportIdsWhere(col("name") === "O'Hare International Airport")
+    )
+    assertEquals(Seq("airport::ord"), airportIdsWhere(col("name").contains("O'Hare")))
+  }
+
+  @Test
+  def testLikeFilterValueContainingDot(): Unit = {
+    assertEquals(Seq(), airportIdsWhere(col("name").startsWith("O'Hare Int.")))
+    assertEquals(Seq(), airportIdsWhere(col("name").endsWith(".")))
+  }
 }
