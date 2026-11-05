@@ -38,8 +38,9 @@ class QueryScanBuilder(schema: StructType, readConfig: QueryReadConfig)
   }
 
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
-    pushedFilter = filters
-    Array.empty[Filter]
+    val (supported, unsupported) = QueryFilters.partitionSupported(filters)
+    pushedFilter = supported
+    unsupported
   }
 
   override def pushedFilters(): Array[Filter] = pushedFilter

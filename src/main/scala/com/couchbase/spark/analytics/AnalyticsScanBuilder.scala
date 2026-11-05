@@ -37,8 +37,9 @@ class AnalyticsScanBuilder(schema: StructType, readConfig: AnalyticsReadConfig)
   }
 
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
-    pushedFilter = filters
-    Array.empty[Filter]
+    val (supported, unsupported) = AnalyticsPartitionReader.partitionSupported(filters)
+    pushedFilter = supported
+    unsupported
   }
 
   override def pushedFilters(): Array[Filter] = pushedFilter

@@ -16,6 +16,7 @@
 
 package com.couchbase.spark.columnar
 
+import com.couchbase.spark.analytics.AnalyticsPartitionReader
 import com.couchbase.spark.query.QueryAggregations
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read._
@@ -39,8 +40,9 @@ class ColumnarScanBuilder(schema: StructType, readConfig: ColumnarReadConfig)
   }
 
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
-    pushedFilter = filters
-    Array.empty[Filter]
+    val (supported, unsupported) = AnalyticsPartitionReader.partitionSupported(filters)
+    pushedFilter = supported
+    unsupported
   }
 
   override def pushedFilters(): Array[Filter] = pushedFilter

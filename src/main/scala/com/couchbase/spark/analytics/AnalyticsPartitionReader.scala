@@ -180,7 +180,7 @@ class AnalyticsPartitionReader(
   }
 }
 
-object AnalyticsPartitionReader {
+object AnalyticsPartitionReader extends Logging {
   def maybeEscapeField(field: String): String = {
     if (
       field.startsWith("MAX")
@@ -196,83 +196,81 @@ object AnalyticsPartitionReader {
     }
   }
 
+  /** Splits filters into those that can be compiled to analytics SQL++, and so pushed down, and
+    * those that cannot.
+    *
+    * The unsupported filters must be returned to Spark from `SupportsPushDownFilters.pushFilters`,
+    * so that Spark evaluates them itself after the scan.
+    *
+    * @return
+    *   (supported, unsupported)
+    */
+  def partitionSupported(filters: Array[Filter]): (Array[Filter], Array[Filter]) = {
+    val (supported, unsupported) = filters.partition(f => filterToExpression(f).isDefined)
+    unsupported.foreach(f => logInfo(s"Filter cannot be pushed down, Spark will evaluate it: $f"))
+    (supported, unsupported)
+  }
+
   /** Transform the filters into a analytics sql++ where clause.
     *
-    * @todo
-    *   In, And, Or, Not filters including recursion
     * @param filters
-    *   the filters to transform
+    *   the filters to transform, which must all be supported (see [[partitionSupported]])
     * @return
     *   the transformed raw analytics sql++ clause
     */
-  def compileFilter(filters: Array[Filter]): String = {
-    if (filters.isEmpty) {
-      return ""
-    }
-
-    val filter = new StringBuilder()
-    var i      = 0
-
-    filters.foreach(f => {
-      try {
-        val encoded = filterToExpression(f)
-        if (i > 0) {
-          filter.append(" AND")
-        }
-        filter.append(encoded)
-        i = i + 1
-      } catch {
-        case _: Exception =>
-          // Silently drop the unsupported filter (we don't have the logger in this object method)
-      }
-    })
-
-    filter.toString()
-  }
+  def compileFilter(filters: Array[Filter]): String =
+    filters
+      .map(f =>
+        filterToExpression(f).getOrElse(
+          throw new IllegalArgumentException(s"Filter cannot be pushed down: $f")
+        )
+      )
+      .mkString(" AND")
 
   /** Turns a filter into a sql++ expression.
     *
     * @param filter
     *   the filter to convert
     * @return
-    *   the resulting expression
+    *   the resulting expression, or None if the filter cannot be expressed in sql++
     */
-  def filterToExpression(filter: Filter): String = {
+  def filterToExpression(filter: Filter): Option[String] = {
     filter match {
-      case AlwaysFalse() => " FALSE"
-      case AlwaysTrue()  => " TRUE"
+      case AlwaysFalse() => Some(" FALSE")
+      case AlwaysTrue()  => Some(" TRUE")
       case And(left, right) =>
-        val l = filterToExpression(left)
-        val r = filterToExpression(right)
-        s" ($l AND $r)"
+        for (l <- filterToExpression(left); r <- filterToExpression(right)) yield s" ($l AND $r)"
       case EqualNullSafe(attr, value) =>
-        s" (NOT (${attrToFilter(attr)} != " + valueToFilter(value) + s" OR ${attrToFilter(attr)} IS NULL OR " + valueToFilter(
-          value
-        ) + s" IS NULL) OR (${attrToFilter(attr)} IS NULL AND " + valueToFilter(
-          value
-        ) + " IS NULL))"
-      case EqualTo(attr, value)            => s" ${attrToFilter(attr)} = " + valueToFilter(value)
-      case GreaterThan(attr, value)        => s" ${attrToFilter(attr)} > " + valueToFilter(value)
-      case GreaterThanOrEqual(attr, value) => s" ${attrToFilter(attr)} >= " + valueToFilter(value)
+        Some(
+          s" (NOT (${attrToFilter(attr)} != " + valueToFilter(value) + s" OR ${attrToFilter(attr)} IS NULL OR " + valueToFilter(
+            value
+          ) + s" IS NULL) OR (${attrToFilter(attr)} IS NULL AND " + valueToFilter(
+            value
+          ) + " IS NULL))"
+        )
+      case EqualTo(attr, value)     => Some(s" ${attrToFilter(attr)} = " + valueToFilter(value))
+      case GreaterThan(attr, value) => Some(s" ${attrToFilter(attr)} > " + valueToFilter(value))
+      case GreaterThanOrEqual(attr, value) =>
+        Some(s" ${attrToFilter(attr)} >= " + valueToFilter(value))
       case In(attr, values) =>
         val encoded = values.map(valueToFilter).mkString(",")
-        s" `$attr` IN [$encoded]"
-      case IsNotNull(attr)              => s" ${attrToFilter(attr)} IS NOT NULL"
-      case IsNull(attr)                 => s" ${attrToFilter(attr)} IS NULL"
-      case LessThan(attr, value)        => s" ${attrToFilter(attr)} < " + valueToFilter(value)
-      case LessThanOrEqual(attr, value) => s" ${attrToFilter(attr)} <= " + valueToFilter(value)
+        Some(s" `$attr` IN [$encoded]")
+      case IsNotNull(attr)       => Some(s" ${attrToFilter(attr)} IS NOT NULL")
+      case IsNull(attr)          => Some(s" ${attrToFilter(attr)} IS NULL")
+      case LessThan(attr, value) => Some(s" ${attrToFilter(attr)} < " + valueToFilter(value))
+      case LessThanOrEqual(attr, value) =>
+        Some(s" ${attrToFilter(attr)} <= " + valueToFilter(value))
       case Not(f) =>
-        val v = filterToExpression(f)
-        s" NOT ($v)"
+        filterToExpression(f).map(v => s" NOT ($v)")
       case Or(left, right) =>
-        val l = filterToExpression(left)
-        val r = filterToExpression(right)
-        s" ($l OR $r)"
-      case StringContains(attr, value) => s" CONTAINS(${attrToFilter(attr)}, '$value')"
+        for (l <- filterToExpression(left); r <- filterToExpression(right)) yield s" ($l OR $r)"
+      case StringContains(attr, value) => Some(s" CONTAINS(${attrToFilter(attr)}, '$value')")
       case StringEndsWith(attr, value) =>
-        s" ${attrToFilter(attr)} LIKE '%" + escapeForLike(value) + "'"
+        Some(s" ${attrToFilter(attr)} LIKE '%" + escapeForLike(value) + "'")
       case StringStartsWith(attr, value) =>
-        s" ${attrToFilter(attr)} LIKE '" + escapeForLike(value) + "%'"
+        Some(s" ${attrToFilter(attr)} LIKE '" + escapeForLike(value) + "%'")
+      // Anything else, e.g. the CollatedFilters that Spark 4 produces for collated string columns.
+      case _ => None
     }
   }
 
