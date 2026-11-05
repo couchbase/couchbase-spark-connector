@@ -27,6 +27,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import com.couchbase.client.scala.analytics.{AnalyticsMetrics, AnalyticsScanConsistency, AnalyticsOptions => CouchbaseAnalyticsOptions}
 import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
+import com.couchbase.spark.query.QueryAggregations
 import org.apache.spark.SparkEnv.logInfo
 import org.apache.spark.sql.catalyst.json.CouchbaseJsonUtils
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
@@ -44,15 +45,10 @@ class AnalyticsPartitionReader(
 ) extends PartitionReader[InternalRow]
     with Logging {
 
-  private val parser       = CouchbaseJsonUtils.jsonParser(schema)
+  private val parser       = CouchbaseJsonUtils.jsonParser(QueryAggregations.resultSchema(schema, aggregations))
   private val createParser = CouchbaseJsonUtils.createParser()
 
   private var resultMetrics: Option[AnalyticsMetrics] = None
-
-  private val groupByColumns = aggregations match {
-    case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
-    case None      => Seq.empty
-  }
 
   private lazy val result = {
     if (readConfig.bucket.isEmpty || readConfig.scope.isEmpty) {
@@ -76,23 +72,8 @@ class AnalyticsPartitionReader(
       result.rowsAs[String](Passthrough.StringConvert)
     })
     .get
-    .flatMap(r => {
-      var row = r
-
+    .flatMap(row => {
       try {
-        // Aggregates like MIN, MAX etc will end up as $1, $2 .. so they need to be replaced
-        // with their original field names from the schema so that the JSON parser can pick
-        // them up properly
-        if (hasAggregateFields) {
-          var idx = 1
-          schema.fields.foreach(field => {
-            if (!groupByColumns.contains(field.name)) {
-              row = row.replace("$" + idx, field.name)
-              idx = idx + 1
-            }
-          })
-        }
-
         parser.parse(row, createParser, UTF8String.fromString)
       } catch {
         case e: Exception =>
@@ -118,9 +99,9 @@ class AnalyticsPartitionReader(
 
   def buildAnalyticsQuery(): String = {
     var fields = schema.fields
-      .map(f => f.name)
-      .filter(f => !f.equals(readConfig.idFieldName))
-      .map(f => maybeEscapeField(f))
+      .zip(QueryAggregations.aggregateAliases(schema, aggregations))
+      .filter { case (f, _) => !f.name.equals(readConfig.idFieldName) }
+      .map { case (f, alias) => QueryAggregations.selectTerm(maybeEscapeField(f.name), alias) }
     if (!hasAggregateFields) {
       fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
     }

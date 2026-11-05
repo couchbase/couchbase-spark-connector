@@ -89,10 +89,11 @@ object QueryAggregations extends Logging {
           val fieldName = avg.column.references.head
           val original  = structFieldForName(fieldName.fieldNames.head, schema).get
           val distinct  = if (avg.isDistinct) "DISTINCT " else ""
-          // AVG is always of FloatType, even if the original field is an int/long type
+          // AVG is fractional even if the original field is an int/long type.  The query service computes it
+          // as a 64-bit double, so read it as one.
           StructField(
             s"AVG($distinct`$fieldName`)",
-            FloatType,
+            DoubleType,
             original.nullable,
             original.metadata
           )
@@ -125,6 +126,50 @@ object QueryAggregations extends Logging {
         original.metadata
       )
     }.toSeq
+  }
+
+  /** The names of the group-by columns of a pushed-down aggregation. */
+  def groupByColumnNames(aggregations: Option[Aggregation]): Seq[String] = aggregations match {
+    case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
+    case None      => Seq.empty
+  }
+
+  /** Pushed-down aggregates appear in the schema under their expression, e.g. "MIN(`price`)".  The query result
+    * can't use that as a field name: without an alias the query service names them "$1", "$2" and so on.  So each
+    * aggregate is given an alias in the SELECT, and rows are parsed against a schema renamed to match (see
+    * [[resultSchema]]).  Parsed rows are positional, so Spark still sees the original column names.
+    *
+    * @return
+    *   for each field of the schema, its alias if it is an aggregate, or None if it is a group-by column or there are
+    *   no pushed-down aggregates.
+    */
+  def aggregateAliases(schema: StructType, aggregations: Option[Aggregation]): Seq[Option[String]] =
+    aggregations match {
+      case Some(agg) if !agg.aggregateExpressions().isEmpty =>
+        val groupBy  = groupByColumnNames(aggregations)
+        var position = 0
+        schema.fields.toSeq.map { field =>
+          if (groupBy.contains(field.name)) {
+            None
+          } else {
+            position += 1
+            Some(s"__cb_agg_$position")
+          }
+        }
+      case _ => schema.fields.toSeq.map(_ => None)
+    }
+
+  /** The schema of the rows returned by the query: the read schema with aggregates renamed to their aliases. */
+  def resultSchema(schema: StructType, aggregations: Option[Aggregation]): StructType =
+    StructType(schema.fields.zip(aggregateAliases(schema, aggregations)).map {
+      case (field, Some(alias)) => field.copy(name = alias)
+      case (field, None)        => field
+    })
+
+  /** A SELECT term for an already-escaped field, aliased if required. */
+  def selectTerm(escapedField: String, alias: Option[String]): String = alias match {
+    case Some(a) => s"$escapedField AS `$a`"
+    case None    => escapedField
   }
 
   private def structFieldForName(name: String, schema: StructType): Option[StructField] = {

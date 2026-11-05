@@ -18,6 +18,7 @@ package com.couchbase.spark.enterpriseanalytics
 
 import com.couchbase.analytics.client.java.{QueryOptions, Row}
 import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
+import com.couchbase.spark.query.QueryAggregations
 import com.couchbase.spark.enterpriseanalytics.config.{
   EnterpriseAnalyticsConfig,
   EnterpriseAnalyticsConnection
@@ -45,7 +46,7 @@ class EnterpriseAnalyticsPartitionReader(
 ) extends PartitionReader[InternalRow]
     with Logging {
 
-  private val parser       = CouchbaseJsonUtils.jsonParser(schema)
+  private val parser       = CouchbaseJsonUtils.jsonParser(QueryAggregations.resultSchema(schema, aggregations))
   private val createParser = CouchbaseJsonUtils.createParser()
 
   // SPARKC-178: Keep a backpressured flow of items between Spark and SDK.
@@ -103,27 +104,7 @@ class EnterpriseAnalyticsPartitionReader(
       if (hyperVerbose)
         logInfo(s"processRow() called, rowRaw: $rowRaw, queue size: ${queue.size()}")
 
-      // We have to convert to string to do the aggregate replacement
-      var row = new String(rowRaw.bytes(), "UTF-8")
-
-      // Aggregates like MIN, MAX etc will end up as $1, $2 .. so they need to be replaced
-      // with their original field names from the schema so that the JSON parser can pick
-      // them up properly
-      if (hasAggregateFields) {
-        val groupByColumns = aggregations match {
-          case Some(agg) =>
-            agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
-          case None => Seq.empty
-        }
-
-        var idx = 1
-        schema.fields.foreach(field => {
-          if (!groupByColumns.contains(field.name)) {
-            row = row.replace("$" + idx, field.name)
-            idx = idx + 1
-          }
-        })
-      }
+      val row = new String(rowRaw.bytes(), "UTF-8")
 
       val x = parser.parse(row, createParser, UTF8String.fromString).toSeq
       if (x.size != 1) {
@@ -187,8 +168,8 @@ class EnterpriseAnalyticsPartitionReader(
 
   def buildEnterpriseAnalyticsQuery(): String = {
     val fields = schema.fields
-      .map(f => f.name)
-      .map(f => maybeEscapeField(f))
+      .zip(QueryAggregations.aggregateAliases(schema, aggregations))
+      .map { case (f, alias) => QueryAggregations.selectTerm(maybeEscapeField(f.name), alias) }
 
     var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = compileFilter(filters)
