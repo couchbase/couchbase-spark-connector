@@ -17,6 +17,7 @@ package com.couchbase.spark.query
 
 import com.couchbase.spark.util.{SparkOperationalSimpleTest, SparkOperationalTest, TestNameUtil}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
+import org.apache.spark.sql.functions.col
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.Test
 
@@ -151,5 +152,25 @@ class QueryDataFrameIntegrationTest extends SparkOperationalSimpleTest {
       assertNotNull(row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("name"))
     })
+  }
+
+  // Spark 4 turns comparisons on collated string columns into CollatedFilters, which the connector cannot compile
+  // to SQL++.  They must be handed back to Spark to evaluate, rather than dropped (which returned every row).
+  @Test
+  def testUnsupportedFilterIsEvaluatedBySpark(): Unit = {
+    val ids = spark.read
+      .format("couchbase.query")
+      .schema("__META_ID STRING, name STRING, country STRING COLLATE UTF8_LCASE")
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+      .filter(col("country") === "united states")
+      .collect()
+      .map(_.getAs[String]("__META_ID"))
+      .sorted
+      .toSeq
+
+    assertEquals(Seq("airport::ord", "airport::sfo"), ids)
   }
 }
