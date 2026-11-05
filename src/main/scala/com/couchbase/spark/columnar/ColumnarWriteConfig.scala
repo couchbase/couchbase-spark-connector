@@ -16,6 +16,10 @@
 
 package com.couchbase.spark.columnar
 
+import com.couchbase.spark.util.Redaction
+
+import scala.runtime.ScalaRunTime
+
 case class ColumnarWriteConfig(
     collection: String,
     database: String,
@@ -23,4 +27,8 @@ case class ColumnarWriteConfig(
     userFilter: Option[String],
     timeout: Option[String],
     connectionIdentifier: Option[String]
-)
+) {
+  override def toString: String = ScalaRunTime._toString(
+    copy(connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier))
+  )
+}

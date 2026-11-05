@@ -15,6 +15,10 @@
  */
 package com.couchbase.spark.query
 
+import com.couchbase.spark.util.Redaction
+
+import scala.runtime.ScalaRunTime
+
 case class QueryWriteConfig(
     bucket: String,
     scope: Option[String],
@@ -22,4 +26,8 @@ case class QueryWriteConfig(
     idFieldName: String,
     timeout: Option[String],
     connectionIdentifier: Option[String]
-)
+) {
+  override def toString: String = ScalaRunTime._toString(
+    copy(connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier))
+  )
+}

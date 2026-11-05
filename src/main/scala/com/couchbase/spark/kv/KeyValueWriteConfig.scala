@@ -15,6 +15,10 @@
  */
 package com.couchbase.spark.kv
 
+import com.couchbase.spark.util.Redaction
+
+import scala.runtime.ScalaRunTime
+
 case class KeyValueWriteConfig(
     bucket: String,
     scope: Option[String],
@@ -30,4 +34,8 @@ case class KeyValueWriteConfig(
     errorCollection: Option[String],
     writeMode: Option[String],
     maxConcurrentOps: Int
-)
+) {
+  override def toString: String = ScalaRunTime._toString(
+    copy(connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier))
+  )
+}

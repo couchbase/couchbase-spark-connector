@@ -16,6 +16,10 @@
 
 package com.couchbase.spark.analytics
 
+import com.couchbase.spark.util.Redaction
+
+import scala.runtime.ScalaRunTime
+
 case class AnalyticsReadConfig(
     dataset: String,
     bucket: Option[String],
@@ -26,4 +30,8 @@ case class AnalyticsReadConfig(
     timeout: Option[String],
     pushDownAggregate: Boolean,
     connectionIdentifier: Option[String]
-)
+) {
+  override def toString: String = ScalaRunTime._toString(
+    copy(connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier))
+  )
+}

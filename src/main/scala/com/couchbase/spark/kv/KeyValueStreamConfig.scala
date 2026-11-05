@@ -16,6 +16,9 @@
 package com.couchbase.spark.kv
 
 import com.couchbase.spark.kv.StreamFromVariants.StreamFrom
+import com.couchbase.spark.util.Redaction
+
+import scala.runtime.ScalaRunTime
 
 case class KeyValueStreamConfig(
     streamFrom: StreamFrom,
@@ -28,7 +31,11 @@ case class KeyValueStreamConfig(
     flowControlBufferSize: Option[Int],
     persistencePollingInterval: Option[String],
     connectionIdentifier: Option[String]
-)
+) {
+  override def toString: String = ScalaRunTime._toString(
+    copy(connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier))
+  )
+}
 
 object StreamFromVariants extends Enumeration {
   type StreamFrom = Value
