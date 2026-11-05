@@ -20,6 +20,7 @@ import com.couchbase.client.scala.analytics.{AnalyticsMetrics, AnalyticsScanCons
 import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.spark.analytics.AnalyticsPartitionReader
 import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
+import com.couchbase.spark.query.QueryAggregations
 import com.couchbase.spark.columnar.ColumnarConstants.ColumnarEndpointIdx
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
@@ -45,15 +46,10 @@ class ColumnarPartitionReader(
 ) extends PartitionReader[InternalRow]
     with Logging {
 
-  private val parser       = CouchbaseJsonUtils.jsonParser(schema)
+  private val parser       = CouchbaseJsonUtils.jsonParser(QueryAggregations.resultSchema(schema, aggregations))
   private val createParser = CouchbaseJsonUtils.createParser()
 
   private var resultMetrics: Option[AnalyticsMetrics] = None
-
-  private val groupByColumns = aggregations match {
-    case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
-    case None      => Seq.empty
-  }
 
   private lazy val result = {
     logInfo(s"Running Columnar query ${buildColumnarQuery()}")
@@ -68,23 +64,8 @@ class ColumnarPartitionReader(
       result.rowsAs[String](Passthrough.StringConvert)
     })
     .get
-    .flatMap(r => {
-      var row = r
-
+    .flatMap(row => {
       try {
-        // Aggregates like MIN, MAX etc will end up as $1, $2 .. so they need to be replaced
-        // with their original field names from the schema so that the JSON parser can pick
-        // them up properly
-        if (hasAggregateFields) {
-          var idx = 1
-          schema.fields.foreach(field => {
-            if (!groupByColumns.contains(field.name)) {
-              row = row.replace("$" + idx, field.name)
-              idx = idx + 1
-            }
-          })
-        }
-
         val out = parser.parse(row, createParser, UTF8String.fromString)
         out
       } catch {
@@ -111,8 +92,8 @@ class ColumnarPartitionReader(
 
   def buildColumnarQuery(): String = {
     val fields = schema.fields
-      .map(f => f.name)
-      .map(f => maybeEscapeField(f))
+      .zip(QueryAggregations.aggregateAliases(schema, aggregations))
+      .map { case (f, alias) => QueryAggregations.selectTerm(maybeEscapeField(f.name), alias) }
 
     var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
     val compiledFilters = compileFilter(filters)

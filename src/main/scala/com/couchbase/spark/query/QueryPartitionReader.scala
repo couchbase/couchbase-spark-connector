@@ -53,15 +53,11 @@ class QueryPartitionReader(
   private val collectionName =
     readConfig.collection.getOrElse(DefaultConstants.DefaultCollectionName)
 
-  private val parser       = CouchbaseJsonUtils.jsonParser(schema)
+  private val parser       = CouchbaseJsonUtils.jsonParser(QueryAggregations.resultSchema(schema, aggregations))
   private val createParser = CouchbaseJsonUtils.createParser()
 
   private val metaData = new AtomicReference[QueryMetaData]()
 
-  private val groupByColumns = aggregations match {
-    case Some(agg) => agg.groupByExpressions().map(n => n.references().head.fieldNames().head).toSeq
-    case None      => Seq.empty
-  }
   private val query = buildQuery()
 
   private val result: SMono[ReactiveQueryResult] = {
@@ -121,21 +117,8 @@ class QueryPartitionReader(
       }
     })
 
-  private def processRow(r: String) = {
-    var row = r
+  private def processRow(row: String) = {
     try {
-      // Aggregates like MIN, MAX etc will end up as $1, $2 .. so they need to be replaced
-      // with their original field names from the schema so that the JSON parser can pick
-      // them up properly
-      if (hasAggregateFields) {
-        var idx = 1
-        schema.fields.foreach(field => {
-          if (!groupByColumns.contains(field.name)) {
-            row = row.replace("$" + idx, field.name)
-            idx = idx + 1
-          }
-        })
-      }
       val x = parser.parse(row, createParser, UTF8String.fromString).toSeq
       if (x.size != 1) {
         throw new IllegalStateException(s"Expected 1 row, have ${x}")
@@ -154,9 +137,9 @@ class QueryPartitionReader(
 
   def buildQuery(): String = {
     var fields = schema.fields
-      .map(f => f.name)
-      .filter(f => !f.equals(readConfig.idFieldName) && !f.equals(readConfig.casFieldName))
-      .map(f => maybeEscapeField(f))
+      .zip(QueryAggregations.aggregateAliases(schema, aggregations))
+      .filter { case (f, _) => !f.name.equals(readConfig.idFieldName) && !f.name.equals(readConfig.casFieldName) }
+      .map { case (f, alias) => QueryAggregations.selectTerm(maybeEscapeField(f.name), alias) }
     if (!hasAggregateFields) {
       fields = fields :+ s"META().id as `${readConfig.idFieldName}`"
       if (readConfig.outputCas) {
