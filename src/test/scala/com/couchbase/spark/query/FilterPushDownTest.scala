@@ -26,7 +26,14 @@ import com.couchbase.spark.enterpriseanalytics.{
   EnterpriseAnalyticsScanBuilder
 }
 import org.apache.spark.sql.connector.read.SupportsPushDownFilters
-import org.apache.spark.sql.sources.{And, EqualTo, Filter, In, IsNotNull}
+import org.apache.spark.sql.sources.{
+  And,
+  EqualTo,
+  Filter,
+  In,
+  IsNotNull,
+  StringContains
+}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -102,7 +109,7 @@ class FilterPushDownTest {
 
   @Test
   def compileSupportedFilters(): Unit = {
-    val expected = " `country` IS NOT NULL AND `country` = 'Austria'"
+    val expected = " `country` IS NOT NULL AND `country` = \"Austria\""
     assertEquals(expected, QueryFilters.compile(supported))
     assertEquals(expected, AnalyticsPartitionReader.compileFilter(supported))
   }
@@ -121,8 +128,18 @@ class FilterPushDownTest {
   @Test
   def inSupportsNestedFields(): Unit = {
     assertCompiles(
-      " `address`.`city` IN ['Vienna','Graz']",
+      " `address`.`city` IN [\"Vienna\",\"Graz\"]",
       In("address.city", Array("Vienna", "Graz"))
     )
+  }
+
+  @Test
+  def stringValuesAreQuoted(): Unit = {
+    // Written as a JSON string, so quotes, backslashes and control characters are escaped.
+    val value  = "O'Hare \"x\" \\ \n\u0001"
+    val quoted = "\"O'Hare \\\"x\\\" \\\\ \\n\\u0001\""
+    assertCompiles(s" `name` = $quoted", EqualTo("name", value))
+    assertCompiles(s" CONTAINS(`name`, $quoted)", StringContains("name", value))
+    assertCompiles(s""" `name` IN [$quoted,"b"]""", In("name", Array(value, "b")))
   }
 }

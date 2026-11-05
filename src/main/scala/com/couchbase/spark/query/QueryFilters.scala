@@ -15,6 +15,7 @@
  */
 package com.couchbase.spark.query
 
+import com.fasterxml.jackson.core.io.JsonStringEncoder
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.{
   AlwaysFalse,
@@ -109,11 +110,12 @@ object QueryFilters extends Logging {
         filterToExpression(f).map(v => s" NOT ($v)")
       case Or(left, right) =>
         for (l <- filterToExpression(left); r <- filterToExpression(right)) yield s" ($l OR $r)"
-      case StringContains(attr, value) => Some(s" CONTAINS(${attrToFilter(attr)}, '$value')")
+      case StringContains(attr, value) =>
+        Some(s" CONTAINS(${attrToFilter(attr)}, ${quoteString(value)})")
       case StringEndsWith(attr, value) =>
-        Some(s" ${attrToFilter(attr)} LIKE '%" + escapeForLike(value) + "'")
+        Some(s" ${attrToFilter(attr)} LIKE ${quoteString("%" + escapeForLike(value))}")
       case StringStartsWith(attr, value) =>
-        Some(s" ${attrToFilter(attr)} LIKE '" + escapeForLike(value) + "%'")
+        Some(s" ${attrToFilter(attr)} LIKE ${quoteString(escapeForLike(value) + "%")}")
       // Anything else, e.g. the CollatedFilters that Spark 4 produces for collated string columns.
       case _ => None
     }
@@ -122,8 +124,12 @@ object QueryFilters extends Logging {
   def escapeForLike(value: String): String =
     value.replaceAll("\\.", "\\\\.").replaceAll("\\*", "\\\\*")
 
+  /** Quotes a string as a JSON string literal, which is also a valid SQL++ string literal. */
+  def quoteString(value: String): String =
+    "\"" + new String(JsonStringEncoder.getInstance().quoteAsString(value)) + "\""
+
   def valueToFilter(value: Any): String = value match {
-    case v: String => s"'$v'"
+    case v: String => quoteString(v)
     case v         => s"$v"
   }
 

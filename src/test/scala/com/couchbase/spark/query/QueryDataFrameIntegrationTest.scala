@@ -17,6 +17,7 @@ package com.couchbase.spark.query
 
 import com.couchbase.spark.util.{SparkOperationalSimpleTest, SparkOperationalTest, TestNameUtil}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
+import org.apache.spark.sql.functions.col
 import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertThrows, assertTrue}
 import org.junit.jupiter.api.Test
 
@@ -151,5 +152,33 @@ class QueryDataFrameIntegrationTest extends SparkOperationalSimpleTest {
       assertNotNull(row.getAs[String]("__META_ID"))
       assertNotNull(row.getAs[String]("name"))
     })
+  }
+
+  private def airportIdsWhere(condition: org.apache.spark.sql.Column): Seq[String] =
+    spark.read
+      .format("couchbase.query")
+      .option(QueryOptions.Scope, testResources.scopeName)
+      .option(QueryOptions.Collection, testResources.collectionName)
+      .option(QueryOptions.ScanConsistency, QueryOptions.RequestPlusScanConsistency)
+      .load()
+      .filter(condition)
+      .collect()
+      .map(_.getAs[String]("__META_ID"))
+      .sorted
+      .toSeq
+
+  @Test
+  def testFilterOnValueContainingQuote(): Unit = {
+    assertEquals(
+      Seq("airport::ord"),
+      airportIdsWhere(col("name") === "O'Hare International Airport")
+    )
+    assertEquals(Seq("airport::ord"), airportIdsWhere(col("name").contains("O'Hare")))
+  }
+
+  @Test
+  def testLikeFilterValueContainingDot(): Unit = {
+    assertEquals(Seq(), airportIdsWhere(col("name").startsWith("O'Hare Int.")))
+    assertEquals(Seq(), airportIdsWhere(col("name").endsWith(".")))
   }
 }
