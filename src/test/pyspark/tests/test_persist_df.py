@@ -123,10 +123,7 @@ class TestPersistDf:
              .mode("append")
              .save())
 
-        if df_type == util_and_resources.CB_KV:
-            assert "Unsupported SaveMode: Append" or "Unexpected save mode Append" in str(e.value)
-        else:
-            assert "SaveMode.Append is not support" in str(e.value)
+        assert "SaveMode.Append is not support" in str(e.value)
 
     @pytest.mark.parametrize("durability", ["majority", "majorityAndPersistToActive", "PersistToMajority", None])
     def test_timeout_and_durability_option(self, df_type, durability):

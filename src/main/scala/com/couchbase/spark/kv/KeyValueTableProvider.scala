@@ -71,6 +71,14 @@ class KeyValueTableProvider
       parameters: Map[String, String],
       data: DataFrame
   ): BaseRelation = {
+    // Validate before writing anything: rejecting the save mode after the write would leave every
+    // document mutated while the job reports failure.
+    if (mode == SaveMode.Append) {
+      throw new IllegalArgumentException(
+        "SaveMode.Append is not supported - please use the other SaveMode types."
+      )
+    }
+
     val couchbaseConfig = CouchbaseConfig(
       ctx.sparkContext.getConf,
       parameters.get(KeyValueOptions.ConnectionIdentifier)
@@ -99,12 +107,6 @@ class KeyValueTableProvider
         mode
       )
     )
-
-    if (mode == SaveMode.Append) {
-      throw new IllegalArgumentException(
-        "SaveMode.Append is not supported - please use the other SaveMode types."
-      )
-    }
 
     new BaseRelation {
       override def sqlContext: SQLContext = ctx
