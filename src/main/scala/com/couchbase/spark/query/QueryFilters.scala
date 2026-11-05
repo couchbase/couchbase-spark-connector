@@ -99,7 +99,7 @@ object QueryFilters extends Logging {
         Some(s" ${attrToFilter(attr)} >= " + valueToFilter(value))
       case In(attr, values) =>
         val encoded = values.map(valueToFilter).mkString(",")
-        Some(s" `$attr` IN [$encoded]")
+        Some(s" ${attrToFilter(attr)} IN [$encoded]")
       case IsNotNull(attr)       => Some(s" ${attrToFilter(attr)} IS NOT NULL")
       case IsNull(attr)          => Some(s" ${attrToFilter(attr)} IS NULL")
       case LessThan(attr, value) => Some(s" ${attrToFilter(attr)} < " + valueToFilter(value))
