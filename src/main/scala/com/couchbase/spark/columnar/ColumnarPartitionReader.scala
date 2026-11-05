@@ -21,6 +21,7 @@ import com.couchbase.client.scala.codec.JsonDeserializer.Passthrough
 import com.couchbase.spark.analytics.AnalyticsPartitionReader
 import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
 import com.couchbase.spark.query.QueryAggregations
+import com.couchbase.spark.util.WhereClause
 import com.couchbase.spark.columnar.ColumnarConstants.ColumnarEndpointIdx
 import com.couchbase.spark.config.{CouchbaseConfig, CouchbaseConnection}
 import org.apache.spark.internal.Logging
@@ -95,13 +96,7 @@ class ColumnarPartitionReader(
       .zip(QueryAggregations.aggregateAliases(schema, aggregations))
       .map { case (f, alias) => QueryAggregations.selectTerm(maybeEscapeField(f.name), alias) }
 
-    var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
-    val compiledFilters = compileFilter(filters)
-    if (compiledFilters.nonEmpty && predicate.nonEmpty) {
-      predicate = predicate + " AND " + compiledFilters
-    } else if (compiledFilters.nonEmpty) {
-      predicate = " WHERE " + compiledFilters
-    }
+    val predicate = WhereClause.build(readConfig.userFilter, Some(compileFilter(filters)))
 
     val groupBy = if (hasAggregateGroupBy) {
       " GROUP BY " + aggregations.get

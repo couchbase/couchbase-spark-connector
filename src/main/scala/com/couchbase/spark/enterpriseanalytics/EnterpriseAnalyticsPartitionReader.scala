@@ -19,6 +19,7 @@ package com.couchbase.spark.enterpriseanalytics
 import com.couchbase.analytics.client.java.{QueryOptions, Row}
 import com.couchbase.spark.analytics.AnalyticsPartitionReader.{compileFilter, maybeEscapeField}
 import com.couchbase.spark.query.QueryAggregations
+import com.couchbase.spark.util.WhereClause
 import com.couchbase.spark.enterpriseanalytics.config.{
   EnterpriseAnalyticsConfig,
   EnterpriseAnalyticsConnection
@@ -171,13 +172,7 @@ class EnterpriseAnalyticsPartitionReader(
       .zip(QueryAggregations.aggregateAliases(schema, aggregations))
       .map { case (f, alias) => QueryAggregations.selectTerm(maybeEscapeField(f.name), alias) }
 
-    var predicate       = readConfig.userFilter.map(p => s" WHERE $p").getOrElse("")
-    val compiledFilters = compileFilter(filters)
-    if (compiledFilters.nonEmpty && predicate.nonEmpty) {
-      predicate = predicate + " AND " + compiledFilters
-    } else if (compiledFilters.nonEmpty) {
-      predicate = " WHERE " + compiledFilters
-    }
+    val predicate = WhereClause.build(readConfig.userFilter, Some(compileFilter(filters)))
 
     val groupBy = if (hasAggregateGroupBy) {
       " GROUP BY " + aggregations.get
