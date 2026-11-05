@@ -16,6 +16,10 @@
 
 package com.couchbase.spark.query
 
+import com.couchbase.spark.util.Redaction
+
+import scala.runtime.ScalaRunTime
+
 case class QueryReadConfig(
     bucket: String,
     scope: Option[String],
@@ -29,4 +33,8 @@ case class QueryReadConfig(
     pushDownAggregate: Boolean,
     connectionIdentifier: Option[String],
     partition: Option[PartitioningConfig]
-)
+) {
+  override def toString: String = ScalaRunTime._toString(
+    copy(connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier))
+  )
+}

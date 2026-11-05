@@ -17,25 +17,34 @@
 package com.couchbase.spark.config
 
 import com.couchbase.client.core.util.ConnectionString
+import com.couchbase.spark.util.Redaction
 import org.apache.spark.SparkConf
 
 import java.util.Locale
 import scala.collection.immutable.SortedMap
+import scala.runtime.ScalaRunTime
 
-case class Credentials(username: String, password: String)
+case class Credentials(username: String, password: String) {
+  override def toString: String = ScalaRunTime._toString(copy(password = Redaction.Redacted))
+}
 
 case class SparkSslOptions(
     enabled: Boolean,
     keystorePath: Option[String],
     keystorePassword: Option[String],
     insecure: Boolean
-)
+) {
+  override def toString: String =
+    ScalaRunTime._toString(copy(keystorePassword = keystorePassword.map(_ => Redaction.Redacted)))
+}
 
 case class CertificateAuthOptions(
      keystorePath: String,
      keystorePassword: String,
      keystoreType: String,
-)
+) {
+  override def toString: String = ScalaRunTime._toString(copy(keystorePassword = Redaction.Redacted))
+}
 
 case class CouchbaseConfig(
     connectionString: String,
@@ -48,6 +57,8 @@ case class CouchbaseConfig(
     properties: Seq[(String, String)],
     certAuthOptions: Option[CertificateAuthOptions],
 ) {
+  override def toString: String =
+    ScalaRunTime._toString(copy(properties = Redaction.properties(properties)))
 
   def implicitBucketNameOr(explicitName: String): String = {
     var bn = Option(explicitName)
@@ -140,6 +151,14 @@ object CouchbaseConfig {
       password: Option[String],
       settings: Seq[(String, String)]
   ) {
+    override def toString: String = ScalaRunTime._toString(
+      copy(
+        connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier),
+        password = password.map(_ => Redaction.Redacted),
+        settings = Redaction.properties(settings)
+      )
+    )
+
     def getSetting(key: String): Option[String] = {
       settings.find(v => v._1 == key).map(v => v._2)
     }

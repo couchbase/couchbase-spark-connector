@@ -16,9 +16,14 @@
 
 package com.couchbase.spark.enterpriseanalytics.config
 
+import com.couchbase.spark.util.Redaction
 import org.apache.spark.SparkConf
 
-case class EnterpriseAnalyticsCredentials(username: String, password: String)
+import scala.runtime.ScalaRunTime
+
+case class EnterpriseAnalyticsCredentials(username: String, password: String) {
+  override def toString: String = ScalaRunTime._toString(copy(password = Redaction.Redacted))
+}
 
 case class EnterpriseAnalyticsSparkSslOptions(insecure: Boolean)
 

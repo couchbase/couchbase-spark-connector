@@ -16,6 +16,10 @@
 
 package com.couchbase.spark.columnar
 
+import com.couchbase.spark.util.Redaction
+
+import scala.runtime.ScalaRunTime
+
 case class ColumnarReadConfig(
     collection: String,
     database: String,
@@ -24,4 +28,8 @@ case class ColumnarReadConfig(
     scanConsistency: String,
     timeout: Option[String],
     connectionIdentifier: Option[String]
-)
+) {
+  override def toString: String = ScalaRunTime._toString(
+    copy(connectionIdentifier = Redaction.connectionIdentifier(connectionIdentifier))
+  )
+}

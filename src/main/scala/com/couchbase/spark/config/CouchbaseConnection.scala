@@ -26,6 +26,7 @@ import com.couchbase.client.core.util.ConnectionString
 import com.couchbase.client.scala.env.{ClusterEnvironment, SecurityConfig}
 import com.couchbase.client.scala.{Bucket, Cluster, ClusterOptions, Collection, Scope}
 import com.couchbase.spark.config.CouchbaseConnection.connections
+import com.couchbase.spark.util.Redaction
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.apache.spark.internal.Logging
 import reactor.core.publisher.Flux
@@ -186,7 +187,7 @@ class CouchbaseConnection(val identifier: String) extends Serializable with Logg
       try {
         // Only log if there is actually something to tear down.
         if (!fromShutdownHook && (clusterRef.isDefined || envRef.isDefined)) {
-          logInfo(s"Stopping CouchbaseConnection $identifier")
+          logInfo(s"Stopping CouchbaseConnection ${Redaction.connectionIdentifier(identifier)}")
         }
         if (clusterRef.isDefined) {
           clusterRef.get.disconnect()
