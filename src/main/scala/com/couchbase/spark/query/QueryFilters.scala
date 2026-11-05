@@ -121,8 +121,11 @@ object QueryFilters extends Logging {
     }
   }
 
+  /** Escapes the LIKE wildcards `%` and `_`, and the escape character `\`, so that they match
+    * literally.
+    */
   def escapeForLike(value: String): String =
-    value.replaceAll("\\.", "\\\\.").replaceAll("\\*", "\\\\*")
+    value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
   /** Quotes a string as a JSON string literal, which is also a valid SQL++ string literal. */
   def quoteString(value: String): String =

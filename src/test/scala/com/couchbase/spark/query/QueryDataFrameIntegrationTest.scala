@@ -201,4 +201,11 @@ class QueryDataFrameIntegrationTest extends SparkOperationalSimpleTest {
     assertEquals(Seq(), airportIdsWhere(col("name").startsWith("O'Hare Int.")))
     assertEquals(Seq(), airportIdsWhere(col("name").endsWith(".")))
   }
+
+  @Test
+  def testLikeWildcardsInFilterValueMatchLiterally(): Unit = {
+    assertEquals(Seq(), airportIdsWhere(col("name").endsWith("_Airport")))
+    assertEquals(Seq(), airportIdsWhere(col("name").startsWith("%Airport")))
+    assertEquals(Seq("airport::fra"), airportIdsWhere(col("name").startsWith("Frankfurt")))
+  }
 }

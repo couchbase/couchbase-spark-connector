@@ -33,7 +33,9 @@ import org.apache.spark.sql.sources.{
   Filter,
   In,
   IsNotNull,
-  StringContains
+  StringContains,
+  StringEndsWith,
+  StringStartsWith
 }
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertThrows}
@@ -158,5 +160,22 @@ class FilterPushDownTest {
     assertCompiles(s" `name` = $quoted", EqualTo("name", value))
     assertCompiles(s" CONTAINS(`name`, $quoted)", StringContains("name", value))
     assertCompiles(s" `name` IN [$quoted,\"b\"]", In("name", Array(value, "b")))
+  }
+
+  @Test
+  def likeWildcardsAreEscaped(): Unit = {
+    // % _ and \ are escaped with a backslash, which is then doubled inside the string literal.
+    // . and * are not special in LIKE, so are left alone.
+    val value = "a%b_c\\d.e*"
+    assertCompiles(
+      " `name` LIKE \"a\\\\%b\\\\_c\\\\\\\\d.e*%\"",
+      StringStartsWith("name", value)
+    )
+    assertCompiles(
+      " `name` LIKE \"%a\\\\%b\\\\_c\\\\\\\\d.e*\"",
+      StringEndsWith("name", value)
+    )
+    // CONTAINS is not a pattern match, so wildcards are not escaped.
+    assertCompiles(" CONTAINS(`name`, \"a%b_c\\\\d.e*\")", StringContains("name", value))
   }
 }
