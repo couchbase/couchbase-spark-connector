@@ -86,7 +86,7 @@ class QueryPartitionReader(
     }
   }
 
-  // SPARKC-178: Keep a backpressured flow of items between the ReactiveQueryResult and the PartitionedReader.
+  // SPARKC-187: Keep a backpressured flow of items between the ReactiveQueryResult and the PartitionedReader.
   private val DesiredItemsInQueue        = 30
   private val queue                      = new ConcurrentLinkedQueue[InternalRow]
   private val error                      = new AtomicReference[Throwable]()
@@ -96,18 +96,19 @@ class QueryPartitionReader(
   private val started                    = System.nanoTime
 
   result
-    .flatMapMany(result => result.rowsAs[String](Passthrough.StringConvert)
-      .doOnNext(r => processRow(r))
-      .`then`()
-      .`then`(result.metaData
-        .doOnNext(md => metaData.set(md))))
-    .`then`()
-    .subscribe(new Subscriber[Unit]() {
+    .flatMapMany(result =>
+      QueryPartitionReader.rowsThenMetaData(
+        result.rowsAs[String](Passthrough.StringConvert),
+        result.metaData,
+        (md: QueryMetaData) => metaData.set(md)
+      )
+    )
+    .subscribe(new Subscriber[String]() {
       override def onSubscribe(s: Subscription): Unit = {
         subscription.set(s)
       }
 
-      override def onNext(r: Unit): Unit = {}
+      override def onNext(r: String): Unit = processRow(r)
 
       override def onError(err: Throwable): Unit = {
         logInfo(s"Error: ${err} on query ${query} after ${NANOSECONDS.toMillis(System.nanoTime() - started)}ms")
@@ -337,4 +338,19 @@ class QueryPartitionReader(
       Array()
     }
   }
+}
+
+object QueryPartitionReader {
+
+  /** Emits the rows, then consumes the metadata (passing it to `onMetaData`) before completing.
+    *
+    * The rows must flow through to the final subscriber, so that its `request(n)` calls bound how many rows are pulled
+    * from the SDK.
+    */
+  private[query] def rowsThenMetaData[M](
+      rows: SFlux[String],
+      metaData: SMono[M],
+      onMetaData: M => Unit
+  ): SFlux[String] =
+    rows.concatWith(metaData.doOnNext(md => onMetaData(md)).`then`(SMono.empty[String]))
 }
