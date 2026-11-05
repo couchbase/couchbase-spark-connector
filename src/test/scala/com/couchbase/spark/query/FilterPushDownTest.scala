@@ -26,7 +26,7 @@ import com.couchbase.spark.enterpriseanalytics.{
   EnterpriseAnalyticsScanBuilder
 }
 import org.apache.spark.sql.connector.read.SupportsPushDownFilters
-import org.apache.spark.sql.sources.{And, EqualTo, Filter, IsNotNull}
+import org.apache.spark.sql.sources.{And, EqualTo, Filter, In, IsNotNull}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -111,5 +111,18 @@ class FilterPushDownTest {
   def compileEmptyFilters(): Unit = {
     assertEquals("", QueryFilters.compile(Array.empty))
     assertEquals("", AnalyticsPartitionReader.compileFilter(Array.empty))
+  }
+
+  private def assertCompiles(expected: String, filter: Filter): Unit = {
+    assertEquals(expected, QueryFilters.compile(Array(filter)))
+    assertEquals(expected, AnalyticsPartitionReader.compileFilter(Array(filter)))
+  }
+
+  @Test
+  def inSupportsNestedFields(): Unit = {
+    assertCompiles(
+      " `address`.`city` IN ['Vienna','Graz']",
+      In("address.city", Array("Vienna", "Graz"))
+    )
   }
 }
