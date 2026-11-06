@@ -79,7 +79,7 @@ dependencyOverrides ++= Seq(
 )
 
 // Latest here https://mvnrepository.com/artifact/com.couchbase.client/dcp-client
-val dcpVersion   = "0.57.0"
+val dcpVersion   = "0.58.0"
 
 scalacOptions += "-feature"
 
@@ -102,7 +102,7 @@ libraryDependencies ++= Seq(
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
   "org.testcontainers"    % "couchbase"         % "1.21.4"                         % Test,
   // For structured streaming testing
-  "commons-codec"         % "commons-codec"     % "1.22.1"                         % Test,
+  "commons-codec"         % "commons-codec"     % "1.23.0"                         % Test,
   // Needed for SparkSession to work in tests; see comment on hadoopClientVersion above.
   "org.apache.hadoop"     % "hadoop-client-api"     % hadoopClientVersion          % Test,
   "org.apache.hadoop"     % "hadoop-client-runtime" % hadoopClientVersion          % Test
@@ -238,7 +238,7 @@ val sparkRuntimeTestSettings: Seq[Setting[_]] = commonTestSettings ++ Seq(
     "org.apache.hadoop"   % "hadoop-client-runtime" % SparkProfiles.runtime.hadoop % Test,
     "net.aichler"         % "jupiter-interface"     % JupiterKeys.jupiterVersion.value % Test,
     "org.testcontainers"  % "couchbase"             % "1.21.4" % Test,
-    "commons-codec"       % "commons-codec"         % "1.22.0" % Test
+    "commons-codec"       % "commons-codec"         % "1.23.0" % Test
   ),
   // Jackson must match the *runtime* Spark, not the one the connector was compiled against.
   dependencyOverrides ++= Seq(

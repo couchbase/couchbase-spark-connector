@@ -30,7 +30,7 @@ object SparkProfiles {
 
     // 4.2 supported by Apache until 11 Jan 2028 (https://endoflife.date/apache-spark)
     "4.2" -> SparkProfile(
-      spark = "4.2.0",
+      spark = "4.2.1",
       hadoop = "3.5.0",
       jackson = "2.21.2",
       jacksonAnnotations = "2.21"
@@ -38,7 +38,7 @@ object SparkProfiles {
 
     // 4.1 supported by Apache until 11 Jun 2027 (https://endoflife.date/apache-spark)
     "4.1" -> SparkProfile(
-      spark = "4.1.3",
+      spark = "4.1.4",
       hadoop = "3.4.2",
       jackson = "2.21.2",
       jacksonAnnotations = "2.21"
