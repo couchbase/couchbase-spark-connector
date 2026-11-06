@@ -5,8 +5,8 @@ version := "3.5.7"
 organization := "com.couchbase.client"
 
 // Latest: https://www.scala-lang.org/download/all.html
-crossScalaVersions := Seq("2.12.20", "2.13.18")
-scalaVersion := "2.12.20"
+crossScalaVersions := Seq("2.12.21", "2.13.18")
+scalaVersion := "2.12.21"
 
 scalacOptions := Seq("-unchecked", "-deprecation")
 
@@ -26,7 +26,7 @@ val operationalSdkVersion   = "3.13.0"
 // Latest here https://docs.couchbase.com/java-analytics-sdk/current/project-docs/analytics-sdk-release-notes.html
 val enterpriseAnalyticsSdkVersion   = "1.1.0"
 // Latest here https://mvnrepository.com/artifact/com.couchbase.client/dcp-client
-val dcpVersion   = "0.57.0"
+val dcpVersion   = "0.58.0"
 
 scalacOptions += "-feature"
 
@@ -50,7 +50,7 @@ libraryDependencies ++= Seq(
   "net.aichler"           % "jupiter-interface" % JupiterKeys.jupiterVersion.value % Test,
   "org.testcontainers"    % "couchbase"         % "1.21.4"                         % Test,
   // For structured streaming testing
-  "commons-codec"         % "commons-codec"     % "1.22.1"                         % Test
+  "commons-codec"         % "commons-codec"     % "1.23.0"                         % Test
 )
 
 // The Java Enterprise Analytics 1.1.0 SDK uses a latest version of Jackson than Spark 3.5.9's 2.15.2.
